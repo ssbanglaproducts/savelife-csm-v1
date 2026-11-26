@@ -1,4 +1,4 @@
-import { getLocale, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { Trophy } from "lucide-react";
 import { AdminPageIntro } from "@/components/admin/admin-ui";
 import { RankPlanContent } from "@/components/admin/rank-plan-content";
@@ -7,7 +7,6 @@ import { SalaryTreasuriesSection } from "@/components/admin/rank-salary/salary-s
 import { RankPlanHistoryContent } from "@/components/admin/rank-plan-history-content";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 

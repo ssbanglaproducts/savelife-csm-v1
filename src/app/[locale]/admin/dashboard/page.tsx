@@ -1,6 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import {
-  BadgeCheck,
   CreditCard,
   Landmark,
   ReceiptText,
@@ -30,8 +29,6 @@ export default async function AdminDashboardPage() {
 
   const [
     members,
-    orders,
-    pendingPayments,
     pendingWithdrawals,
     activeInvestments,
     distributions,
@@ -39,8 +36,6 @@ export default async function AdminDashboardPage() {
     withdrawnAggregate,
   ] = await Promise.all([
     prisma.member.count(),
-    prisma.order.count(),
-    prisma.paymentProof.count({ where: { status: "PENDING" } }),
     prisma.withdrawal.count({ where: { status: "PENDING" } }),
     prisma.investment.count({ where: { status: "ACTIVE" } }),
     prisma.profitDistribution.count(),

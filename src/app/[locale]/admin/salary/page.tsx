@@ -1,4 +1,4 @@
-import { getLocale, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { Banknote } from "lucide-react";
 import { AdminPageIntro } from "@/components/admin/admin-ui";
 import { SalaryOverviewContent } from "@/components/admin/salary-plan/salary-overview-content";
@@ -10,7 +10,6 @@ import { SalaryPaymentRecordsContent } from "@/components/admin/rank-salary/sala
 import { PlanHistoryContent } from "@/components/admin/salary-plan/plan-history-content";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
