@@ -25,11 +25,6 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
-        source: "/:locale(en|bn)/admin/salary",
-        destination: "/:locale/admin/rank-salary/overview",
-        permanent: false,
-      },
-      {
         source: "/:locale(en|bn)/admin/rank-plan",
         destination: "/:locale/admin/rank-salary/rank-configuration",
         permanent: false,
