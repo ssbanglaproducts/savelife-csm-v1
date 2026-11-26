@@ -2,9 +2,10 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Ban, CheckCircle2, KeyRound, RotateCcw, Wallet, X } from "lucide-react";
+import { Ban, CheckCircle2, KeyRound, RotateCcw, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminInputClass } from "./admin-ui";
+import { AdminFormDialog } from "./admin-form-dialog";
 import { useAdminAction } from "./use-admin-action";
 
 export type MemberActionMember = {
@@ -205,38 +206,16 @@ export function MemberActionDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label={tc("cancel")}
-        onClick={onClose}
-        className="absolute inset-0 cursor-default bg-black/50 backdrop-blur-sm"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={`${fieldId}-title`}
-        className="glass relative w-full max-w-md rounded-2xl p-6 shadow-2xl"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <h2 id={`${fieldId}-title`} className="text-lg font-bold">
-            {titles[state.kind]}
-          </h2>
-          <button
-            type="button"
-            aria-label={tc("cancel")}
-            onClick={onClose}
-            className="rounded-lg p-1 text-muted-foreground hover:text-foreground"
-          >
-            <X className="size-5" aria-hidden="true" />
-          </button>
-        </div>
-        <p className="mt-2 text-sm text-muted-foreground">{intros[state.kind]}</p>
-        <p className="mt-3 rounded-xl bg-[var(--glass)] px-3 py-2 font-mono text-xs">
-          {state.member.memberId} · {state.member.name}
-        </p>
+    <AdminFormDialog
+      title={titles[state.kind]}
+      intro={intros[state.kind]}
+      onClose={onClose}
+    >
+      <p className="rounded-xl bg-[var(--glass)] px-3 py-2 font-mono text-xs">
+        {state.member.memberId} · {state.member.name}
+      </p>
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+      <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           {state.kind === "topup" ? (
             <div>
               <label htmlFor={`${fieldId}-amount`} className="block text-sm font-semibold">
@@ -325,8 +304,7 @@ export function MemberActionDialog({
               {pending ? tc("saving") : tc("confirm")}
             </Button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </AdminFormDialog>
   );
 }

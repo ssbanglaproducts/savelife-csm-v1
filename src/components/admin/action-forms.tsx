@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminInputClass, adminStatusKey } from "./admin-ui";
+import { useCloseAdminActionDialog } from "./admin-action-dialog-button";
 import { useAdminAction } from "./use-admin-action";
 
 const orderStatuses = [
@@ -28,6 +29,13 @@ export function PickupActionForm({
 }) {
   const t = useTranslations("adminPanel");
   const { pending, run } = useAdminAction();
+  const closeDialog = useCloseAdminActionDialog();
+
+  async function markPickedUp() {
+    if (await run("/api/admin/orders", "PATCH", { orderId, status: "PICKED_UP" })) {
+      closeDialog();
+    }
+  }
 
   if (pickupStatus === "PICKED_UP") {
     return <span className="text-xs font-semibold text-muted-foreground">{t("pickedUpNote")}</span>;
@@ -37,7 +45,7 @@ export function PickupActionForm({
     <Button
       type="button"
       disabled={pending}
-      onClick={() => run("/api/admin/orders", "PATCH", { orderId, status: "PICKED_UP" })}
+      onClick={() => void markPickedUp()}
     >
       {pending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
       {t("markPickedUp")}
@@ -60,16 +68,18 @@ export function CourierTrackingForm({
   const t = useTranslations("adminPanel");
   const fieldId = useId();
   const { pending, run } = useAdminAction();
+  const closeDialog = useCloseAdminActionDialog();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await run("/api/admin/orders", "PATCH", {
+    const ok = await run("/api/admin/orders", "PATCH", {
       orderId,
       courierName: String(data.get("courierName") ?? "") || null,
       trackingNumber: String(data.get("trackingNumber") ?? "") || null,
       trackingUrl: String(data.get("trackingUrl") ?? "") || null,
     });
+    if (ok) closeDialog();
   }
 
   return (
@@ -115,15 +125,17 @@ export function OrderStatusForm({ orderId, status }: { orderId: string; status: 
   const t = useTranslations("adminPanel");
   const fieldId = useId();
   const { pending, run } = useAdminAction();
+  const closeDialog = useCloseAdminActionDialog();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    await run("/api/admin/orders", "PATCH", {
+    const ok = await run("/api/admin/orders", "PATCH", {
       orderId,
       status: String(new FormData(form).get("status") ?? ""),
       note: String(new FormData(form).get("note") ?? ""),
     });
+    if (ok) closeDialog();
   }
 
   return (
@@ -166,16 +178,18 @@ export function PaymentReviewForm({ proofId }: { proofId: string }) {
   const t = useTranslations("adminPanel");
   const fieldId = useId();
   const { pending, run } = useAdminAction();
+  const closeDialog = useCloseAdminActionDialog();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
-    await run("/api/admin/payments", "PATCH", {
+    const ok = await run("/api/admin/payments", "PATCH", {
       proofId,
       action: submitter?.value === "REJECT" ? "REJECT" : "APPROVE",
       note: String(data.get("note") ?? ""),
     });
+    if (ok) closeDialog();
   }
 
   return (
@@ -212,6 +226,7 @@ export function WithdrawalReviewForm({
   const t = useTranslations("adminPanel");
   const fieldId = useId();
   const { pending, run } = useAdminAction();
+  const closeDialog = useCloseAdminActionDialog();
 
   const labels: Record<(typeof actions)[number], string> = {
     APPROVE: t("approve"),
@@ -225,11 +240,12 @@ export function WithdrawalReviewForm({
     const data = new FormData(form);
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
     const action = submitter?.value ?? "";
-    await run("/api/admin/withdrawals", "PATCH", {
+    const ok = await run("/api/admin/withdrawals", "PATCH", {
       withdrawalId,
       action,
       note: String(data.get("note") ?? ""),
     });
+    if (ok) closeDialog();
   }
 
   if (actions.length === 0) {
@@ -270,13 +286,15 @@ export function WithdrawalReviewForm({
 export function InvestmentRejectForm({ investmentId }: { investmentId: string }) {
   const t = useTranslations("adminPanel");
   const { pending, run } = useAdminAction();
+  const closeDialog = useCloseAdminActionDialog();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await run("/api/admin/investments", "POST", {
+    const ok = await run("/api/admin/investments", "POST", {
       action: "REJECT",
       investmentId,
     });
+    if (ok) closeDialog();
   }
 
   return (
@@ -292,13 +310,15 @@ export function InvestmentRejectForm({ investmentId }: { investmentId: string })
 export function ReverseInstallmentForm({ installmentId }: { installmentId: string }) {
   const t = useTranslations("adminPanel");
   const { pending, run } = useAdminAction();
+  const closeDialog = useCloseAdminActionDialog();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await run("/api/admin/investments", "POST", {
+    const ok = await run("/api/admin/investments", "POST", {
       action: "REVERSE_INSTALLMENT",
       installmentId,
     });
+    if (ok) closeDialog();
   }
 
   return (

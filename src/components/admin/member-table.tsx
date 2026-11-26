@@ -7,6 +7,8 @@ import { Ban, CheckCircle2, Copy, Eye, Info, MoreVertical, RotateCcw, Wallet } f
 import { Link } from "@/i18n/navigation";
 import { copyText } from "@/lib/clipboard";
 import {
+  AdminRecordCard,
+  AdminRecordField,
   AdminTable,
   EmptyState,
   StatusBadge,
@@ -14,6 +16,7 @@ import {
   memberStatusKey,
   statusTone,
 } from "./admin-ui";
+import { buttonVariants } from "@/components/ui/button";
 import {
   MemberActionDialog,
   MemberAvatar,
@@ -65,6 +68,79 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
     toast.success(`${label}: ${value}`);
   }
 
+  function openStatusDialog(row: MemberRow) {
+    const kind =
+      row.status === "SUSPENDED"
+        ? "reactivate"
+        : row.status === "INACTIVE"
+          ? "activate"
+          : "deactivate";
+    setDialog({ kind, member: row });
+  }
+
+  const memberCards = (
+    <div className="grid gap-3">
+      {filtered.map((row) => {
+        const l1 = row.levels.find((level) => level.level === 1);
+        const detailHref = `/admin/members/${row.memberId}`;
+        const statusAction =
+          row.status === "SUSPENDED"
+            ? t("reactivate")
+            : row.status === "INACTIVE"
+              ? t("activate")
+              : t("deactivate");
+
+        return (
+          <AdminRecordCard
+            key={row.id}
+            title={
+              <Link
+                href={detailHref}
+                className="hover:text-primary focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {row.name}
+              </Link>
+            }
+            subtitle={`${row.memberId} · ${t("joined")} ${row.joined}`}
+            status={
+              <StatusBadge tone={statusTone(row.status)} label={tm(memberStatusKey(row.status))} />
+            }
+          >
+            <AdminRecordField label={t("email")} value={row.email} wide />
+            <AdminRecordField label={t("phone")} value={row.phone} />
+            <AdminRecordField
+              label={t("level1")}
+              value={`${l1?.count ?? 0} · ${l1?.earned ?? "0 SP"}`}
+            />
+            <AdminRecordField label={t("teamSize")} value={row.teamSize} />
+            <div className="col-span-2 flex flex-wrap gap-2">
+              <Link
+                href={detailHref}
+                className={`${buttonVariants({ variant: "ghost", size: "sm" })} min-h-10`}
+              >
+                {t("viewDetails")}
+              </Link>
+              <button
+                type="button"
+                onClick={() => setDialog({ kind: "topup", member: row })}
+                className={`${buttonVariants({ variant: "outline", size: "sm" })} min-h-10`}
+              >
+                {t("topUp")}
+              </button>
+              <button
+                type="button"
+                onClick={() => openStatusDialog(row)}
+                className={`${buttonVariants({ variant: "outline", size: "sm" })} min-h-10`}
+              >
+                {statusAction}
+              </button>
+            </div>
+          </AdminRecordCard>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <div className="glass rounded-2xl p-4">
@@ -95,6 +171,7 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
             t("teamSize"),
             t("actions"),
           ]}
+          mobile={memberCards}
         >
           {filtered.map((row) => {
             const l1 = row.levels.find((level) => level.level === 1);

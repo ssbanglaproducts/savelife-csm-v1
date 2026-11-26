@@ -14,6 +14,8 @@ import {
   statusTone,
 } from "@/components/admin/admin-ui";
 import { WithdrawalReviewForm } from "@/components/admin/action-forms";
+import { AdminActionDialogButton } from "@/components/admin/admin-action-dialog-button";
+import { WithdrawalRecords, type WithdrawalRecord } from "@/components/admin/withdrawal-records";
 import { formatSP } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 
@@ -36,6 +38,35 @@ export default async function AdminWithdrawalsPage() {
       investment: { select: { investmentNumber: true } },
     },
   });
+
+  const actionsFor = (withdrawal: (typeof withdrawals)[number]) =>
+    withdrawal.status === "PENDING"
+      ? withdrawal.type === "PRINCIPAL"
+        ? (["REJECT"] as const)
+        : (["APPROVE", "REJECT"] as const)
+      : withdrawal.status === "APPROVED"
+        ? (["PAID"] as const)
+        : ([] as const);
+
+  const mobileRows: WithdrawalRecord[] = withdrawals.map((withdrawal) => ({
+    id: withdrawal.id,
+    requestNumber: withdrawal.requestNumber,
+    memberName: withdrawal.member.fullName,
+    memberEmail: withdrawal.member.email,
+    type: withdrawal.type,
+    investmentNumber: withdrawal.investment?.investmentNumber ?? "—",
+    amountPaisa: withdrawal.amountPaisa.toString(),
+    feePaisa: withdrawal.feePaisa.toString(),
+    netPaisa: withdrawal.netPaisa.toString(),
+    method: withdrawal.method,
+    status: withdrawal.status,
+    noticeAt: withdrawal.noticeAt?.toISOString() ?? null,
+    payableAt: withdrawal.payableAt?.toISOString() ?? null,
+    requestedAt: withdrawal.requestedAt.toISOString(),
+    accountDetails: withdrawal.accountDetails,
+    note: withdrawal.note,
+    actions: [...actionsFor(withdrawal)],
+  }));
 
   return (
     <div className="space-y-8 animate-rise">
@@ -67,6 +98,7 @@ export default async function AdminWithdrawalsPage() {
               tc("details"),
               ta("action"),
             ]}
+            mobile={<WithdrawalRecords rows={mobileRows} locale={locale} />}
           >
             {withdrawals.map((withdrawal) => (
               <tr key={withdrawal.id} className="align-top">
@@ -128,18 +160,46 @@ export default async function AdminWithdrawalsPage() {
                   ) : null}
                 </td>
                 <td className="px-4 py-3">
-                  <WithdrawalReviewForm
-                    withdrawalId={withdrawal.id}
-                    actions={
-                      withdrawal.status === "PENDING"
-                        ? withdrawal.type === "PRINCIPAL"
-                          ? ["REJECT"]
-                          : ["APPROVE", "REJECT"]
-                        : withdrawal.status === "APPROVED"
-                          ? ["PAID"]
-                          : []
-                    }
-                  />
+                  <AdminActionDialogButton
+                    label={actionsFor(withdrawal).length > 0 ? ta("review") : tc("details")}
+                    title={`${ta("withdrawalsTitle")} · ${withdrawal.requestNumber}`}
+                    intro={withdrawal.member.email}
+                  >
+                    <div className="space-y-5">
+                      <div>
+                        <p className="text-xs font-bold text-muted-foreground">
+                          {ta("member")} · {ta("method")}
+                        </p>
+                        <p className="mt-1 break-words text-sm font-semibold">
+                          {withdrawal.member.fullName} · {withdrawal.method}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-muted-foreground">{tc("details")}</p>
+                        <pre className="mt-1 max-h-52 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-border bg-muted/30 p-3 font-mono text-xs text-muted-foreground">
+                          {prettyJson(withdrawal.accountDetails)}
+                        </pre>
+                        {withdrawal.note ? (
+                          <p className="mt-2 break-words text-xs text-muted-foreground">
+                            {withdrawal.note}
+                          </p>
+                        ) : null}
+                        {withdrawal.type === "PRINCIPAL" ? (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {ta("principalNoticeHint")}
+                          </p>
+                        ) : null}
+                      </div>
+                      {actionsFor(withdrawal).length > 0 ? (
+                        <div className="border-t border-border pt-4">
+                          <WithdrawalReviewForm
+                            withdrawalId={withdrawal.id}
+                            actions={[...actionsFor(withdrawal)]}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  </AdminActionDialogButton>
                 </td>
               </tr>
             ))}

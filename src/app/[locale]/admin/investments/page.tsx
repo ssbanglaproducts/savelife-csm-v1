@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { Landmark } from "lucide-react";
 import { auth } from "@/auth";
-import { Link, redirect } from "@/i18n/navigation";
+import { redirect } from "@/i18n/navigation";
 import { AdminPageIntro, AdminSection } from "@/components/admin/admin-ui";
 import { InvestmentCards } from "@/components/admin/investment-cards";
 import { getInvestmentCardRows } from "@/lib/services/admin-investments";
@@ -33,21 +33,6 @@ export default async function AdminInvestmentsPage({
         intro={ta("investmentsIntro")}
         icon={<Landmark className="size-3.5" aria-hidden="true" />}
       />
-
-      <AdminSection id="operations" title={ta("quickActions")}>
-        <div className="glass flex flex-col gap-3 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="min-w-0 text-sm text-muted-foreground">
-            {ta("approveViaProofNote")}{" "}
-            <Link
-              href={pendingProofOnly ? "/admin/investments" : "/admin/investments?proof=pending"}
-              className="font-semibold text-primary hover:underline focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {pendingProofOnly ? ta("showAllRecords") : ta("pendingProofFilter")}
-            </Link>
-          </p>
-          <p className="text-sm text-muted-foreground">{ta("automationNote")}</p>
-        </div>
-      </AdminSection>
 
       <AdminSection id="investments" title={ta("overview")}>
         <InvestmentCards rows={rows} pendingProofOnly={pendingProofOnly} />

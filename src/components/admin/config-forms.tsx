@@ -2,7 +2,7 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { percentToBps } from "@/lib/rates";
@@ -129,39 +129,12 @@ export function DistributionForm() {
       ) : null}
 
       {preview ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
-            type="button"
-            aria-label={tc("cancel")}
-            onClick={() => setPreview(null)}
-            className="absolute inset-0 cursor-default bg-black/50 backdrop-blur-sm"
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="distribution-preview-title"
-            className="glass relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl p-6 shadow-2xl"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 id="distribution-preview-title" className="text-lg font-bold">
-                  {t("confirmDistributionTitle")}
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t("confirmDistributionIntro")}
-                </p>
-              </div>
-              <button
-                type="button"
-                aria-label={tc("cancel")}
-                onClick={() => setPreview(null)}
-                className="rounded-lg p-1 text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-5" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className="mt-4 grid gap-2 rounded-xl bg-[var(--glass)] p-3 text-xs sm:grid-cols-3">
+        <AdminFormDialog
+          title={t("confirmDistributionTitle")}
+          intro={t("confirmDistributionIntro")}
+          onClose={() => setPreview(null)}
+        >
+          <div className="grid gap-2 rounded-xl bg-[var(--glass)] p-3 text-xs sm:grid-cols-3">
               <p>
                 <span className="text-muted-foreground">{t("eligible")}: </span>
                 <span className="font-semibold tabular-nums">{preview.totalEligible}</span>
@@ -176,7 +149,7 @@ export function DistributionForm() {
               </p>
             </div>
 
-            <div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-xl border border-border">
+            <div className="mt-4 max-h-[45vh] overflow-y-auto rounded-xl border border-border sm:max-h-[50vh]">
               <table className="w-full border-collapse text-left text-sm">
                 <thead className="sticky top-0 bg-[var(--glass-strong)] text-xs uppercase tracking-wider text-muted-foreground">
                   <tr>
@@ -225,8 +198,7 @@ export function DistributionForm() {
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
+        </AdminFormDialog>
       ) : null}
     </>
   );

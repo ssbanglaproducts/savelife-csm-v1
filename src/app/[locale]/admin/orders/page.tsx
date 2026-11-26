@@ -17,6 +17,8 @@ import {
   OrderStatusForm,
   PickupActionForm,
 } from "@/components/admin/action-forms";
+import { AdminActionDialogButton } from "@/components/admin/admin-action-dialog-button";
+import { OrderRecords, type OrderRecord } from "@/components/admin/order-records";
 import { buttonVariants } from "@/components/ui/button";
 import { formatTaka } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
@@ -71,6 +73,22 @@ export default async function AdminOrdersPage({
     return suffix ? `/admin/orders?${suffix}` : "/admin/orders";
   };
 
+  const mobileRows: OrderRecord[] = orders.map((order) => ({
+    id: order.id,
+    orderNumber: order.orderNumber,
+    memberName: order.member.fullName,
+    memberEmail: order.member.email,
+    fulfillmentType: order.fulfillmentType,
+    pickupStatus: order.pickupStatus,
+    status: order.status,
+    proofStatus: order.paymentProofs[0]?.status ?? null,
+    totalPaisa: order.totalPaisa.toString(),
+    placedAt: order.placedAt.toISOString(),
+    courierName: order.courierName,
+    trackingNumber: order.trackingNumber,
+    trackingUrl: order.trackingUrl,
+  }));
+
   return (
     <div className="space-y-8 animate-rise">
       <AdminPageIntro
@@ -80,7 +98,7 @@ export default async function AdminOrdersPage({
         icon={<ShoppingBag className="size-3.5" aria-hidden="true" />}
       />
       <AdminSection id="orders" title={ta("overview")}>
-        <div className="flex flex-wrap gap-2">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           <Link
             href={filterHref({ fulfillment })}
             className={cn(buttonVariants({ variant: pendingProofOnly ? "outline" : "default", size: "sm" }))}
@@ -139,6 +157,7 @@ export default async function AdminOrdersPage({
               tc("date"),
               ta("statusLabel"),
             ]}
+            mobile={<OrderRecords rows={mobileRows} locale={locale} />}
           >
             {orders.map((order) => {
               const proof = order.paymentProofs[0];
@@ -190,17 +209,45 @@ export default async function AdminOrdersPage({
                   </td>
                   <td className="px-4 py-3">
                     {isPickup ? (
-                      <PickupActionForm orderId={order.id} pickupStatus={order.pickupStatus} />
+                      order.pickupStatus === "PICKED_UP" ? (
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {ta("pickedUpNote")}
+                        </span>
+                      ) : (
+                        <AdminActionDialogButton
+                          label={ta("markPickedUp")}
+                          title={ta("markPickedUp")}
+                          intro={ta("pickedUpNote")}
+                        >
+                          <PickupActionForm
+                            orderId={order.id}
+                            pickupStatus={order.pickupStatus}
+                          />
+                        </AdminActionDialogButton>
+                      )
                     ) : (
-                      <div className="flex flex-col gap-3">
-                        <OrderStatusForm orderId={order.id} status={order.status} />
-                        <CourierTrackingForm
-                          orderId={order.id}
-                          courierName={order.courierName}
-                          trackingNumber={order.trackingNumber}
-                          trackingUrl={order.trackingUrl}
-                        />
-                      </div>
+                      <AdminActionDialogButton
+                        label={ta("manage")}
+                        title={`${ta("ordersTitle")} · ${order.orderNumber}`}
+                        intro={ta("courierTitle")}
+                      >
+                        <div className="space-y-6">
+                          <div>
+                            <p className="mb-2 text-xs font-bold text-muted-foreground">
+                              {ta("statusLabel")}
+                            </p>
+                            <OrderStatusForm orderId={order.id} status={order.status} />
+                          </div>
+                          <div className="border-t border-border pt-4">
+                            <CourierTrackingForm
+                              orderId={order.id}
+                              courierName={order.courierName}
+                              trackingNumber={order.trackingNumber}
+                              trackingUrl={order.trackingUrl}
+                            />
+                          </div>
+                        </div>
+                      </AdminActionDialogButton>
                     )}
                   </td>
                 </tr>

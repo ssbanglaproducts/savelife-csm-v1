@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 export const adminInputClass =
   "h-10 w-full min-w-0 rounded-xl border border-border bg-[var(--glass-strong)] px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
@@ -17,43 +18,32 @@ export function AdminPageIntro({
   icon?: ReactNode;
   actions?: ReactNode;
 }) {
-  const actionRow = actions ? (
-    <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
-  ) : null;
-  const mobileActionRow = actions ? (
-    <div className="flex flex-wrap items-center gap-2 sm:hidden">{actions}</div>
-  ) : null;
-
   return (
-    <>
-      <h1 className="sr-only sm:hidden">{title}</h1>
-      <div className={actions ? undefined : "hidden sm:block"}>
-        <section className="mesh glass relative hidden overflow-hidden rounded-3xl p-6 sm:block sm:p-8">
-          <div
-            className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-primary/10 blur-3xl"
-            aria-hidden="true"
-          />
-          <div className="relative flex min-w-0 flex-col gap-5 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-xs font-bold tracking-[0.12em] text-primary">
-                {icon}
-                {eyebrow}
-              </div>
-              <h1 className="mt-3 font-display text-balance text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
-                {title}
-              </h1>
-              {intro ? (
-                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  {intro}
-                </p>
-              ) : null}
-            </div>
-            {actionRow}
+    <section className="mesh glass relative overflow-hidden rounded-2xl p-4 sm:rounded-3xl sm:p-8">
+      <div
+        className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-primary/10 blur-3xl"
+        aria-hidden="true"
+      />
+      <div className="relative flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[11px] font-bold tracking-[0.12em] text-primary sm:text-xs">
+            {icon}
+            {eyebrow}
           </div>
-        </section>
-        {mobileActionRow}
+          <h1 className="mt-2 font-display text-balance text-2xl font-bold leading-tight tracking-tight sm:mt-3 sm:text-4xl">
+            {title}
+          </h1>
+          {intro ? (
+            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:mt-3 sm:text-base">
+              {intro}
+            </p>
+          ) : null}
+        </div>
+        {actions ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+        ) : null}
       </div>
-    </>
+    </section>
   );
 }
 
@@ -67,9 +57,12 @@ export function AdminSection({
   children: ReactNode;
 }) {
   return (
-    <section aria-labelledby={`${id}-heading`} className="space-y-4">
+    <section aria-labelledby={`${id}-heading`} className="scroll-mt-24 space-y-3 sm:space-y-4">
       <div className="flex items-center gap-3">
-        <h2 id={`${id}-heading`} className="font-display text-xl font-bold tracking-tight sm:text-2xl">
+        <h2
+          id={`${id}-heading`}
+          className="font-display text-lg font-bold tracking-tight sm:text-2xl"
+        >
           {title}
         </h2>
         <span className="h-px flex-1 bg-border" aria-hidden="true" />
@@ -79,32 +72,88 @@ export function AdminSection({
   );
 }
 
+/** Desktop table with an optional mobile card replacement supplied by the page. */
 export function AdminTable({
   headers,
   children,
   caption,
+  mobile,
 }: {
   headers: string[];
   children: ReactNode;
   caption?: string;
+  mobile?: ReactNode;
 }) {
   return (
-    <div className="glass min-w-0 overflow-hidden rounded-2xl">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-          {caption ? <caption className="sr-only">{caption}</caption> : null}
-          <thead>
-            <tr className="border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              {headers.map((header, index) => (
-                <th key={`${header}-${index}`} scope="col" className="whitespace-nowrap px-4 py-3">
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">{children}</tbody>
-        </table>
+    <>
+      <div className={cn("glass min-w-0 overflow-hidden rounded-2xl", mobile && "hidden md:block")}>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+            {caption ? <caption className="sr-only">{caption}</caption> : null}
+            <thead>
+              <tr className="border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                {headers.map((header, index) => (
+                  <th key={`${header}-${index}`} scope="col" className="whitespace-nowrap px-4 py-3">
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">{children}</tbody>
+          </table>
+        </div>
       </div>
+      {mobile ? <div className="min-w-0 md:hidden">{mobile}</div> : null}
+    </>
+  );
+}
+
+/** Compact mobile record card used as the counterpart to AdminTable. */
+export function AdminRecordCard({
+  title,
+  subtitle,
+  status,
+  children,
+  footer,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  status?: ReactNode;
+  children?: ReactNode;
+  footer?: ReactNode;
+}) {
+  return (
+    <article className="glass relative min-w-0 overflow-hidden rounded-2xl p-4">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate font-display text-base font-semibold">{title}</div>
+          {subtitle ? (
+            <div className="mt-1 truncate text-xs text-muted-foreground">{subtitle}</div>
+          ) : null}
+        </div>
+        {status ? <div className="shrink-0">{status}</div> : null}
+      </div>
+      {children ? (
+        <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 text-xs">{children}</dl>
+      ) : null}
+      {footer ? <div className="mt-4 border-t border-border pt-3">{footer}</div> : null}
+    </article>
+  );
+}
+
+export function AdminRecordField({
+  label,
+  value,
+  wide = false,
+}: {
+  label: string;
+  value: ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <div className={cn("min-w-0", wide && "col-span-2")}>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 break-words font-semibold tabular-nums">{value}</dd>
     </div>
   );
 }

@@ -33,26 +33,64 @@ export default async function AdminLayout({
   ]);
 
   const links: PanelLink[] = [
-    { href: "/admin/dashboard", label: ta("dashboardTitle") },
-    { href: "/admin/members", label: ta("membersTitle") },
-    { href: "/admin/orders", label: ta("ordersTitle") },
-    { href: "/admin/products", label: ta("productsTitle") },
-    { href: "/admin/categories", label: ta("categoriesTitle") },
+    {
+      href: "/admin/dashboard",
+      label: ta("dashboardTitle"),
+      group: ta("navGroupOverview"),
+    },
+    {
+      href: "/admin/members",
+      label: ta("membersTitle"),
+      group: ta("navGroupOperations"),
+    },
+    {
+      href: "/admin/orders",
+      label: ta("ordersTitle"),
+      group: ta("navGroupOperations"),
+    },
+    {
+      href: "/admin/products",
+      label: ta("productsTitle"),
+      group: ta("navGroupOperations"),
+    },
+    {
+      href: "/admin/categories",
+      label: ta("categoriesTitle"),
+      group: ta("navGroupOperations"),
+    },
     {
       href: "/admin/investments",
       label: ta("investmentsTitle"),
+      group: ta("navGroupRewards"),
       badge:
         pendingPayments > 0
           ? { count: pendingPayments, label: ta("badgePendingPayments"), tone: "warning" }
           : undefined,
     },
-    { href: "/admin/distributions", label: ta("distributionsTitle") },
-    { href: "/admin/roi-commission", label: ta("roiCommissionTitle") },
-    { href: "/admin/ranks", label: ta("rankConfigurationTitle") },
-    { href: "/admin/salary", label: ta("salaryOverviewTitle") },
+    {
+      href: "/admin/distributions",
+      label: ta("distributionsTitle"),
+      group: ta("navGroupRewards"),
+    },
+    {
+      href: "/admin/roi-commission",
+      label: ta("roiCommissionTitle"),
+      group: ta("navGroupRewards"),
+    },
+    {
+      href: "/admin/ranks",
+      label: ta("rankConfigurationTitle"),
+      group: ta("navGroupRewards"),
+    },
+    {
+      href: "/admin/salary",
+      label: ta("salaryOverviewTitle"),
+      group: ta("navGroupRewards"),
+    },
     {
       href: "/admin/withdrawals",
       label: ta("withdrawalsTitle"),
+      group: ta("navGroupMoney"),
       badge:
         pendingWithdrawals > 0
           ? { count: pendingWithdrawals, label: ta("badgePendingWithdrawals"), tone: "warning" }
@@ -61,15 +99,32 @@ export default async function AdminLayout({
     {
       href: "/admin/top-ups",
       label: ta("topUpsTitle"),
+      group: ta("navGroupMoney"),
       badge:
         pendingTopUps > 0
           ? { count: pendingTopUps, label: ta("badgePendingTopUps"), tone: "warning" }
           : undefined,
     },
-    { href: "/admin/settings", label: ta("settingsHubTitle") },
-    { href: "/admin/gallery", label: tn("gallery") },
-    { href: "/admin/announcements", label: tn("announcements") },
-    { href: "/admin/audit", label: ta("auditTitle") },
+    {
+      href: "/admin/settings",
+      label: ta("settingsHubTitle"),
+      group: ta("navGroupContent"),
+    },
+    {
+      href: "/admin/gallery",
+      label: tn("gallery"),
+      group: ta("navGroupContent"),
+    },
+    {
+      href: "/admin/announcements",
+      label: tn("announcements"),
+      group: ta("navGroupContent"),
+    },
+    {
+      href: "/admin/audit",
+      label: ta("auditTitle"),
+      group: ta("navGroupSystem"),
+    },
   ];
 
   return (
@@ -79,8 +134,8 @@ export default async function AdminLayout({
       primaryHrefs={[
         "/admin/dashboard",
         "/admin/members",
-        "/admin/orders",
-        "/admin/top-ups",
+        "/admin/investments",
+        "/admin/withdrawals",
       ]}
       avatar={{
         name: adminMember?.fullName ?? session?.user?.name ?? "Admin",

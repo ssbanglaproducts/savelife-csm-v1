@@ -75,6 +75,7 @@ export function PanelBottomNav({
   signedIn: boolean;
 }) {
   const t = useTranslations("nav");
+  const ta = useTranslations("adminPanel");
   const tm = useTranslations("memberPanel");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -213,10 +214,29 @@ export function PanelBottomNav({
         return t("team");
       case "/member/profile":
         return t("tabProfile");
+      case "/admin/dashboard":
+        return t("dashboard");
+      case "/admin/members":
+        return ta("membersTitle");
+      case "/admin/investments":
+        return t("investments");
+      case "/admin/withdrawals":
+        return t("withdrawals");
       default:
         return item.label;
     }
   };
+
+  const overflowGroups: Array<{ label: string | null; items: PanelLink[] }> = [];
+  for (const item of overflow) {
+    const label = item.group ?? null;
+    const current = overflowGroups[overflowGroups.length - 1];
+    if (current && current.label === label) {
+      current.items.push(item);
+    } else {
+      overflowGroups.push({ label, items: [item] });
+    }
+  }
 
   return (
     <>
@@ -308,28 +328,37 @@ export function PanelBottomNav({
             </div>
 
             <div className="grid gap-1 p-3">
-              {overflow.map((item) => {
-                const hasChildren = Boolean(item.children?.length);
-                const active = isActive(
-                  item.href,
-                  hasChildren ? item.href.replace(/\/overview$/, "") : undefined,
-                );
+              {overflowGroups.map((group, groupIndex) => (
+                <div key={`${group.label ?? "links"}-${groupIndex}`} className="grid gap-1">
+                  {group.label ? (
+                    <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/80 first:pt-1">
+                      {group.label}
+                    </p>
+                  ) : null}
+                  {group.items.map((item) => {
+                    const hasChildren = Boolean(item.children?.length);
+                    const active = isActive(
+                      item.href,
+                      hasChildren ? item.href.replace(/\/overview$/, "") : undefined,
+                    );
 
-                return (
-                  <div key={item.href} className="grid gap-1">
-                    {renderOverflowItem(item, active)}
-                    {hasChildren ? (
-                      <div className="ml-5 flex flex-col gap-0.5 border-l border-border pl-2">
-                        {item.children?.map((child) => (
-                          <div key={child.href}>
-                            {renderOverflowItem(child, isActive(child.href), true)}
+                    return (
+                      <div key={item.href} className="grid gap-1">
+                        {renderOverflowItem(item, active)}
+                        {hasChildren ? (
+                          <div className="ml-5 flex flex-col gap-0.5 border-l border-border pl-2">
+                            {item.children?.map((child) => (
+                              <div key={child.href}>
+                                {renderOverflowItem(child, isActive(child.href), true)}
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        ) : null}
                       </div>
-                    ) : null}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              ))}
             </div>
 
             <div className="mt-4 flex items-center justify-between gap-3 border-t border-border px-3 pt-4">

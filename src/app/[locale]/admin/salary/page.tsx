@@ -58,7 +58,10 @@ export default async function AdminSalaryPage({
         icon={<Banknote className="size-4" aria-hidden="true" />}
       />
 
-      <nav aria-label={ta("salaryOverviewTitle")} className="flex flex-wrap gap-2">
+      <nav
+        aria-label={ta("salaryOverviewTitle")}
+        className="-mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-border bg-[var(--glass)] p-1 sm:mx-0 sm:overflow-visible"
+      >
         {tabs.map(({ key, label }) => {
           const active = tab === key;
           return (
@@ -67,7 +70,7 @@ export default async function AdminSalaryPage({
               href={tabHref(key)}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "inline-flex items-center rounded-xl border px-3 py-2 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+                "inline-flex min-h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-xl px-3 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring sm:text-sm",
                 active
                   ? "border-primary/40 bg-primary/15 text-foreground"
                   : "border-border bg-background/50 text-muted-foreground hover:bg-muted hover:text-foreground",
