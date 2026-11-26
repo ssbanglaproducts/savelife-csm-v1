@@ -25,11 +25,11 @@ import { SalaryPlanSuccessNotice } from "./salary-plan-success-notice";
 
 const planPageLink = cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9");
 
-export async function SalaryOverviewContent() {
-  const [session, locale, tn, ta, tc] = await Promise.all([
+/** Main salary overview content, shared by the tabbed page and the legacy route. */
+export async function SalaryOverviewBody() {
+  const [session, locale, ta, tc] = await Promise.all([
     auth(),
     getLocale(),
-    getTranslations("nav"),
     getTranslations("adminPanel"),
     getTranslations("common"),
   ]);
@@ -85,24 +85,8 @@ export async function SalaryOverviewContent() {
   const lastUpdated = activeVersion?.activatedAt ?? activeVersion?.createdAt ?? null;
 
   return (
-    <div className="space-y-8 animate-rise">
+    <div className="space-y-8">
       <SalaryPlanSuccessNotice />
-      <AdminPageIntro
-        eyebrow={tn("admin")}
-        title={ta("salaryOverviewTitle")}
-        intro={ta("salaryIntro")}
-        icon={<CalendarDays className="size-3.5" aria-hidden="true" />}
-        actions={
-          <>
-            <Link href="/admin/rank-salary/edit-salary-plan" className={planPageLink}>
-              {ta("salaryPlanEdit")}
-            </Link>
-            <Link href="/admin/rank-salary/plan-history" className={planPageLink}>
-              {ta("salaryPlanHistory")}
-            </Link>
-          </>
-        }
-      />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -205,6 +189,36 @@ export async function SalaryOverviewContent() {
           />
         </dl>
       </section>
+    </div>
+  );
+}
+
+/** Full standalone page for the legacy /admin/rank-salary/overview route. */
+export async function SalaryOverviewContent() {
+  const [tn, ta] = await Promise.all([
+    getTranslations("nav"),
+    getTranslations("adminPanel"),
+  ]);
+
+  return (
+    <div className="space-y-8 animate-rise">
+      <AdminPageIntro
+        eyebrow={tn("admin")}
+        title={ta("salaryOverviewTitle")}
+        intro={ta("salaryIntro")}
+        icon={<CalendarDays className="size-3.5" aria-hidden="true" />}
+        actions={
+          <>
+            <Link href="/admin/rank-salary/edit-salary-plan" className={planPageLink}>
+              {ta("salaryPlanEdit")}
+            </Link>
+            <Link href="/admin/salary?tab=history" className={planPageLink}>
+              {ta("salaryPlanHistory")}
+            </Link>
+          </>
+        }
+      />
+      <SalaryOverviewBody />
     </div>
   );
 }

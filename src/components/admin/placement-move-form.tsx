@@ -55,11 +55,9 @@ export function PlacementMoveForm({
 
   if (!showForm) {
     return (
-      <div className="mt-6 flex justify-end">
-        <Button type="button" variant="outline" onClick={() => setShowForm(true)}>
-          {t("movePlacementTitle")}
-        </Button>
-      </div>
+      <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(true)}>
+        {t("movePlacementTitle")}
+      </Button>
     );
   }
 

@@ -1,7 +1,6 @@
 import { PencilLine } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { AdminPageIntro } from "@/components/admin/admin-ui";
-import { AdminEditorToggle } from "@/components/admin/admin-editor-toggle";
 import { EditSalaryPlanForm } from "@/components/admin/salary-plan/edit-salary-plan-form";
 import { prisma } from "@/lib/prisma";
 import { ensureDefaultRankPlan } from "@/lib/services/rank-rewards";
@@ -64,16 +63,10 @@ export default async function EditSalaryPlanPage() {
         intro={ta("salaryPlanEditIntro")}
         icon={<PencilLine className="size-4" aria-hidden="true" />}
       />
-      <AdminEditorToggle
-        label={ta("salaryPlanEditTitle")}
-        title={ta("salaryPlanEditTitle")}
-        intro={ta("salaryPlanEditIntro")}
-      >
-        <EditSalaryPlanForm
-          active={{ ...serialized, ranks }}
-          nextVersion={(latest?.version ?? 0) + 1}
-        />
-      </AdminEditorToggle>
+      <EditSalaryPlanForm
+        active={{ ...serialized, ranks }}
+        nextVersion={(latest?.version ?? 0) + 1}
+      />
     </div>
   );
 }

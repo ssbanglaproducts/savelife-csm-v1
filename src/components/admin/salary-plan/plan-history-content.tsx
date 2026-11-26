@@ -22,11 +22,11 @@ import {
 } from "@/lib/services/salary-plan";
 import { cn } from "@/lib/utils";
 
-export async function PlanHistoryContent() {
-  const [session, locale, tn, ta, tc] = await Promise.all([
+/** Main plan history content, shared by the tabbed page and the legacy route. */
+export async function PlanHistoryBody() {
+  const [session, locale, ta, tc] = await Promise.all([
     auth(),
     getLocale(),
-    getTranslations("nav"),
     getTranslations("adminPanel"),
     getTranslations("common"),
   ]);
@@ -45,23 +45,7 @@ export async function PlanHistoryContent() {
   const plans: readonly SalaryPlanVersionDto[] = versions.map(serializeSalaryPlanVersion);
 
   return (
-    <div className="space-y-8 animate-rise">
-      <AdminPageIntro
-        eyebrow={tn("admin")}
-        title={ta("salaryPlanHistoryTitle")}
-        intro={ta("salaryPlanHistoryIntro")}
-        icon={<History className="size-4" aria-hidden="true" />}
-        actions={
-          <Link
-            href="/admin/rank-salary/overview"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9")}
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            {ta("salaryPlanBackToOverview")}
-          </Link>
-        }
-      />
-
+    <div className="space-y-8">
       {plans.length === 0 ? (
         <p className="glass rounded-2xl px-5 py-10 text-center text-sm text-muted-foreground">
           {ta("salaryPlanNoHistory")}
@@ -111,7 +95,7 @@ export async function PlanHistoryContent() {
                 <p className="mt-3 text-xs text-muted-foreground">{plan.note}</p>
               ) : null}
 
-              <details className="mt-4 border-t border-border pt-3">
+              <details className="mt-4 border-t border-border pt-3" open={plan.isActive}>
                 <summary className="cursor-pointer text-sm font-semibold">
                   {ta("salaryPlanDetails")}
                 </summary>
@@ -157,7 +141,7 @@ export async function PlanHistoryContent() {
               </details>
 
               {plan.approvedChanges.length > 0 ? (
-                <details className="mt-3 border-t border-border pt-3">
+                <details className="mt-3 border-t border-border pt-3" open={plan.isActive}>
                   <summary className="cursor-pointer text-sm font-semibold">
                     {ta("salaryPlanApprovedChanges")}
                   </summary>
@@ -195,6 +179,35 @@ export async function PlanHistoryContent() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Full standalone page for the legacy /admin/rank-salary/plan-history route. */
+export async function PlanHistoryContent() {
+  const [tn, ta] = await Promise.all([
+    getTranslations("nav"),
+    getTranslations("adminPanel"),
+  ]);
+
+  return (
+    <div className="space-y-8 animate-rise">
+      <AdminPageIntro
+        eyebrow={tn("admin")}
+        title={ta("salaryPlanHistoryTitle")}
+        intro={ta("salaryPlanHistoryIntro")}
+        icon={<History className="size-4" aria-hidden="true" />}
+        actions={
+          <Link
+            href="/admin/salary"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9")}
+          >
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            {ta("salaryPlanBackToOverview")}
+          </Link>
+        }
+      />
+      <PlanHistoryBody />
     </div>
   );
 }

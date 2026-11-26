@@ -12,7 +12,8 @@ import {
   type SalaryPaymentRecordView,
 } from "./salary-payment-records-list";
 
-export async function SalaryPaymentRecordsContent() {
+/** Main records content, shared by the tabbed page and the legacy route. */
+export async function SalaryPaymentRecordsBody() {
   const [session, locale, ta] = await Promise.all([
     auth(),
     getLocale(),
@@ -88,7 +89,7 @@ export async function SalaryPaymentRecordsContent() {
   });
 
   return (
-    <AdminSection id="salary-payment-records" title={ta("salaryPaymentRecordsTitle")}>
+    <div className="space-y-4">
       <SalaryPaymentRecordsList
         records={records}
         labels={{
@@ -110,6 +111,17 @@ export async function SalaryPaymentRecordsContent() {
           empty: ta("salaryRecordsNoRecords"),
         }}
       />
+    </div>
+  );
+}
+
+/** Full standalone page for the legacy salary-records route. */
+export async function SalaryPaymentRecordsContent() {
+  const ta = await getTranslations("adminPanel");
+
+  return (
+    <AdminSection id="salary-payment-records" title={ta("salaryPaymentRecordsTitle")}>
+      <SalaryPaymentRecordsBody />
     </AdminSection>
   );
 }

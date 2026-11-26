@@ -24,23 +24,23 @@ export function AdminPageIntro({
         className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-primary/10 blur-3xl"
         aria-hidden="true"
       />
-      <div className="relative flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[11px] font-bold tracking-[0.12em] text-primary sm:text-xs">
-            {icon}
-            {eyebrow}
-          </div>
-          <h1 className="mt-2 font-display text-balance text-2xl font-bold leading-tight tracking-tight sm:mt-3 sm:text-4xl">
+      <div className="relative min-w-0">
+        <div className="flex items-center gap-2 text-[11px] font-bold tracking-[0.12em] text-primary sm:text-xs">
+          {icon}
+          {eyebrow}
+        </div>
+        <div className="mt-2 flex min-w-0 flex-col gap-3 sm:mt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+          <h1 className="font-display text-balance text-2xl font-bold leading-tight tracking-tight sm:text-4xl">
             {title}
           </h1>
-          {intro ? (
-            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:mt-3 sm:text-base">
-              {intro}
-            </p>
+          {actions ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
           ) : null}
         </div>
-        {actions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+        {intro ? (
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:mt-3 sm:text-base">
+            {intro}
+          </p>
         ) : null}
       </div>
     </section>
@@ -50,22 +50,25 @@ export function AdminPageIntro({
 export function AdminSection({
   id,
   title,
+  actions,
   children,
 }: {
   id: string;
   title: string;
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section aria-labelledby={`${id}-heading`} className="scroll-mt-24 space-y-3 sm:space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <h2
           id={`${id}-heading`}
           className="font-display text-lg font-bold tracking-tight sm:text-2xl"
         >
           {title}
         </h2>
-        <span className="h-px flex-1 bg-border" aria-hidden="true" />
+        <span className="h-px min-w-4 flex-1 bg-border" aria-hidden="true" />
+        {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </div>
       {children}
     </section>

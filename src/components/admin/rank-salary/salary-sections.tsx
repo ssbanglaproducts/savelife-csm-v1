@@ -28,7 +28,8 @@ export async function SalaryRunSection() {
   );
 }
 
-export async function SalaryTreasuriesSection() {
+/** Main treasuries content, shared by the tabbed page and the legacy route. */
+export async function SalaryTreasuriesBody() {
   const ta = await getTranslations("adminPanel");
   const salaryPlan = await getActiveSalaryPlan(prisma);
   const plan = serializeSalaryPlan(salaryPlan);
@@ -79,7 +80,7 @@ export async function SalaryTreasuriesSection() {
   ) as Record<SalaryRankKey, { eligibleCount: number; averagePaisa: bigint }>;
 
   return (
-    <AdminSection id="salary-treasuries" title={ta("salaryTreasuries")}>
+    <div className="space-y-4">
       <p className="text-sm text-muted-foreground">{ta("salaryTraceIntro")}</p>
       <SalaryTreasuryCards
         ranks={plan.ranks}
@@ -87,6 +88,16 @@ export async function SalaryTreasuriesSection() {
         badges={badges}
         projections={projections}
       />
+    </div>
+  );
+}
+
+export async function SalaryTreasuriesSection() {
+  const ta = await getTranslations("adminPanel");
+
+  return (
+    <AdminSection id="salary-treasuries" title={ta("salaryTreasuries")}>
+      <SalaryTreasuriesBody />
     </AdminSection>
   );
 }

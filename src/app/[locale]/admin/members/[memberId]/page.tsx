@@ -24,6 +24,8 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatSP, formatTaka } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
+import { localizedRankName } from "@/lib/rank-label";
+import { getMemberRankSummaries } from "@/lib/services/member-rank-summary";
 import {
   buildMemberLevelStats,
   type RewardStatRow,
@@ -109,7 +111,8 @@ export default async function AdminMemberDetailPage({
   });
   if (!member) notFound();
 
-  const [uplineRows, rewardRows] = await Promise.all([
+  const [rankSummary, uplineRows, rewardRows] = await Promise.all([
+    getMemberRankSummaries(prisma, [member.id]),
     prisma.upline.findMany({
       where: { uplineId: member.id, level: { in: [1, 2, 3] } },
       select: {
@@ -139,6 +142,8 @@ export default async function AdminMemberDetailPage({
   }));
   const { levels, teamSize } = buildMemberLevelStats(member.id, uplines, rewards);
   const address = member.addresses[0];
+  const rank = rankSummary.get(member.id);
+  const rankLabel = rank ? localizedRankName(rank, locale) : tm("noRankYet");
 
   function recordStatus(status: string): string {
     return status === "ACTIVE" ? tm("active") : ta(adminStatusKey(status));
@@ -212,6 +217,8 @@ export default async function AdminMemberDetailPage({
               memberId: member.memberId,
               name: member.fullName,
               status: member.status,
+              profileImage: member.profileImage,
+              rank: rankLabel,
             }}
           />
         </div>
@@ -295,7 +302,17 @@ export default async function AdminMemberDetailPage({
         </div>
       </AdminSection>
 
-      <AdminSection id="member-placement" title={ta("placementParent")}>
+      <AdminSection
+        id="member-placement"
+        title={ta("placementParent")}
+        actions={
+          <PlacementMoveForm
+            memberId={member.id}
+            currentParentId={member.placementParent?.memberId ?? null}
+            currentSlot={member.placementSlot}
+          />
+        }
+      >
         <div className="glass rounded-2xl p-5 sm:p-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <DetailField
@@ -311,11 +328,6 @@ export default async function AdminMemberDetailPage({
               value={member.placementSlot ? `${tm("slot")} ${member.placementSlot}` : "—"}
             />
           </div>
-          <PlacementMoveForm
-            memberId={member.id}
-            currentParentId={member.placementParent?.memberId ?? null}
-            currentSlot={member.placementSlot}
-          />
         </div>
       </AdminSection>
 

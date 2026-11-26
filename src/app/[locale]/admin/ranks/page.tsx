@@ -1,10 +1,11 @@
+import type { ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
-import { Trophy } from "lucide-react";
+import { History, Trophy, Users, Wallet } from "lucide-react";
 import { AdminPageIntro } from "@/components/admin/admin-ui";
-import { RankPlanContent } from "@/components/admin/rank-plan-content";
+import { RankPlanBody } from "@/components/admin/rank-plan-content";
 import { RankMembersContent } from "@/components/admin/rank-salary/rank-members-content";
-import { SalaryTreasuriesSection } from "@/components/admin/rank-salary/salary-sections";
-import { RankPlanHistoryContent } from "@/components/admin/rank-plan-history-content";
+import { SalaryTreasuriesBody } from "@/components/admin/rank-salary/salary-sections";
+import { RankPlanHistoryBody } from "@/components/admin/rank-plan-history-content";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
@@ -43,16 +44,39 @@ export default async function AdminRanksPage({
     { key: "configuration", label: ta("rankConfigurationTitle") },
     { key: "members", label: ta("rankMembersTitle") },
     { key: "treasuries", label: ta("rankTreasuriesTitle") },
-    { key: "history", label: ta("rankConfigPlanHistory") },
+    { key: "history", label: ta("rankConfigHistoryTitle") },
   ];
+
+  const meta: Record<RankTab, { title: string; intro: string; icon: ReactNode }> = {
+    configuration: {
+      title: ta("rankConfigurationTitle"),
+      intro: ta("rankPlanIntro"),
+      icon: <Trophy className="size-4" aria-hidden="true" />,
+    },
+    members: {
+      title: ta("rankMembersTitle"),
+      intro: ta("rankMembersIntro"),
+      icon: <Users className="size-4" aria-hidden="true" />,
+    },
+    treasuries: {
+      title: ta("rankTreasuriesTitle"),
+      intro: ta("salaryIntro"),
+      icon: <Wallet className="size-4" aria-hidden="true" />,
+    },
+    history: {
+      title: ta("rankConfigHistoryTitle"),
+      intro: ta("rankPlanImmutableNote"),
+      icon: <History className="size-4" aria-hidden="true" />,
+    },
+  };
 
   return (
     <div className="space-y-8 animate-rise">
       <AdminPageIntro
         eyebrow={tn("admin")}
-        title={ta("rankConfigurationTitle")}
-        intro={ta("rankPlanIntro")}
-        icon={<Trophy className="size-4" aria-hidden="true" />}
+        title={meta[tab].title}
+        intro={meta[tab].intro}
+        icon={meta[tab].icon}
       />
 
       <nav
@@ -79,10 +103,10 @@ export default async function AdminRanksPage({
         })}
       </nav>
 
-      {tab === "configuration" ? <RankPlanContent /> : null}
+      {tab === "configuration" ? <RankPlanBody /> : null}
       {tab === "members" ? <RankMembersContent /> : null}
-      {tab === "treasuries" ? <SalaryTreasuriesSection /> : null}
-      {tab === "history" ? <RankPlanHistoryContent /> : null}
+      {tab === "treasuries" ? <SalaryTreasuriesBody /> : null}
+      {tab === "history" ? <RankPlanHistoryBody /> : null}
     </div>
   );
 }

@@ -1,13 +1,15 @@
+import type { ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
-import { Banknote } from "lucide-react";
+import { Banknote, CalendarDays, FileText, History } from "lucide-react";
 import { AdminPageIntro } from "@/components/admin/admin-ui";
-import { SalaryOverviewContent } from "@/components/admin/salary-plan/salary-overview-content";
+import { SalaryOverviewBody } from "@/components/admin/salary-plan/salary-overview-content";
+import { PlanHistoryBody } from "@/components/admin/salary-plan/plan-history-content";
 import {
   SalaryRunSection,
   SalaryDistributionsSection,
 } from "@/components/admin/rank-salary/salary-sections";
-import { SalaryPaymentRecordsContent } from "@/components/admin/rank-salary/salary-payment-records-content";
-import { PlanHistoryContent } from "@/components/admin/salary-plan/plan-history-content";
+import { SalaryPaymentRecordsBody } from "@/components/admin/rank-salary/salary-payment-records-content";
+import { buttonVariants } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +17,8 @@ export const dynamic = "force-dynamic";
 
 type SalaryTab = "overview" | "weekly" | "records" | "history";
 type QueryValue = string | string[] | undefined;
+
+const actionLinkClass = cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9");
 
 function first(value: QueryValue): string | undefined {
   const resolved = Array.isArray(value) ? value[0] : value;
@@ -46,16 +50,50 @@ export default async function AdminSalaryPage({
     { key: "overview", label: ta("salaryOverviewTitle") },
     { key: "weekly", label: ta("weeklyDistributionTitle") },
     { key: "records", label: ta("salaryPaymentRecordsTitle") },
-    { key: "history", label: ta("distributionHistoryTitle") },
+    { key: "history", label: ta("salaryPlanHistoryTitle") },
   ];
+
+  const meta: Record<SalaryTab, { title: string; intro: string; icon: ReactNode; actions?: ReactNode }> = {
+    overview: {
+      title: ta("salaryOverviewTitle"),
+      intro: ta("salaryIntro"),
+      icon: <Banknote className="size-4" aria-hidden="true" />,
+      actions: (
+        <>
+          <Link href="/admin/rank-salary/edit-salary-plan" className={actionLinkClass}>
+            {ta("salaryPlanEdit")}
+          </Link>
+          <Link href={tabHref("history")} className={actionLinkClass}>
+            {ta("salaryPlanHistory")}
+          </Link>
+        </>
+      ),
+    },
+    weekly: {
+      title: ta("weeklyDistributionTitle"),
+      intro: ta("salaryIntro"),
+      icon: <CalendarDays className="size-4" aria-hidden="true" />,
+    },
+    records: {
+      title: ta("salaryPaymentRecordsTitle"),
+      intro: ta("salaryRecordsIntro"),
+      icon: <FileText className="size-4" aria-hidden="true" />,
+    },
+    history: {
+      title: ta("salaryPlanHistoryTitle"),
+      intro: ta("salaryPlanHistoryIntro"),
+      icon: <History className="size-4" aria-hidden="true" />,
+    },
+  };
 
   return (
     <div className="space-y-8 animate-rise">
       <AdminPageIntro
         eyebrow={tn("admin")}
-        title={ta("salaryOverviewTitle")}
-        intro={ta("salaryIntro")}
-        icon={<Banknote className="size-4" aria-hidden="true" />}
+        title={meta[tab].title}
+        intro={meta[tab].intro}
+        icon={meta[tab].icon}
+        actions={meta[tab].actions}
       />
 
       <nav
@@ -82,20 +120,15 @@ export default async function AdminSalaryPage({
         })}
       </nav>
 
-      {tab === "overview" ? <SalaryOverviewContent /> : null}
+      {tab === "overview" ? <SalaryOverviewBody /> : null}
       {tab === "weekly" ? (
         <div className="space-y-8">
           <SalaryRunSection />
           <SalaryDistributionsSection />
         </div>
       ) : null}
-      {tab === "records" ? <SalaryPaymentRecordsContent /> : null}
-      {tab === "history" ? (
-        <div className="space-y-8">
-          <SalaryDistributionsSection />
-          <PlanHistoryContent />
-        </div>
-      ) : null}
+      {tab === "records" ? <SalaryPaymentRecordsBody /> : null}
+      {tab === "history" ? <PlanHistoryBody /> : null}
     </div>
   );
 }

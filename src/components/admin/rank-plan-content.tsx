@@ -2,7 +2,6 @@ import { Trophy } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { AdminPageIntro, StatusBadge } from "@/components/admin/admin-ui";
-import { AdminEditorToggle } from "@/components/admin/admin-editor-toggle";
 import { RankConfigurationEditor } from "@/components/admin/rank-configuration/rank-configuration-editor";
 import { buttonVariants } from "@/components/ui/button";
 import { Link, redirect } from "@/i18n/navigation";
@@ -13,11 +12,11 @@ import { cn } from "@/lib/utils";
 
 const historyLinkClass = cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9");
 
-export async function RankPlanContent() {
-  const [session, locale, tn, ta] = await Promise.all([
+/** Main rank configuration content, shared by the tabbed page and the legacy route. */
+export async function RankPlanBody() {
+  const [session, locale, ta] = await Promise.all([
     auth(),
     getLocale(),
-    getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
   if (!session?.user?.id || session.user.role !== "ADMIN") {
@@ -42,31 +41,39 @@ export async function RankPlanContent() {
   const nextVersion = Math.max(...versions.map((version) => version.version)) + 1;
 
   return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-[var(--glass)] px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge tone="success" label={`v${active.version}.0`} />
+          <span className="inline-flex h-8 items-center rounded-full border border-border bg-[var(--glass-strong)] px-3 text-xs font-semibold text-muted-foreground">
+            {ta("rankConfigRanksCount")}
+          </span>
+        </div>
+        <Link href="/admin/ranks?tab=history" className={historyLinkClass}>
+          {ta("rankConfigPlanHistory")}
+        </Link>
+      </div>
+      <RankConfigurationEditor active={activeForm} nextVersion={nextVersion} />
+    </div>
+  );
+}
+
+/** Full standalone page for the legacy /admin/rank-salary/rank-configuration route. */
+export async function RankPlanContent() {
+  const [tn, ta] = await Promise.all([
+    getTranslations("nav"),
+    getTranslations("adminPanel"),
+  ]);
+
+  return (
     <div className="space-y-8 animate-rise">
       <AdminPageIntro
         eyebrow={tn("admin")}
         title={ta("rankConfigurationTitle")}
         intro={ta("rankPlanIntro")}
         icon={<Trophy className="size-4" aria-hidden="true" />}
-        actions={
-          <>
-            <StatusBadge tone="success" label={`v${active.version}.0`} />
-            <span className="inline-flex h-8 items-center rounded-full border border-border bg-[var(--glass-strong)] px-3 text-xs font-semibold text-muted-foreground">
-              {ta("rankConfigRanksCount")}
-            </span>
-            <Link href="/admin/rank-salary/rank-plan-history" className={historyLinkClass}>
-              {ta("rankConfigPlanHistory")}
-            </Link>
-          </>
-        }
       />
-      <AdminEditorToggle
-        label={ta("rankConfigNewVersion")}
-        title={ta("rankConfigurationTitle")}
-        intro={ta("rankPlanIntro")}
-      >
-        <RankConfigurationEditor active={activeForm} nextVersion={nextVersion} />
-      </AdminEditorToggle>
+      <RankPlanBody />
     </div>
   );
 }

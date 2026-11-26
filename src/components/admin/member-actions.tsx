@@ -4,7 +4,12 @@ import { useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Ban, CheckCircle2, KeyRound, RotateCcw, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { adminInputClass } from "./admin-ui";
+import {
+  StatusBadge,
+  adminInputClass,
+  memberStatusKey,
+  statusTone,
+} from "./admin-ui";
 import { AdminFormDialog } from "./admin-form-dialog";
 import { useAdminAction } from "./use-admin-action";
 
@@ -13,6 +18,8 @@ export type MemberActionMember = {
   memberId: string;
   name: string;
   status: string;
+  profileImage: string | null;
+  rank: string;
 };
 
 export type MemberActionKind = "deactivate" | "reactivate" | "activate" | "topup" | "resetTpin";
@@ -129,6 +136,7 @@ export function MemberActionDialog({
 }) {
   const t = useTranslations("adminPanel");
   const tc = useTranslations("common");
+  const tm = useTranslations("memberPanel");
   const fieldId = useId();
   const { pending, run } = useAdminAction();
   const [error, setError] = useState<string | null>(null);
@@ -211,9 +219,24 @@ export function MemberActionDialog({
       intro={intros[state.kind]}
       onClose={onClose}
     >
-      <p className="rounded-xl bg-[var(--glass)] px-3 py-2 font-mono text-xs">
-        {state.member.memberId} · {state.member.name}
-      </p>
+      <div className="flex min-w-0 items-center gap-3 rounded-xl bg-[var(--glass)] p-3">
+        <MemberAvatar name={state.member.name} src={state.member.profileImage} size="sm" />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{state.member.name}</p>
+          <p className="truncate font-mono text-xs text-muted-foreground" translate="no">
+            {state.member.memberId}
+          </p>
+        </div>
+        <div className="ml-auto flex shrink-0 flex-col items-end gap-1">
+          <StatusBadge
+            tone={statusTone(state.member.status)}
+            label={tm(memberStatusKey(state.member.status))}
+          />
+          <span className="text-[11px] text-muted-foreground">
+            {tm("rank")}: {state.member.rank}
+          </span>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           {state.kind === "topup" ? (

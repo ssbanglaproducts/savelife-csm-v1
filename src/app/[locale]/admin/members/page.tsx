@@ -6,6 +6,8 @@ import { AdminPageIntro, AdminSection, formatDate } from "@/components/admin/adm
 import { MemberTable, type MemberRow } from "@/components/admin/member-table";
 import { formatSP } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
+import { localizedRankName } from "@/lib/rank-label";
+import { getMemberRankSummaries } from "@/lib/services/member-rank-summary";
 import {
   buildMemberLevelStats,
   type RewardStatRow,
@@ -15,11 +17,12 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AdminMembersPage() {
-  const [session, locale, tn, ta] = await Promise.all([
+  const [session, locale, tn, ta, tm] = await Promise.all([
     auth(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
+    getTranslations("memberPanel"),
   ]);
   if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
 
@@ -39,7 +42,7 @@ export default async function AdminMembersPage() {
   });
 
   const memberIds = members.map((member) => member.id);
-  const [uplineRows, rewardRows] = await Promise.all([
+  const [uplineRows, rewardRows, rankSummaries] = await Promise.all([
     prisma.upline.findMany({
       where: { uplineId: { in: memberIds }, level: { in: [1, 2, 3] } },
       select: {
@@ -53,6 +56,7 @@ export default async function AdminMembersPage() {
       where: { beneficiaryId: { in: memberIds }, level: { in: [1, 2, 3] } },
       _sum: { amountPaisa: true },
     }),
+    getMemberRankSummaries(prisma, memberIds),
   ]);
 
   const uplines: UplineStatRow[] = uplineRows.map((row) => ({
@@ -68,6 +72,7 @@ export default async function AdminMembersPage() {
 
   const rows: MemberRow[] = members.map((member) => {
     const { levels, teamSize } = buildMemberLevelStats(member.id, uplines, rewards);
+    const rank = rankSummaries.get(member.id);
     return {
       id: member.id,
       memberId: member.memberId,
@@ -76,6 +81,7 @@ export default async function AdminMembersPage() {
       phone: member.phone,
       profileImage: member.profileImage,
       status: member.status,
+      rank: rank ? localizedRankName(rank, locale) : tm("noRankYet"),
       joined: formatDate(member.createdAt, locale),
       note: member.deactivationNote,
       levels: levels.map((level) => ({

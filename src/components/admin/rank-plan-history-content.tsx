@@ -29,11 +29,11 @@ import { cn } from "@/lib/utils";
 
 const backLinkClass = cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9");
 
-export async function RankPlanHistoryContent() {
-  const [session, locale, tn, ta, tm] = await Promise.all([
+/** Main rank history content, shared by the tabbed page and the legacy route. */
+export async function RankPlanHistoryBody() {
+  const [session, locale, ta, tm] = await Promise.all([
     auth(),
     getLocale(),
-    getTranslations("nav"),
     getTranslations("adminPanel"),
     getTranslations("memberPanel"),
   ]);
@@ -88,20 +88,7 @@ export async function RankPlanHistoryContent() {
   }
 
   return (
-    <div className="space-y-8 animate-rise">
-      <AdminPageIntro
-        eyebrow={tn("admin")}
-        title={ta("rankConfigHistoryTitle")}
-        intro={ta("rankPlanImmutableNote")}
-        icon={<History className="size-4" aria-hidden="true" />}
-        actions={
-          <Link href="/admin/rank-salary/rank-configuration" className={backLinkClass}>
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            {ta("rankConfigBackToConfiguration")}
-          </Link>
-        }
-      />
-
+    <div className="space-y-8">
       <div className="space-y-3">
         {versions.map((version) => {
           const changes = rankPlanChangesFromJson(version.approvedChanges);
@@ -141,7 +128,7 @@ export async function RankPlanHistoryContent() {
                 <p className="mt-3 text-xs text-muted-foreground">{version.note}</p>
               ) : null}
 
-              <details className="mt-4 border-t border-border pt-3">
+              <details className="mt-4 border-t border-border pt-3" open={version.isActive}>
                 <summary className="cursor-pointer text-sm font-semibold">
                   {ta("salaryPlanDetails")}
                 </summary>
@@ -177,7 +164,7 @@ export async function RankPlanHistoryContent() {
                 </div>
               </details>
 
-              <details className="mt-3 border-t border-border pt-3">
+              <details className="mt-3 border-t border-border pt-3" open={version.isActive}>
                 <summary className="cursor-pointer text-sm font-semibold">
                   {ta("rankConfigApprovedChanges")}
                 </summary>
@@ -290,6 +277,32 @@ export async function RankPlanHistoryContent() {
           </AdminTable>
         )}
       </AdminSection>
+    </div>
+  );
+}
+
+/** Full standalone page for the legacy /admin/rank-salary/rank-plan-history route. */
+export async function RankPlanHistoryContent() {
+  const [tn, ta] = await Promise.all([
+    getTranslations("nav"),
+    getTranslations("adminPanel"),
+  ]);
+
+  return (
+    <div className="space-y-8 animate-rise">
+      <AdminPageIntro
+        eyebrow={tn("admin")}
+        title={ta("rankConfigHistoryTitle")}
+        intro={ta("rankPlanImmutableNote")}
+        icon={<History className="size-4" aria-hidden="true" />}
+        actions={
+          <Link href="/admin/ranks?tab=configuration" className={backLinkClass}>
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            {ta("rankConfigBackToConfiguration")}
+          </Link>
+        }
+      />
+      <RankPlanHistoryBody />
     </div>
   );
 }
