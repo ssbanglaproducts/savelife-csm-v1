@@ -102,6 +102,7 @@ export function GalleryManager({ posts }: { posts: GalleryPostDTO[] }) {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   function keyFor(): string {
     keyCounter.current += 1;
@@ -114,6 +115,7 @@ export function GalleryManager({ posts }: { posts: GalleryPostDTO[] }) {
 
   function reset() {
     setDraft({ ...emptyDraft, images: [] });
+    setShowForm(false);
   }
 
   async function uploadFiles(files: FileList | null) {
@@ -215,7 +217,18 @@ export function GalleryManager({ posts }: { posts: GalleryPostDTO[] }) {
 
   function startEdit(post: GalleryPostDTO) {
     setDraft(draftFromPost(post, keyFor));
+    setShowForm(true);
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openCreateForm() {
+    reset();
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    reset();
+    setShowForm(false);
   }
 
   async function togglePublished(post: GalleryPostDTO) {
@@ -260,8 +273,17 @@ export function GalleryManager({ posts }: { posts: GalleryPostDTO[] }) {
 
   return (
     <div className="space-y-8">
-      <AdminSection id="gallery-editor" title={draft.editingId ? ta("galleryEdit") : ta("galleryCreate")}>
-        <form ref={formRef} onSubmit={(event) => void handleSubmit(event)} className="glass space-y-5 rounded-2xl p-4 sm:p-5">
+      <div className="flex justify-end">
+        {!showForm && !draft.editingId ? (
+          <Button type="button" onClick={openCreateForm}>
+            {ta("galleryCreate")}
+          </Button>
+        ) : null}
+      </div>
+      {showForm || draft.editingId ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-background/95 p-4 backdrop-blur sm:static sm:bg-transparent sm:p-0">
+          <AdminSection id="gallery-editor" title={draft.editingId ? ta("galleryEdit") : ta("galleryCreate")}>
+          <form ref={formRef} onSubmit={(event) => void handleSubmit(event)} className="glass space-y-5 rounded-2xl p-4 sm:p-5">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <label className={adminLabelClass} htmlFor={`${formId}-kind`}>
@@ -426,14 +448,14 @@ export function GalleryManager({ posts }: { posts: GalleryPostDTO[] }) {
             <Button type="submit" disabled={saving || uploading}>
               {saving ? ta("gallerySaving") : draft.editingId ? ta("galleryUpdate") : ta("galleryPublish")}
             </Button>
-            {draft.editingId ? (
-              <Button type="button" variant="ghost" onClick={reset}>
-                {ta("galleryCancelEdit")}
-              </Button>
-            ) : null}
+            <Button type="button" variant="ghost" onClick={closeForm}>
+              {ta("galleryCancelEdit")}
+            </Button>
           </div>
         </form>
       </AdminSection>
+        </div>
+      ) : null}
 
       <AdminSection id="gallery-posts" title={ta("galleryPosts")}>
         {posts.length === 0 ? (

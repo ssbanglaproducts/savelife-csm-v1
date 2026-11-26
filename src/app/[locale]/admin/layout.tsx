@@ -22,10 +22,15 @@ export default async function AdminLayout({
   const adminId = session?.user?.id;
   if (!adminId || session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
 
-  const adminMember = await prisma.member.findUnique({
-    where: { id: adminId },
-    select: { fullName: true, profileImage: true },
-  });
+  const [adminMember, pendingPayments, pendingWithdrawals, pendingTopUps] = await Promise.all([
+    prisma.member.findUnique({
+      where: { id: adminId },
+      select: { fullName: true, profileImage: true },
+    }),
+    prisma.paymentProof.count({ where: { status: "PENDING" } }),
+    prisma.withdrawal.count({ where: { status: "PENDING" } }),
+    prisma.walletTopUp.count({ where: { status: "PENDING" } }),
+  ]);
 
   const links: PanelLink[] = [
     { href: "/admin/dashboard", label: ta("dashboardTitle") },
@@ -33,13 +38,34 @@ export default async function AdminLayout({
     { href: "/admin/orders", label: ta("ordersTitle") },
     { href: "/admin/products", label: ta("productsTitle") },
     { href: "/admin/categories", label: ta("categoriesTitle") },
-    { href: "/admin/investments", label: ta("investmentsTitle") },
+    {
+      href: "/admin/investments",
+      label: ta("investmentsTitle"),
+      badge:
+        pendingPayments > 0
+          ? { count: pendingPayments, label: ta("badgePendingPayments"), tone: "warning" }
+          : undefined,
+    },
     { href: "/admin/distributions", label: ta("distributionsTitle") },
     { href: "/admin/roi-commission", label: ta("roiCommissionTitle") },
     { href: "/admin/ranks", label: ta("rankConfigurationTitle") },
     { href: "/admin/salary", label: ta("salaryOverviewTitle") },
-    { href: "/admin/withdrawals", label: ta("withdrawalsTitle") },
-    { href: "/admin/top-ups", label: ta("topUpsTitle") },
+    {
+      href: "/admin/withdrawals",
+      label: ta("withdrawalsTitle"),
+      badge:
+        pendingWithdrawals > 0
+          ? { count: pendingWithdrawals, label: ta("badgePendingWithdrawals"), tone: "warning" }
+          : undefined,
+    },
+    {
+      href: "/admin/top-ups",
+      label: ta("topUpsTitle"),
+      badge:
+        pendingTopUps > 0
+          ? { count: pendingTopUps, label: ta("badgePendingTopUps"), tone: "warning" }
+          : undefined,
+    },
     { href: "/admin/settings", label: ta("settingsHubTitle") },
     { href: "/admin/gallery", label: tn("gallery") },
     { href: "/admin/announcements", label: tn("announcements") },

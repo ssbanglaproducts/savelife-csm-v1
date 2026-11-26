@@ -23,6 +23,7 @@ export function AnnouncementsForm() {
   const [href, setHref] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -65,8 +66,19 @@ export function AnnouncementsForm() {
 
   const inputClass = `${adminInputClass} mt-2`;
 
+  if (!showForm) {
+    return (
+      <div className="flex justify-end">
+        <Button type="button" onClick={() => setShowForm(true)}>
+          {t("createTitle")}
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="glass rounded-2xl p-5 sm:p-6">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-background/95 p-4 backdrop-blur sm:static sm:bg-transparent sm:p-0">
+      <form onSubmit={handleSubmit} className="glass rounded-2xl p-5 sm:p-6">
       <h3 className="font-display text-lg font-bold">{t("createTitle")}</h3>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div>
@@ -164,10 +176,16 @@ export function AnnouncementsForm() {
         </div>
       </div>
       {error ? <p className="mt-3 text-xs text-destructive">{error}</p> : null}
-      <Button type="submit" disabled={pending} className="mt-5 gap-2">
-        {pending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Send className="size-4" aria-hidden="true" />}
-        {pending ? t("publishing") : t("publish")}
-      </Button>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Button type="submit" disabled={pending} className="gap-2">
+          {pending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Send className="size-4" aria-hidden="true" />}
+          {pending ? t("publishing") : t("publish")}
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
+          {tc("cancel")}
+        </Button>
+      </div>
     </form>
+    </div>
   );
 }
