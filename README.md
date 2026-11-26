@@ -2,16 +2,15 @@
 
 E-commerce · Membership · Affiliate · Investment
 
-## Phase 0 — Foundation (complete)
+## Overview
 
-This repository contains the foundation: Next.js 16 App Router, TypeScript, Tailwind,
-Prisma + PostgreSQL, Auth.js credentials with member/admin roles, English/Bangla locales,
-light/dark themes, the app shell, skeleton components, money utilities, the initial
-database migration, and auth-guarded member/admin panel shells.
+Next.js 16 App Router + TypeScript + Tailwind, backed by PostgreSQL through Prisma.
+Auth.js credentials login with member/admin roles, English/Bangla locales and
+light/dark themes.
 
 The storefront is the homepage (`/en`, `/bn`). Company rules and risk disclosures live
-inside the authenticated member panel at `/member/company-info`. Placeholder pages mark
-the sections that will be implemented in later phases.
+inside the authenticated member panel at `/member/program`. Money is stored as integer
+paisa (`BigInt`) and every balance change is an append-only ledger entry.
 
 ## Prerequisites
 
@@ -25,7 +24,7 @@ npm install
 cp .env.example .env
 docker compose up -d postgres
 # Docker Postgres is published on localhost:5433 so it does not clash with a local PostgreSQL service.
-npx prisma migrate deploy
+npm run db:migrate
 npx prisma generate
 npm run db:seed
 npm run dev
@@ -33,7 +32,7 @@ npm run dev
 
 Open `http://localhost:3000/en` (or `/bn`).
 
-**Seed admin:** `admin@savelife.test` / `Admin@123456`
+**Seed admin:** `SL000000` / `Admin@123456` (login uses member ID only)
 
 > Change this password immediately after your first login in any non-local environment.
 
@@ -45,8 +44,7 @@ Open `http://localhost:3000/en` (or `/bn`).
 | `npm run build` | Production build |
 | `npm run typecheck` | TypeScript check |
 | `npm test` | Unit tests (money, rank, salary, wallet and investment rules) |
-| `npx tsx prisma/qa-placement.ts` | Optional QA fixture after a clean reseed |
-| `npx prisma migrate dev` | Create/apply a migration during development |
+| `npm run db:migrate` | Apply committed migrations (use this in production) |
 | `npm run db:seed` | Seed admin, settings and sample store data |
 
 ## Structure
@@ -82,20 +80,17 @@ sponsor or somewhere in the sponsor's placement downline. A slot is reserved in 
 transaction as registration; if another registration takes it first, the request fails with
 `PLACEMENT_SLOT_TAKEN` and no automatic reassignment happens.
 
-`My Network` has separate **Placement Network** and **Sponsor Network** views. Admins can
-move a member's placement from the member detail page; the move is audit logged and does not
-recalculate any rewards. Rank and placement-reward fields are intentionally placeholders.
+`My Network` lives at `/member/team`. Admins can move a member's placement from the
+member detail page; the move is audit logged and never recalculates rewards.
 
-### Destructive reset
+### Fresh database
 
-Migration `0005_sponsor_placement_split` truncates all member-generated data (members,
-wallets, orders, investments, rewards, ledgers and related audits) and keeps products,
-categories and settings. Run `npx prisma migrate deploy` then `npm run db:seed` to recreate
-only `SL000000` (admin) and `SL000001` (founder). The next registration receives `SL000002`.
+On a new database, migrations create the complete schema and drop the obsolete
+`RegistrationDraft` table. Run `npm run db:migrate` then `npm run db:seed` to create only
+`SL000000` (admin) and `SL000001` (founder). The next registration receives `SL000002`.
 
-For a reproducible QA chain, start from that clean state and run
-`npx tsx prisma/qa-placement.ts`. It creates C=`SL000012`, F=`SL000016` and H=`SL000017`
-where H's sponsor is C but H's placement parent is F. Remove QA data before production use.
+`prisma migrate reset` is destructive: it drops all data and replays every migration.
+Use it only on development databases that contain no real member data.
 
 ## Money rules
 
@@ -130,11 +125,21 @@ Members can review their salary rank, uncollected balance and full payment histo
 `/member/salary`. Admins can review treasury allocations, payments, remaining balances and
 weekly distributions at `/admin/salary`, and can trigger the current Sunday posting there.
 
-## Deployment
+## Deployment (Hostinger VPS2)
 
-`docker compose up -d --build` starts PostgreSQL and the app. Set `AUTH_SECRET`,
-`POSTGRES_PASSWORD` and `AUTH_URL` in the environment before deploying. See `.env.example`
-for the full list of variables.
+1. Install Docker and Git on the VPS, then clone this repository.
+2. Create `.env` from `.env.example` and set a strong `POSTGRES_PASSWORD`, `AUTH_SECRET`
+   and the public `AUTH_URL` (for example `https://your-domain.com`).
+3. Run `docker compose up -d --build`. The app waits for PostgreSQL to become healthy,
+   applies all committed migrations automatically, then starts the server.
+4. Run `docker compose exec app npm run db:seed` once on the fresh database.
+5. Put a TLS reverse proxy (Caddy/Nginx) in front of port 3000 and point the domain at it.
+
+Uploads live in the named `uploads` volume and database files in `postgres_data`; back up
+both volumes daily. The app also runs due investment and salary automation passes every
+five minutes, so an always-on Node server is required.
+
+GitHub Actions runs typecheck, lint, tests and the production build on every push to `main`.
 
 On an always-on Node host, the automation checks due capital installments, due principal
 notices and the latest weekly salary posting every five minutes after server startup. Only

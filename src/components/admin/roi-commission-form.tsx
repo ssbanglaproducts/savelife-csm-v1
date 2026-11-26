@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminInputClass, adminLabelClass } from "@/components/admin/admin-ui";
+import { AdminFormDialog } from "./admin-form-dialog";
 import { useAdminAction } from "./use-admin-action";
 
 function bpsToInput(bps: number): string {
@@ -20,6 +21,7 @@ export function RoiCommissionForm({
   const t = useTranslations("adminPanel");
   const fieldId = useId();
   const { pending, run } = useAdminAction();
+  const [showForm, setShowForm] = useState(false);
   const [rates, setRates] = useState<string[]>(initialRatesBps.map(bpsToInput));
 
   const ratesBps = rates.map((value) => {
@@ -39,11 +41,27 @@ export function RoiCommissionForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (invalid) return;
-    await run("/api/admin/roi-commission/rates", "POST", { ratesBps });
+    const ok = await run("/api/admin/roi-commission/rates", "POST", { ratesBps });
+    if (ok) setShowForm(false);
+  }
+
+  if (!showForm) {
+    return (
+      <div className="flex justify-end">
+        <Button type="button" onClick={() => setShowForm(true)}>
+          {t("roiTabRates")}
+        </Button>
+      </div>
+    );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="glass rounded-2xl p-5 sm:p-6">
+    <AdminFormDialog
+      title={t("roiCommissionTitle")}
+      intro={t("roiCommissionIntro")}
+      onClose={() => setShowForm(false)}
+    >
+    <form onSubmit={handleSubmit} className="space-y-4">
       <p className="text-sm leading-relaxed text-muted-foreground">{t("roiAdditionalNote")}</p>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -91,5 +109,6 @@ export function RoiCommissionForm({
         </Button>
       </div>
     </form>
+    </AdminFormDialog>
   );
 }

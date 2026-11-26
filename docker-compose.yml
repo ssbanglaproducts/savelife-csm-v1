@@ -19,6 +19,7 @@ services:
   app:
     build: .
     restart: unless-stopped
+    command: sh -c "npx prisma migrate deploy && npm start"
     depends_on:
       postgres:
         condition: service_healthy

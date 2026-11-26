@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { UploadField } from "@/components/ui/upload-field";
+import { AdminFormDialog } from "./admin-form-dialog";
 import type { GalleryImageDTO, GalleryPostDTO } from "@/lib/gallery";
 import { uploadImage } from "@/lib/upload-client";
 import {
@@ -97,7 +98,6 @@ export function GalleryManager({ posts }: { posts: GalleryPostDTO[] }) {
   const router = useRouter();
   const formId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
   const keyCounter = useRef(0);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [uploading, setUploading] = useState(false);
@@ -218,7 +218,6 @@ export function GalleryManager({ posts }: { posts: GalleryPostDTO[] }) {
   function startEdit(post: GalleryPostDTO) {
     setDraft(draftFromPost(post, keyFor));
     setShowForm(true);
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function openCreateForm() {
@@ -281,9 +280,12 @@ export function GalleryManager({ posts }: { posts: GalleryPostDTO[] }) {
         ) : null}
       </div>
       {showForm || draft.editingId ? (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-background/95 p-4 backdrop-blur sm:static sm:bg-transparent sm:p-0">
-          <AdminSection id="gallery-editor" title={draft.editingId ? ta("galleryEdit") : ta("galleryCreate")}>
-          <form ref={formRef} onSubmit={(event) => void handleSubmit(event)} className="glass space-y-5 rounded-2xl p-4 sm:p-5">
+        <AdminFormDialog
+          title={draft.editingId ? ta("galleryEdit") : ta("galleryCreate")}
+          intro={ta("galleryIntro")}
+          onClose={closeForm}
+        >
+          <form onSubmit={(event) => void handleSubmit(event)} className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1.5">
               <label className={adminLabelClass} htmlFor={`${formId}-kind`}>
@@ -452,9 +454,8 @@ export function GalleryManager({ posts }: { posts: GalleryPostDTO[] }) {
               {ta("galleryCancelEdit")}
             </Button>
           </div>
-        </form>
-      </AdminSection>
-        </div>
+          </form>
+        </AdminFormDialog>
       ) : null}
 
       <AdminSection id="gallery-posts" title={ta("galleryPosts")}>

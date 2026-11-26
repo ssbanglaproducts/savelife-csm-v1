@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { UploadField } from "@/components/ui/upload-field";
 import { useRouter } from "@/i18n/navigation";
 import { toAuthBannerMedia, type AuthBannerVideo } from "@/lib/auth-banner-video";
+import { AdminFormDialog } from "./admin-form-dialog";
 
 const inputClass =
   "h-12 w-full rounded-xl border border-border bg-[var(--glass-strong)] px-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-ring";
@@ -27,6 +28,7 @@ export function AuthBannerVideoForm({
   const [file, setFile] = useState<File | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
 
   const media = video ? toAuthBannerMedia(video) : null;
 
@@ -63,6 +65,7 @@ export function AuthBannerVideoForm({
       setUrl("");
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
+      setShowForm(false);
       router.refresh();
       toast.success(tc("success"));
     } catch {
@@ -87,6 +90,7 @@ export function AuthBannerVideoForm({
       setUrl("");
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
+      setShowForm(false);
       router.refresh();
       toast.success(tc("success"));
     } catch {
@@ -126,7 +130,13 @@ export function AuthBannerVideoForm({
         )}
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+      {showForm ? (
+        <AdminFormDialog
+          title={t("authBannerVideoTitle")}
+          intro={t("authBannerVideoIntro")}
+          onClose={() => setShowForm(false)}
+        >
+        <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-2">
           <label htmlFor="auth-video-url" className="block text-sm font-semibold">
             {t("authBannerVideoUrlLabel")}
@@ -179,6 +189,14 @@ export function AuthBannerVideoForm({
           </Button>
         ) : null}
       </div>
+        </AdminFormDialog>
+      ) : (
+        <div className="mt-5 flex justify-end">
+          <Button type="button" onClick={() => setShowForm(true)}>
+            {t("authBannerVideoEdit")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

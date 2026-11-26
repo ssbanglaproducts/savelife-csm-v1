@@ -6,12 +6,14 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminInputClass, adminLabelClass } from "@/components/admin/admin-ui";
 import type { TopUpAccounts } from "@/lib/topup-accounts";
+import { AdminFormDialog } from "./admin-form-dialog";
 import { useAdminAction } from "./use-admin-action";
 
 export function TopUpAccountsForm({ initialAccounts }: { initialAccounts: TopUpAccounts }) {
   const t = useTranslations("adminPanel");
   const fieldId = useId();
   const { pending, run } = useAdminAction();
+  const [showForm, setShowForm] = useState(false);
   const [accounts, setAccounts] = useState(initialAccounts);
 
   function update(key: keyof TopUpAccounts, value: string) {
@@ -20,18 +22,32 @@ export function TopUpAccountsForm({ initialAccounts }: { initialAccounts: TopUpA
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await run("/api/admin/top-up-accounts", "PATCH", {
+    const ok = await run("/api/admin/top-up-accounts", "PATCH", {
       bkash: accounts.BKASH,
       nagad: accounts.NAGAD,
       bank: accounts.BANK,
     });
+    if (ok) setShowForm(false);
+  }
+
+  if (!showForm) {
+    return (
+      <div className="flex justify-end">
+        <Button type="button" onClick={() => setShowForm(true)}>
+          {t("topUpAccountsTitle")}
+        </Button>
+      </div>
+    );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="glass rounded-2xl p-5 sm:p-6">
-      <h3 className="font-display text-lg font-bold">{t("topUpAccountsTitle")}</h3>
-      <p className="mt-1 text-sm text-muted-foreground">{t("topUpAccountsIntro")}</p>
-      <div className="mt-5 grid gap-4 sm:grid-cols-3">
+    <AdminFormDialog
+      title={t("topUpAccountsTitle")}
+      intro={t("topUpAccountsIntro")}
+      onClose={() => setShowForm(false)}
+    >
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         <div>
           <label htmlFor={`${fieldId}-bkash`} className={adminLabelClass}>
             {t("topUpAccountBkash")}
@@ -79,5 +95,6 @@ export function TopUpAccountsForm({ initialAccounts }: { initialAccounts: TopUpA
         </Button>
       </div>
     </form>
+    </AdminFormDialog>
   );
 }

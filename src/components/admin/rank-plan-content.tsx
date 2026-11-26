@@ -2,6 +2,7 @@ import { Trophy } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { AdminPageIntro, StatusBadge } from "@/components/admin/admin-ui";
+import { AdminEditorToggle } from "@/components/admin/admin-editor-toggle";
 import { RankConfigurationEditor } from "@/components/admin/rank-configuration/rank-configuration-editor";
 import { buttonVariants } from "@/components/ui/button";
 import { Link, redirect } from "@/i18n/navigation";
@@ -59,7 +60,13 @@ export async function RankPlanContent() {
           </>
         }
       />
-      <RankConfigurationEditor active={activeForm} nextVersion={nextVersion} />
+      <AdminEditorToggle
+        label={ta("rankConfigNewVersion")}
+        title={ta("rankConfigurationTitle")}
+        intro={ta("rankPlanIntro")}
+      >
+        <RankConfigurationEditor active={activeForm} nextVersion={nextVersion} />
+      </AdminEditorToggle>
     </div>
   );
 }

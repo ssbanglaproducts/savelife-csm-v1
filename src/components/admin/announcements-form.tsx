@@ -7,6 +7,7 @@ import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { adminInputClass, adminLabelClass } from "./admin-ui";
+import { AdminFormDialog } from "./admin-form-dialog";
 
 type Kind = "ANNOUNCEMENT" | "NOTICE" | "ALERT";
 
@@ -54,6 +55,7 @@ export function AnnouncementsForm() {
       setBodyEn("");
       setBodyBn("");
       setHref("");
+      setShowForm(false);
       router.refresh();
     } catch {
       const message = tc("error");
@@ -77,10 +79,13 @@ export function AnnouncementsForm() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-background/95 p-4 backdrop-blur sm:static sm:bg-transparent sm:p-0">
-      <form onSubmit={handleSubmit} className="glass rounded-2xl p-5 sm:p-6">
-      <h3 className="font-display text-lg font-bold">{t("createTitle")}</h3>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+    <AdminFormDialog
+      title={t("createTitle")}
+      intro={t("adminIntro")}
+      onClose={() => setShowForm(false)}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor={`${fieldId}-kind`} className={adminLabelClass}>
             {t("kind")}
@@ -185,7 +190,7 @@ export function AnnouncementsForm() {
           {tc("cancel")}
         </Button>
       </div>
-    </form>
-    </div>
+      </form>
+    </AdminFormDialog>
   );
 }

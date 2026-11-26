@@ -106,8 +106,8 @@ async function loadPosts(
   const rows = (await prisma.galleryPost.findMany({
     where: publishedOnly ? { published: true } : undefined,
     orderBy: [
-      { sortOrder: "asc" },
       { createdAt: "desc" },
+      { sortOrder: "asc" },
     ],
     include: {
       images: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },

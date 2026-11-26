@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { AdminFormDialog } from "./admin-form-dialog";
 
 export function PlacementMoveForm({
   memberId,
@@ -19,6 +20,7 @@ export function PlacementMoveForm({
   const [parentId, setParentId] = useState("");
   const [slot, setSlot] = useState<number | null>(currentSlot);
   const [pending, setPending] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   async function handleMove() {
     if (!parentId.trim() || slot === null) {
@@ -51,11 +53,24 @@ export function PlacementMoveForm({
     }
   }
 
+  if (!showForm) {
+    return (
+      <div className="mt-6 flex justify-end">
+        <Button type="button" variant="outline" onClick={() => setShowForm(true)}>
+          {t("movePlacementTitle")}
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-6 rounded-2xl border border-border/70 p-4">
-      <h3 className="text-sm font-bold">{t("movePlacementTitle")}</h3>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t("movePlacementNote")}</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_100px_auto] sm:items-end">
+    <AdminFormDialog
+      title={t("movePlacementTitle")}
+      intro={t("movePlacementNote")}
+      onClose={() => setShowForm(false)}
+    >
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-[1fr_100px_auto] sm:items-end">
         <label className="block">
           <span className="text-xs font-semibold">{t("targetParent")}</span>
           <input
@@ -85,7 +100,8 @@ export function PlacementMoveForm({
           {t("movePlacement")}
         </Button>
       </div>
-      <p className="mt-3 text-[11px] text-muted-foreground">{t("placementHistoryNote")}</p>
+      <p className="text-[11px] text-muted-foreground">{t("placementHistoryNote")}</p>
     </div>
+    </AdminFormDialog>
   );
 }

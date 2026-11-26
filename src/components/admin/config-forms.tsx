@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { percentToBps } from "@/lib/rates";
 import { adminInputClass, adminLabelClass } from "./admin-ui";
+import { AdminFormDialog } from "./admin-form-dialog";
 import { useAdminAction } from "./use-admin-action";
 
 type DistributionRecipient = {
@@ -34,6 +35,7 @@ export function DistributionForm() {
   const [preview, setPreview] = useState<DistributionPreview | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -74,14 +76,30 @@ export function DistributionForm() {
     if (ok) {
       setPreview(null);
       setAmount("");
+      setShowForm(false);
     }
+  }
+
+  if (!showForm) {
+    return (
+      <div className="flex justify-end">
+        <Button type="button" onClick={() => setShowForm(true)}>
+          {t("post")}
+        </Button>
+      </div>
+    );
   }
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="glass rounded-2xl p-5 sm:p-6">
-        <h3 className="font-display text-lg font-bold">{t("post")}</h3>
-        <div className="mt-4 max-w-sm">
+      {showForm && !preview ? (
+      <AdminFormDialog
+        title={t("post")}
+        intro={t("distributionsIntro")}
+        onClose={() => setShowForm(false)}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="max-w-sm">
           <label htmlFor={`${fieldId}-amount`} className={adminLabelClass}>
             {tc("amount")} (SP)
           </label>
@@ -106,7 +124,9 @@ export function DistributionForm() {
             {previewing ? t("previewLoading") : t("post")}
           </Button>
         </div>
-      </form>
+        </form>
+      </AdminFormDialog>
+      ) : null}
 
       {preview ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -230,11 +250,12 @@ export function SettingsForm({
   const t = useTranslations("adminPanel");
   const fieldId = useId();
   const { pending, run } = useAdminAction();
+  const [showForm, setShowForm] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await run(
+    const ok = await run(
       "/api/admin/settings",
       "POST",
       {
@@ -248,12 +269,27 @@ export function SettingsForm({
         "Invalid request": t("invalidState"),
       },
     );
+    if (ok) setShowForm(false);
+  }
+
+  if (!showForm) {
+    return (
+      <div className="flex justify-end">
+        <Button type="button" onClick={() => setShowForm(true)}>
+          {t("createVersion")}
+        </Button>
+      </div>
+    );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="glass rounded-2xl p-5 sm:p-6">
-      <h3 className="font-display text-lg font-bold">{t("createVersion")}</h3>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <AdminFormDialog
+      title={t("createVersion")}
+      intro={t("settingsIntro")}
+      onClose={() => setShowForm(false)}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <div>
           <span className={adminLabelClass}>{t("version")}</span>
           <output className={`${adminInputClass} mt-2 flex items-center`}>{version}</output>
@@ -334,6 +370,7 @@ export function SettingsForm({
           {t("createVersion")}
         </Button>
       </div>
-    </form>
+      </form>
+    </AdminFormDialog>
   );
 }
