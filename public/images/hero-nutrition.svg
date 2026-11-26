@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 680" role="img" aria-label="Savelife nutrition banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1a12"/>
+      <stop offset="0.5" stop-color="#26471f"/>
+      <stop offset="1" stop-color="#426b25"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.22" cy="0.1" r="0.8">
+      <stop offset="0" stop-color="#d9f37a" stop-opacity="0.34"/>
+      <stop offset="0.5" stop-color="#8fbe42" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#0d1a12" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bottle" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f2ffd0"/>
+      <stop offset="1" stop-color="#a7cf63"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="680" fill="url(#bg)"/>
+  <rect width="1600" height="680" fill="url(#sun)"/>
+  <path d="M0 560 C260 470 470 590 720 492 C1010 378 1280 520 1600 430 L1600 680 L0 680 Z" fill="#08120b" opacity="0.38"/>
+  <g transform="translate(1050 132) rotate(-8)">
+    <rect x="0" y="90" width="190" height="330" rx="42" fill="url(#bottle)" opacity="0.92"/>
+    <rect x="58" y="38" width="74" height="66" rx="18" fill="#e8ffb8" opacity="0.9"/>
+    <rect x="30" y="188" width="130" height="142" rx="22" fill="#102817" opacity="0.72"/>
+    <path d="M64 246 C86 216 108 276 128 238" fill="none" stroke="#d9f37a" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="95" cy="140" r="16" fill="#ffffff" opacity="0.4"/>
+  </g>
+  <g transform="translate(770 214)">
+    <circle cx="110" cy="110" r="104" fill="#d9f37a" opacity="0.08"/>
+    <path d="M110 198 C40 166 30 92 82 48 C128 82 148 142 110 198 Z" fill="#d9f37a" opacity="0.48"/>
+    <path d="M110 198 C110 134 100 86 82 48" fill="none" stroke="#f3ffcb" stroke-opacity="0.65" stroke-width="4"/>
+  </g>
+  <g fill="#e9ffb2" opacity="0.28">
+    <circle cx="150" cy="110" r="4"/><circle cx="212" cy="186" r="6"/><circle cx="118" cy="250" r="3"/>
+    <circle cx="640" cy="96" r="4"/><circle cx="700" cy="160" r="3"/><circle cx="580" cy="210" r="5"/>
+  </g>
+</svg>

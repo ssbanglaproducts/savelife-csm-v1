@@ -1,0 +1,1191 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  MEMBER
+  ADMIN
+}
+
+enum MemberStatus {
+  INACTIVE
+  ACTIVE
+  SUSPENDED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  OUT_FOR_DELIVERY
+  PICKED_UP
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+/// Office Pickup orders are created by activation purchases. Home Delivery
+/// orders are created by regular purchases and support courier tracking.
+enum FulfillmentType {
+  OFFICE_PICKUP
+  HOME_DELIVERY
+}
+
+enum PickupStatus {
+  PENDING
+  PICKED_UP
+}
+
+enum PaymentMethod {
+  BKASH
+  NAGAD
+  BANK
+  OTHER
+  WALLET
+}
+
+enum PaymentProofStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum InvestmentType {
+  INSTALLMENT
+  PROFIT_ONLY
+}
+
+enum InvestmentStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  MATURED
+  CLOSED
+}
+
+enum InstallmentStatus {
+  PENDING
+  PAID
+}
+
+enum DistributionStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+enum WalletCategory {
+  AVAILABLE
+  PENDING
+  INVESTMENT
+  PROFIT
+  AFFILIATE
+  RANK_REWARD
+  SALARY
+  /// Collectible ROI sponsor commission, moved to Available on collection.
+  ROI_COMMISSION
+}
+
+enum LedgerDirection {
+  CREDIT
+  DEBIT
+}
+
+enum LedgerEntryType {
+  ORDER_REFUND
+  INVESTMENT_PRINCIPAL
+  INSTALLMENT_PAYMENT
+  PROFIT_DISTRIBUTION
+  AFFILIATE_REWARD
+  WITHDRAWAL
+  WITHDRAWAL_FEE
+  BALANCE_TRANSFER
+  PRINCIPAL_RETURN
+  ADMIN_ADJUSTMENT
+  REWARD_COLLECTION
+  MEMBER_TRANSFER_OUT
+  MEMBER_TRANSFER_IN
+  ORDER_WALLET_PAYMENT
+  WALLET_TOP_UP
+  /// Rank SP reward credited into the dedicated Rank Reward wallet.
+  RANK_REWARD_CREDIT
+  /// Historical direct Available credit moved into the Rank Reward wallet.
+  RANK_REWARD_RECLASSIFY
+  /// Weekly salary credited into the dedicated Salary wallet.
+  SALARY_PAYMENT
+  /// Additional ROI sponsor commission credited into the ROI wallet.
+  ROI_COMMISSION_CREDIT
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum WithdrawalType {
+  AVAILABLE
+  PRINCIPAL
+}
+
+enum NotificationKind {
+  ANNOUNCEMENT
+  NOTICE
+  ALERT
+  WALLET
+  ORDER
+  INVESTMENT
+  SECURITY
+}
+
+/// Public gallery entries are grouped so visitors can browse events and
+/// programmes separately without changing the underlying post record.
+enum GalleryPostKind {
+  EVENT
+  PROGRAM
+}
+
+/// "Not Achieved" is derived from the absence of a RankAchievement row.
+enum RankAchievementStatus {
+  PENDING
+  ACHIEVED
+}
+
+enum RankQualificationMethod {
+  DIRECT_SALES
+  TEAM_SALES
+}
+
+enum RankRewardType {
+  SP
+  PHYSICAL
+}
+
+enum RankRewardEventType {
+  SP_CREDIT
+  PHYSICAL_COLLECTION
+}
+
+enum SalaryPaymentStatus {
+  SUCCESS
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// Identity & membership
+// ---------------------------------------------------------------------------
+
+/// Single-row table (id = 1). Allocate IDs with:
+/// UPDATE "MemberSequence" SET "lastValue" = "lastValue" + 1 WHERE id = 1 RETURNING "lastValue";
+model MemberSequence {
+  id        Int      @id @default(1)
+  lastValue Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model Member {
+  id               String       @id @default(cuid())
+  memberId         String       @unique
+  fullName         String
+  email            String
+  phone            String
+  passwordHash     String
+  // Separate financial credential. Never returned by any API or page.
+  tPinHash         String?
+  tPinUpdatedAt    DateTime?
+  profileImage     String?
+  role             Role         @default(MEMBER)
+  status           MemberStatus @default(INACTIVE)
+  activationDate   DateTime?
+  // Shown to the member on the locked screen when an admin deactivates the account.
+  deactivationNote String?
+
+  // Permanent sponsor relationship. Populated at registration only. This is
+  // the sole source of direct-referral ownership and affiliate rewards.
+  sponsorId String?
+  sponsor   Member?  @relation("SponsorMembers", fields: [sponsorId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  sponsored Member[] @relation("SponsorMembers")
+
+  // Independent placement relationship. Exactly one of three slots under the
+  // placement parent. Placement never changes the sponsor or affiliate rewards.
+  placementParentId String?
+  placementSlot     Int?
+  placementParent   Member?  @relation("PlacementMembers", fields: [placementParentId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  placementChildren Member[] @relation("PlacementMembers")
+
+  // Materialised three-level sponsor/upline chain. Built from sponsorId only.
+  uplines  Upline[] @relation("MemberUplines")
+  uplineOf Upline[] @relation("UplineMembers")
+
+  cart              Cart?
+  addresses         Address[]
+  nominees          Nominee[]
+  orders            Order[]
+  paymentProofs     PaymentProof[]
+  activation        ActivationHistory?
+  investments       Investment[]
+  wallet            Wallet?
+  ledgerEntries     LedgerEntry[]
+  rewards           AffiliateReward[]        @relation("RewardBeneficiary")
+  profitLines       ProfitDistributionLine[]
+  withdrawals       Withdrawal[]
+  withdrawalMethods WithdrawalMethod[]
+  sentTransfers     MemberTransfer[]         @relation("SentMoneyTransfers")
+  receivedTransfers MemberTransfer[]         @relation("ReceivedMoneyTransfers")
+  walletTopUps      WalletTopUp[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]           @relation("MemberNotifications")
+  notificationReads NotificationRead[]       @relation("MemberNotificationReads")
+
+  rankPlanVersionsCreated RankPlanVersion[] @relation("RankPlanCreator")
+  rankAchievements        RankAchievement[] @relation("RankAchievementMember")
+  rankRewardEvents        RankRewardEvent[] @relation("RankRewardEventActor")
+  rankPhysicalCollections RankAchievement[] @relation("RankPhysicalCollector")
+
+  salaryEntitlement         SalaryEntitlement?
+  salaryEntitlementChanges  SalaryEntitlementChange[]
+  salaryPlanVersionsCreated SalaryPlanVersion[]       @relation("SalaryPlanCreator")
+  salaryPayments            SalaryPayment[]
+
+  roiSourceLines      RoiCommissionLine[] @relation("RoiSourceMember")
+  roiBeneficiaryLines RoiCommissionLine[] @relation("RoiBeneficiary")
+
+  // One authenticated owner may manage several independent accounts.
+  ownedAccounts AccountOwnership[] @relation("AccountOwnershipOwner")
+  accountLink   AccountOwnership?  @relation("AccountOwnershipAccount")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([placementParentId, placementSlot])
+  @@index([status])
+  @@index([sponsorId])
+  @@index([placementParentId])
+}
+
+/// One principal owner -> many independently usable Member accounts.
+/// A row where ownerId == accountId is the owner's own self link.
+model AccountOwnership {
+  id        String   @id @default(cuid())
+  owner     Member   @relation("AccountOwnershipOwner", fields: [ownerId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  ownerId   String
+  account   Member   @relation("AccountOwnershipAccount", fields: [accountId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  accountId String   @unique
+  label     String?
+  createdAt DateTime @default(now())
+
+  @@unique([ownerId, accountId])
+  @@index([ownerId, createdAt])
+}
+
+model Upline {
+  id        String   @id @default(cuid())
+  member    Member   @relation("MemberUplines", fields: [memberId], references: [id], onDelete: Cascade)
+  memberId  String
+  upline    Member   @relation("UplineMembers", fields: [uplineId], references: [id])
+  uplineId  String
+  level     Int
+  createdAt DateTime @default(now())
+
+  @@unique([memberId, level])
+  @@unique([memberId, uplineId])
+  @@index([uplineId, level])
+}
+
+// ---------------------------------------------------------------------------
+// Store
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  nameBn      String?
+  slug        String    @unique
+  description String?
+  image       String?
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Product {
+  id             String         @id @default(cuid())
+  name           String
+  nameBn         String?
+  slug           String         @unique
+  description    String?
+  descriptionBn  String?
+  category       Category?      @relation(fields: [categoryId], references: [id])
+  categoryId     String?
+  sku            String?        @unique
+  brand          String?
+  subcategory    String?
+  /// Flexible Store metadata: { size?: string[], color?: string[], model?: string[] }
+  variants       Json?
+  /// Flexible Store metadata: [{ label, labelBn?, value, valueBn? }]
+  specifications Json?
+  /// Validated product media: { kind, url?|videoId? } — upload, direct MP4/WebM or hosted embed.
+  video          Json?
+  pricePaisa     BigInt
+  compareAtPaisa BigInt?
+  stock          Int            @default(0)
+  isActive       Boolean        @default(true)
+  isFeatured     Boolean        @default(false)
+  images         ProductImage[]
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([categoryId])
+  @@index([isActive, isFeatured])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  url       String
+  alt       String?
+  sortOrder Int     @default(0)
+  isPrimary Boolean @default(false)
+
+  @@index([productId, sortOrder])
+}
+
+model Cart {
+  id           String     @id @default(cuid())
+  member       Member?    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId     String?    @unique
+  sessionToken String?    @unique
+  items        CartItem[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId    String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  quantity  Int     @default(1)
+
+  @@unique([cartId, productId])
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId   String
+  label      String?
+  fullName   String
+  phone      String
+  street     String
+  city       String
+  thana      String?
+  district   String?
+  postalCode String?
+  country    String   @default("Bangladesh")
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([memberId])
+}
+
+/// A person the member nominates in their profile. Managed only by the member
+/// who owns the record; never changes identity, wallet or network ownership.
+model Nominee {
+  id        String   @id @default(cuid())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId  String
+  fullName  String
+  relation  String
+  phone     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberId])
+}
+
+// ---------------------------------------------------------------------------
+// Orders & activation
+// ---------------------------------------------------------------------------
+
+model Order {
+  id              String               @id @default(cuid())
+  orderNumber     String               @unique
+  member          Member               @relation(fields: [memberId], references: [id])
+  memberId        String
+  status          OrderStatus          @default(PENDING)
+  fulfillmentType FulfillmentType      @default(HOME_DELIVERY)
+  /// Only set for Office Pickup orders. PICKED_UP is final.
+  pickupStatus    PickupStatus?
+  courierName     String?
+  trackingNumber  String?
+  trackingUrl     String?
+  /// Stable client key for Buy Now purchases; prevents a double charge.
+  requestKey      String?              @unique
+  addressSnapshot Json
+  subtotalPaisa   BigInt
+  shippingPaisa   BigInt               @default(0)
+  discountPaisa   BigInt               @default(0)
+  totalPaisa      BigInt
+  notes           String?
+  items           OrderItem[]
+  statusHistory   OrderStatusHistory[]
+  paymentProofs   PaymentProof[]
+  activation      ActivationHistory?
+  placedAt        DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([memberId, placedAt])
+  @@index([status])
+  @@index([fulfillmentType, pickupStatus])
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId        String
+  product        Product? @relation(fields: [productId], references: [id])
+  productId      String?
+  productName    String
+  productImage   String?
+  unitPricePaisa BigInt
+  quantity       Int
+  lineTotalPaisa BigInt
+
+  @@index([orderId])
+}
+
+model OrderStatusHistory {
+  id         String       @id @default(cuid())
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId    String
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  note       String?
+  changedBy  String?
+  createdAt  DateTime     @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model PaymentProof {
+  id             String             @id @default(cuid())
+  member         Member             @relation(fields: [memberId], references: [id])
+  memberId       String
+  order          Order?             @relation(fields: [orderId], references: [id])
+  orderId        String?
+  investment     Investment?        @relation(fields: [investmentId], references: [id])
+  investmentId   String?
+  method         PaymentMethod
+  transactionRef String
+  amountPaisa    BigInt
+  imageUrl       String?
+  status         PaymentProofStatus @default(PENDING)
+  note           String?
+  submittedAt    DateTime           @default(now())
+  reviewedBy     String?
+  reviewedAt     DateTime?
+
+  @@index([status])
+  @@index([orderId])
+  @@index([investmentId])
+}
+
+model ActivationHistory {
+  id          String   @id @default(cuid())
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId    String   @unique
+  order       Order?   @relation(fields: [orderId], references: [id])
+  orderId     String?  @unique
+  activatedBy String
+  activatedAt DateTime @default(now())
+  note        String?
+}
+
+// ---------------------------------------------------------------------------
+// Investments & configuration
+// ---------------------------------------------------------------------------
+
+/// Versioned configuration. A change creates a new row; existing investments
+/// retain their own snapshots and are never recalculated.
+model InvestmentSettings {
+  id                        String       @id @default(cuid())
+  version                   Int          @unique
+  installmentDurationMonths Int          @default(14)
+  profitOnlyLockInMonths    Int          @default(12)
+  withdrawalFeeBps          Int          @default(1000) // 1000 = 10%
+  minWithdrawalPaisa        BigInt       @default(50000) // 500 SP
+  isActive                  Boolean      @default(false)
+  effectiveFrom             DateTime     @default(now())
+  createdAt                 DateTime     @default(now())
+  investments               Investment[]
+}
+
+model Investment {
+  id                      String              @id @default(cuid())
+  investmentNumber        String              @unique
+  member                  Member              @relation(fields: [memberId], references: [id])
+  memberId                String
+  type                    InvestmentType
+  amountPaisa             BigInt
+  /// Capital still in the business. Decreases with each installment payout or
+  /// principal withdrawal, and is the weight used for profit distributions.
+  remainingPrincipalPaisa BigInt              @default(0)
+  status                  InvestmentStatus    @default(PENDING)
+  settings                InvestmentSettings? @relation(fields: [settingsId], references: [id])
+  settingsId              String?
+
+  // Contractual snapshots — copied from settings at creation time.
+  durationMonths          Int?
+  monthlyInstallmentPaisa BigInt?
+  lockInMonths            Int?
+  lockInEndsAt            DateTime?
+  startDate               DateTime?
+
+  paymentProofs      PaymentProof[]
+  installments       InvestmentInstallment[]
+  rewards            AffiliateReward[]
+  profitLines        ProfitDistributionLine[]
+  roiCommissionLines RoiCommissionLine[]
+  ledgerEntries      LedgerEntry[]
+  salaryFundings     SalaryFunding[]
+  withdrawals        Withdrawal[]
+  verifiedBy         String?
+  verifiedAt         DateTime?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  @@index([memberId, createdAt])
+  @@index([status, type])
+}
+
+model InvestmentInstallment {
+  id           String            @id @default(cuid())
+  investment   Investment        @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  investmentId String
+  periodNo     Int
+  dueDate      DateTime
+  amountPaisa  BigInt
+  status       InstallmentStatus @default(PENDING)
+  paidAt       DateTime?
+  ledgerEntry  LedgerEntry?
+  createdAt    DateTime          @default(now())
+
+  @@unique([investmentId, periodNo])
+  @@index([status, dueDate])
+}
+
+model ProfitDistribution {
+  id                     String                     @id @default(cuid())
+  /// Auto-derived YYYY-MM grouping key. Multiple distributions may share a month.
+  month                  String
+  distributablePaisa     BigInt
+  totalEligiblePaisa     BigInt
+  profitPerThousandPaisa BigInt
+  status                 DistributionStatus         @default(DRAFT)
+  lines                  ProfitDistributionLine[]
+  roiCommission          RoiCommissionDistribution?
+  createdBy              String
+  postedAt               DateTime?
+  createdAt              DateTime                   @default(now())
+
+  @@index([createdAt])
+}
+
+model ProfitDistributionLine {
+  id                      String             @id @default(cuid())
+  distribution            ProfitDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  distributionId          String
+  member                  Member             @relation(fields: [memberId], references: [id])
+  memberId                String
+  investment              Investment         @relation(fields: [investmentId], references: [id])
+  investmentId            String
+  eligiblePaisa           BigInt
+  allocatedPaisa          BigInt
+  roundingAdjustmentPaisa BigInt             @default(0)
+  createdAt               DateTime           @default(now())
+
+  @@unique([distributionId, investmentId])
+  @@index([memberId])
+}
+
+/// One ROI posting per ProfitDistribution. All five rates are snapshotted so
+/// later admin changes never rewrite historical commission amounts.
+model RoiCommissionDistribution {
+  id                   String              @id @default(cuid())
+  distribution         ProfitDistribution  @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  distributionId       String              @unique
+  month                String
+  ratesBps             Json
+  totalBasisPaisa      BigInt
+  totalCommissionPaisa BigInt
+  recipientCount       Int
+  postedAt             DateTime            @default(now())
+  createdAt            DateTime            @default(now())
+  lines                RoiCommissionLine[]
+
+  @@index([month, postedAt])
+}
+
+/// A single additional sponsor payment derived from one investment's profit
+/// distribution line. Source and beneficiary are stored explicitly so history
+/// survives later changes to sponsor relationships.
+model RoiCommissionLine {
+  id                 String                    @id @default(cuid())
+  distribution       RoiCommissionDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  distributionId     String
+  sourceMember       Member                    @relation("RoiSourceMember", fields: [sourceMemberId], references: [id])
+  sourceMemberId     String
+  sourceInvestment   Investment                @relation(fields: [sourceInvestmentId], references: [id])
+  sourceInvestmentId String
+  beneficiary        Member                    @relation("RoiBeneficiary", fields: [beneficiaryId], references: [id])
+  beneficiaryId      String
+  /// 1 = direct sponsor, up to 5. Always resolved from sponsorId only.
+  level              Int
+  rateBps            Int
+  basisPaisa         BigInt
+  amountPaisa        BigInt
+  ledgerEntryId      String?
+  createdAt          DateTime                  @default(now())
+
+  @@unique([distributionId, sourceInvestmentId, level])
+  @@index([beneficiaryId, createdAt])
+  @@index([sourceMemberId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Wallet & money movement
+// ---------------------------------------------------------------------------
+
+model Wallet {
+  id              String        @id @default(cuid())
+  member          Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId        String        @unique
+  availablePaisa  BigInt        @default(0)
+  pendingPaisa    BigInt        @default(0)
+  investmentPaisa BigInt        @default(0)
+  profitPaisa     BigInt        @default(0)
+  affiliatePaisa  BigInt        @default(0)
+  /// Collectible SP from rank achievements, moved to Available on collection.
+  rankRewardPaisa BigInt        @default(0)
+  /// Collectible weekly salary, moved to Available on collection.
+  salaryPaisa     BigInt        @default(0)
+  /// Collectible ROI sponsor commission, moved to Available on collection.
+  roiPaisa        BigInt        @default(0)
+  entries         LedgerEntry[]
+  updatedAt       DateTime      @updatedAt
+}
+
+/// Append-only. Never delete or update a ledger entry; use a reversing entry.
+model LedgerEntry {
+  id                String          @id @default(cuid())
+  wallet            Wallet          @relation(fields: [walletId], references: [id])
+  walletId          String
+  member            Member          @relation(fields: [memberId], references: [id])
+  memberId          String
+  category          WalletCategory
+  direction         LedgerDirection
+  amountPaisa       BigInt
+  balanceAfterPaisa BigInt
+  type              LedgerEntryType
+  referenceType     String?
+  referenceId       String?
+  idempotencyKey    String          @unique
+  description       String?
+  createdBy         String?
+  createdAt         DateTime        @default(now())
+
+  investment    Investment?            @relation(fields: [investmentId], references: [id])
+  investmentId  String?
+  installment   InvestmentInstallment? @relation(fields: [installmentId], references: [id])
+  installmentId String?                @unique
+
+  @@index([memberId, createdAt])
+  @@index([type, referenceId])
+}
+
+/// Completed member-to-member SP transfer. Both ledger entries reference the
+/// same transfer number so each member sees the counterpart in their history.
+model MemberTransfer {
+  id             String   @id @default(cuid())
+  transferNumber String   @unique
+  sender         Member   @relation("SentMoneyTransfers", fields: [senderId], references: [id])
+  senderId       String
+  recipient      Member   @relation("ReceivedMoneyTransfers", fields: [recipientId], references: [id])
+  recipientId    String
+  amountPaisa    BigInt
+  note           String?
+  idempotencyKey String   @unique
+  completedAt    DateTime @default(now())
+
+  @@index([senderId, completedAt])
+  @@index([recipientId, completedAt])
+}
+
+/// External top-up request paid by bKash, Nagad or bank transfer. The admin
+/// confirms receipt before Available Balance is credited.
+model WalletTopUp {
+  id             String             @id @default(cuid())
+  requestNumber  String             @unique
+  member         Member             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId       String
+  amountPaisa    BigInt
+  method         PaymentMethod
+  transactionRef String
+  proofImageUrl  String?
+  note           String?
+  status         PaymentProofStatus @default(PENDING)
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([memberId, createdAt])
+  @@index([status, createdAt])
+}
+
+model AffiliateReward {
+  id            String     @id @default(cuid())
+  investment    Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  investmentId  String
+  beneficiary   Member     @relation("RewardBeneficiary", fields: [beneficiaryId], references: [id])
+  beneficiaryId String
+  level         Int
+  rateBps       Int
+  amountPaisa   BigInt
+  createdAt     DateTime   @default(now())
+
+  @@unique([investmentId, beneficiaryId, level])
+  @@index([beneficiaryId, createdAt])
+}
+
+model Withdrawal {
+  id             String           @id @default(cuid())
+  requestNumber  String           @unique
+  member         Member           @relation(fields: [memberId], references: [id])
+  memberId       String
+  /// AVAILABLE draws from the Available wallet immediately. PRINCIPAL is a
+  /// notice for a matured Profit Only investment and is released by automation.
+  type           WithdrawalType   @default(AVAILABLE)
+  investment     Investment?      @relation(fields: [investmentId], references: [id])
+  investmentId   String?
+  amountPaisa    BigInt
+  feePaisa       BigInt
+  netPaisa       BigInt
+  method         PaymentMethod
+  accountDetails Json
+  status         WithdrawalStatus @default(PENDING)
+  note           String?
+  /// Notice window for principal withdrawals: payableAt = noticeAt + 2 months.
+  noticeAt       DateTime?
+  payableAt      DateTime?
+  requestedAt    DateTime         @default(now())
+  processedBy    String?
+  processedAt    DateTime?
+
+  @@unique([investmentId, type, status])
+  @@index([type, status, payableAt])
+  @@index([memberId, requestedAt])
+  @@index([status])
+}
+
+/// Reusable payout destinations saved by the member. Each one has a
+/// member-chosen label so several bank/mobile accounts can be kept.
+model WithdrawalMethod {
+  id             String        @id @default(cuid())
+  member         Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId       String
+  label          String
+  method         PaymentMethod
+  accountDetails Json
+  isDefault      Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([memberId, label])
+  @@index([memberId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Rank & Rewards
+// ---------------------------------------------------------------------------
+
+/// Immutable plan versions. Admin edits create a new version; achievements
+/// always keep a snapshot of the version that first qualified the member.
+model RankPlanVersion {
+  id              String            @id @default(cuid())
+  version         Int               @unique
+  isActive        Boolean           @default(false)
+  effectiveFrom   DateTime          @default(now())
+  activatedAt     DateTime?
+  note            String?
+  approvedChanges Json?
+  commitToken     String?           @unique
+  createdBy       Member?           @relation("RankPlanCreator", fields: [createdById], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  createdById     String?
+  definitions     RankDefinition[]
+  achievements    RankAchievement[]
+  createdAt       DateTime          @default(now())
+
+  @@index([isActive, version])
+}
+
+/// Stable rank keys (R1-R9) survive renames; display names belong to a version.
+model RankDefinition {
+  id                  String          @id @default(cuid())
+  planVersion         RankPlanVersion @relation(fields: [planVersionId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  planVersionId       String
+  rankKey             String
+  sortOrder           Int
+  name                String
+  nameBn              String?
+  directTargetPaisa   BigInt
+  team1TargetPaisa    BigInt
+  team2TargetPaisa    BigInt
+  team3TargetPaisa    BigInt
+  rewardType          RankRewardType
+  rewardSpPaisa       BigInt?
+  rewardLabel         String?
+  rewardLabelBn       String?
+  rewardDescription   String?
+  rewardDescriptionBn String?
+  /// Generated level badge or a custom admin upload.
+  badgeImageUrl       String?
+  /// Transparent PNG/WebP cutout shown for PHYSICAL rewards.
+  rewardImageUrl      String?
+  createdAt           DateTime        @default(now())
+
+  @@unique([planVersionId, rankKey])
+  @@unique([planVersionId, sortOrder])
+  @@index([planVersionId, sortOrder])
+}
+
+/// One achievement per member and stable rank key. Later plan versions can
+/// qualify other ranks, but never duplicate an already-paid rank reward.
+model RankAchievement {
+  id                          String                   @id @default(cuid())
+  member                      Member                   @relation("RankAchievementMember", fields: [memberId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  memberId                    String
+  planVersion                 RankPlanVersion          @relation(fields: [planVersionId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  planVersionId               String
+  rankKey                     String
+  rankNameSnapshot            String
+  rankNameBnSnapshot          String?
+  rankSortOrder               Int
+  achievedAt                  DateTime                 @default(now())
+  primaryMethod               RankQualificationMethod
+  secondaryMethod             RankQualificationMethod?
+  /// { referralMemberId, referralName, investmentId, investmentNumber,
+  ///   amountPaisa, investedAt } — the single qualifying investment only.
+  directEvidence              Json?
+  /// { team1Paisa, team2Paisa, team3Paisa, qualifyingAt,
+  ///   teams: [{ slot, targetPaisa, totalPaisa, qualifyingAt }] }
+  teamEvidence                Json?
+  targetsSnapshot             Json
+  rewardType                  RankRewardType
+  rewardSpPaisa               BigInt?
+  rewardLabel                 String?
+  rewardLabelBn               String?
+  rewardDescriptionSnapshot   String?
+  rewardDescriptionBnSnapshot String?
+  /// Immutable badge snapshot from the plan version at achievement time.
+  badgeImageUrl               String?
+  /// Immutable image snapshot from the plan version at achievement time.
+  rewardImageUrl              String?
+  rewardStatus                RankAchievementStatus    @default(PENDING)
+  walletCreditedAt            DateTime?
+  physicalCollectedAt         DateTime?
+  physicalCollectedBy         Member?                  @relation("RankPhysicalCollector", fields: [physicalCollectedById], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  physicalCollectedById       String?
+  note                        String?
+  rewardEvents                RankRewardEvent[]
+  createdAt                   DateTime                 @default(now())
+  updatedAt                   DateTime                 @updatedAt
+
+  @@unique([memberId, rankKey])
+  @@index([memberId, achievedAt])
+  @@index([rankKey, achievedAt])
+  @@index([rewardStatus, rewardType])
+}
+
+/// Append-only record of SP wallet credits and physical handovers.
+model RankRewardEvent {
+  id            String              @id @default(cuid())
+  achievement   RankAchievement     @relation(fields: [achievementId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  achievementId String
+  type          RankRewardEventType
+  amountPaisa   BigInt?
+  referenceType String?
+  referenceId   String?
+  actor         Member?             @relation("RankRewardEventActor", fields: [actorId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  actorId       String?
+  note          String?
+  createdAt     DateTime            @default(now())
+
+  @@index([achievementId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Salary system
+// ---------------------------------------------------------------------------
+
+/// Immutable salary plan versions. Admin saves create a new version; the active
+/// version drives funding, entitlements, and weekly payouts.
+model SalaryPlanVersion {
+  id              String                 @id @default(cuid())
+  version         Int                    @unique
+  isActive        Boolean                @default(false)
+  effectiveFrom   DateTime               @default(now())
+  activatedAt     DateTime?
+  note            String?
+  approvedChanges Json?
+  commitToken     String?                @unique
+  createdBy       Member?                @relation("SalaryPlanCreator", fields: [createdById], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  createdById     String?
+  definitions     SalaryPlanDefinition[]
+  distributions   SalaryDistribution[]
+  createdAt       DateTime               @default(now())
+
+  @@index([isActive, version])
+}
+
+/// Admin-editable salary settings for stable rank keys R1-R9. A rank is payable
+/// only when isEnabled is true and both allocationBps and maxWeeklySalaryPaisa
+/// are greater than zero.
+model SalaryPlanDefinition {
+  id                   String            @id @default(cuid())
+  planVersion          SalaryPlanVersion @relation(fields: [planVersionId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  planVersionId        String
+  rankKey              String
+  sortOrder            Int
+  isEnabled            Boolean           @default(true)
+  allocationBps        Int
+  maxWeeklySalaryPaisa BigInt
+  /// null means ongoing.
+  maxWeeks             Int?
+  createdAt            DateTime          @default(now())
+
+  @@unique([planVersionId, rankKey])
+  @@unique([planVersionId, sortOrder])
+  @@index([planVersionId, sortOrder])
+}
+
+/// One row per salary treasury rank (R1-R9). A treasury never transfers funds
+/// to another rank; its balance equals allocations minus successful payments.
+model SalaryTreasury {
+  rankKey             String   @id
+  balancePaisa        BigInt   @default(0)
+  totalAllocatedPaisa BigInt   @default(0)
+  totalPaidPaisa      BigInt   @default(0)
+  updatedAt           DateTime @updatedAt
+
+  fundings SalaryFunding[]
+  payments SalaryPayment[]
+}
+
+/// Append-only funding record. One eligible investment funds each rank once.
+model SalaryFunding {
+  id           String         @id @default(cuid())
+  investment   Investment     @relation(fields: [investmentId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  investmentId String
+  treasury     SalaryTreasury @relation(fields: [rankKey], references: [rankKey], onUpdate: Cascade, onDelete: Restrict)
+  rankKey      String
+  amountPaisa  BigInt
+  createdAt    DateTime       @default(now())
+
+  @@unique([investmentId, rankKey])
+  @@index([rankKey, createdAt])
+}
+
+/// The member's single salary row. `isActive` follows the active salary plan;
+/// a higher payable achievement replaces the rank and resets successful weeks.
+model SalaryEntitlement {
+  id            String   @id @default(cuid())
+  member        Member   @relation(fields: [memberId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  memberId      String   @unique
+  rankKey       String
+  rankSortOrder Int
+  achievedAt    DateTime
+  weeksPaid     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  payments SalaryPayment[]
+}
+
+/// Immutable history of rank replacements for audit and member transparency.
+model SalaryEntitlementChange {
+  id                    String   @id @default(cuid())
+  member                Member   @relation(fields: [memberId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  memberId              String
+  previousRankKey       String?
+  previousRankSortOrder Int?
+  rankKey               String
+  rankSortOrder         Int
+  reason                String
+  changedAt             DateTime @default(now())
+
+  @@index([memberId, changedAt])
+}
+
+/// One idempotent weekly posting. weekEndAt is the Sunday 00:00 BDT boundary.
+model SalaryDistribution {
+  id                  String             @id @default(cuid())
+  weekEndAt           DateTime           @unique
+  status              DistributionStatus @default(DRAFT)
+  totalTreasuryPaisa  BigInt
+  totalPaidPaisa      BigInt             @default(0)
+  recipientCount      Int                @default(0)
+  postedAt            DateTime?
+  salaryPlanVersion   SalaryPlanVersion? @relation(fields: [salaryPlanVersionId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  salaryPlanVersionId String?
+  createdAt           DateTime           @default(now())
+
+  payments SalaryPayment[]
+
+  @@index([createdAt])
+  @@index([salaryPlanVersionId])
+}
+
+/// One payment per member per weekly distribution.
+model SalaryPayment {
+  id             String              @id @default(cuid())
+  distribution   SalaryDistribution  @relation(fields: [distributionId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  distributionId String
+  member         Member              @relation(fields: [memberId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  memberId       String
+  entitlement    SalaryEntitlement   @relation(fields: [entitlementId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  entitlementId  String
+  treasury       SalaryTreasury      @relation(fields: [rankKey], references: [rankKey], onUpdate: Cascade, onDelete: Restrict)
+  rankKey        String
+  amountPaisa    BigInt
+  weekNumber     Int
+  status         SalaryPaymentStatus @default(SUCCESS)
+  createdAt      DateTime            @default(now())
+
+  @@unique([distributionId, memberId])
+  @@index([rankKey, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Administration
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actor      Member?  @relation(fields: [actorId], references: [id])
+  actorId    String?
+  actorRole  Role?
+  action     String
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+/// A member-facing message. A null memberId broadcasts to every member;
+/// per-member rows are used for account and wallet events. Titles and bodies
+/// are stored as { en, bn } so the same record renders in either locale.
+model Notification {
+  id        String           @id @default(cuid())
+  memberId  String?
+  kind      NotificationKind @default(ANNOUNCEMENT)
+  title     Json
+  body      Json
+  /// Internal panel path such as /member/wallet. Never a javascript: URL.
+  href      String?
+  createdAt DateTime         @default(now())
+
+  member Member?            @relation("MemberNotifications", fields: [memberId], references: [id], onDelete: Cascade)
+  reads  NotificationRead[]
+
+  @@index([memberId, createdAt])
+  @@index([createdAt])
+}
+
+/// Read state is kept separately so one broadcast can be unread for some
+/// members and read for others without copying the notification row.
+model NotificationRead {
+  id             String   @id @default(cuid())
+  notificationId String
+  memberId       String
+  readAt         DateTime @default(now())
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  member       Member       @relation("MemberNotificationReads", fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, memberId])
+  @@index([memberId])
+}
+
+// ---------------------------------------------------------------------------
+// Public gallery
+// ---------------------------------------------------------------------------
+
+/// An admin-authored company event or programme shown on the public gallery.
+/// Titles and captions are stored as { en, bn } for locale-aware rendering.
+model GalleryPost {
+  id        String          @id @default(cuid())
+  kind      GalleryPostKind @default(EVENT)
+  title     Json
+  caption   Json
+  eventDate DateTime?
+  location  String?
+  published Boolean         @default(true)
+  sortOrder Int             @default(0)
+  images    GalleryImage[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([published, sortOrder, createdAt])
+}
+
+/// Photos belonging to a gallery post. Uploaded URLs are restricted to the
+/// local /api/uploads/<id>.<ext> endpoint by the API and upload helper.
+model GalleryImage {
+  id        String   @id @default(cuid())
+  postId    String
+  url       String
+  /// Optional per-photo caption, also stored as { en, bn }.
+  caption   Json?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  post GalleryPost @relation(fields: [postId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+
+  @@index([postId, sortOrder])
+}

@@ -1,0 +1,33 @@
+import type { DefaultSession } from "next-auth";
+
+type Role = "MEMBER" | "ADMIN";
+type MemberStatus = "INACTIVE" | "ACTIVE" | "SUSPENDED";
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      principalId: string;
+      role: Role;
+      memberId: string;
+      status: MemberStatus;
+    } & DefaultSession["user"];
+  }
+
+  interface User {
+    principalId?: string;
+    role: Role;
+    memberId: string;
+    status: MemberStatus;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+    principalId?: string;
+    role: Role;
+    memberId: string;
+    status: MemberStatus;
+  }
+}

@@ -1,0 +1,394 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+
+  --background: #f3f6f8;
+  --foreground: #0b1620;
+  --card: rgba(255, 255, 255, 0.72);
+  --card-foreground: #0b1620;
+  --card-solid: #ffffff;
+  --primary: #00c98d;
+  --primary-foreground: #04120d;
+  --secondary: #0a9c76;
+  --accent: #e6f8f1;
+  --accent-foreground: #075e43;
+  --muted: #e8eef2;
+  --muted-foreground: #5d6f7b;
+  --rule: rgba(11, 22, 32, 0.1);
+  --border: var(--rule);
+  --ring: #00a878;
+  --destructive: #e40014;
+  --destructive-foreground: #ffffff;
+  --glass: rgba(255, 255, 255, 0.6);
+  --glass-strong: rgba(255, 255, 255, 0.84);
+  --glass-border: rgba(255, 255, 255, 0.78);
+  --shadow-glow: 0 22px 60px -28px rgba(0, 201, 141, 0.6);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: #060b12;
+  --foreground: #eef6f4;
+  --card: rgba(17, 30, 39, 0.64);
+  --card-foreground: #eef6f4;
+  --card-solid: #0d1922;
+  --primary: #3ef0b3;
+  --primary-foreground: #03110b;
+  --secondary: #20d6a0;
+  --accent: rgba(62, 240, 179, 0.12);
+  --accent-foreground: #b9ffe4;
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: #9aabb5;
+  --rule: rgba(255, 255, 255, 0.11);
+  --border: var(--rule);
+  --ring: #3ef0b3;
+  --destructive: #ff6568;
+  --destructive-foreground: #1a0508;
+  --glass: rgba(15, 27, 36, 0.58);
+  --glass-strong: rgba(18, 32, 42, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.13);
+  --shadow-glow: 0 26px 70px -28px rgba(62, 240, 179, 0.5);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-rule: var(--rule);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --font-sans: var(--font-jakarta), var(--font-hind), "Noto Sans Bengali", system-ui, sans-serif;
+  --font-display: var(--font-sora), var(--font-jakarta), var(--font-hind), sans-serif;
+}
+
+:lang(bn) {
+  --font-sans: var(--font-anek), var(--font-hind), "Noto Sans Bengali", system-ui, sans-serif;
+  --font-display: var(--font-anek), var(--font-sora), var(--font-hind), sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--rule);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+    scroll-padding-top: calc(6rem + env(safe-area-inset-top));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  body {
+    min-height: 100%;
+    overflow-x: hidden;
+    background-color: var(--background);
+    background-image:
+      radial-gradient(circle at 12% -8%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 34%),
+      radial-gradient(circle at 88% 4%, color-mix(in srgb, var(--secondary) 11%, transparent), transparent 32%);
+    background-attachment: fixed;
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  summary {
+    touch-action: manipulation;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  [id] {
+    scroll-margin-top: calc(6rem + env(safe-area-inset-top));
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 30%, transparent);
+    color: var(--foreground);
+  }
+
+  @media (pointer: fine) {
+    html {
+      overscroll-behavior-y: none;
+    }
+  }
+}
+
+@keyframes header-sheet {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .header-sheet {
+    animation: header-sheet 180ms ease-out both;
+  }
+
+  .glass {
+    @apply backdrop-blur-xl backdrop-saturate-150;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+      0 20px 60px -35px rgba(2, 8, 15, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+
+  .glass-strong {
+    background: var(--glass-strong);
+  }
+
+  .glass-hover {
+    transition:
+      transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      border-color 240ms ease,
+      box-shadow 240ms ease;
+  }
+
+  .glass-hover:hover {
+    transform: translateY(-4px);
+    border-color: color-mix(in srgb, var(--primary) 55%, var(--glass-border));
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* A quiet rose accent for inactive members. It sits on selected cards only;
+     the rest of the product keeps the normal green palette. */
+  .accent-inactive {
+    border-color: rgba(244, 63, 94, 0.38);
+    background-image: linear-gradient(
+      110deg,
+      rgba(251, 113, 133, 0.16) 0%,
+      rgba(244, 63, 94, 0.05) 48%,
+      transparent 80%
+    );
+  }
+
+  .dark .accent-inactive {
+    border-color: rgba(251, 113, 133, 0.3);
+    background-image: linear-gradient(
+      110deg,
+      rgba(251, 113, 133, 0.14) 0%,
+      rgba(244, 63, 94, 0.04) 48%,
+      transparent 80%
+    );
+  }
+
+  /* Consumers provide their own positioning/clipping so utilities such as
+     lg:sticky are not overridden by this decorative background layer. */
+  .mesh {
+    isolation: isolate;
+  }
+
+  .mesh::before {
+    content: "";
+    position: absolute;
+    inset: -30%;
+    background:
+      radial-gradient(circle at 20% 30%, color-mix(in srgb, var(--primary) 25%, transparent), transparent 34%),
+      radial-gradient(circle at 78% 22%, color-mix(in srgb, var(--secondary) 20%, transparent), transparent 32%),
+      radial-gradient(circle at 55% 80%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 36%);
+    filter: blur(42px);
+    opacity: 0.8;
+    animation: drift 16s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+
+  .grid-lines {
+    background-image:
+      linear-gradient(to right, color-mix(in srgb, var(--rule) 70%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in srgb, var(--rule) 70%, transparent) 1px, transparent 1px);
+    background-size: 48px 48px;
+    -webkit-mask-image: linear-gradient(to bottom, black, transparent 78%);
+    mask-image: linear-gradient(to bottom, black, transparent 78%);
+  }
+
+  .gradient-text {
+    background-image: linear-gradient(
+      100deg,
+      var(--foreground) 0%,
+      var(--primary) 48%,
+      var(--secondary) 100%
+    );
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  .amount-credit,
+  .amount-debit {
+    background-size: 220% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: amount-flow 3.2s linear infinite;
+  }
+
+  .amount-credit {
+    background-image: linear-gradient(
+      100deg,
+      #15803d 0%,
+      #22c55e 32%,
+      #bbf7d0 50%,
+      #22c55e 68%,
+      #15803d 100%
+    );
+  }
+
+  .amount-debit {
+    background-image: linear-gradient(
+      100deg,
+      #b91c1c 0%,
+      #ef4444 32%,
+      #fecaca 50%,
+      #ef4444 68%,
+      #b91c1c 100%
+    );
+  }
+
+  .pulse-dot {
+    position: relative;
+  }
+
+  .pulse-dot::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: 0.45;
+    animation: pulse-ring 2s ease-out infinite;
+  }
+
+  .bar-grow {
+    transform-origin: bottom;
+    animation: bar-grow 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .animate-rise {
+    animation: rise 620ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+
+  .delay-1 { animation-delay: 90ms; }
+  .delay-2 { animation-delay: 180ms; }
+  .delay-3 { animation-delay: 270ms; }
+  .delay-4 { animation-delay: 360ms; }
+
+  .float-slow {
+    animation: floaty 7s ease-in-out infinite;
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--muted) 0%,
+      color-mix(in srgb, var(--muted) 45%, var(--background)) 50%,
+      var(--muted) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes amount-flow {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes drift {
+  to {
+    transform: translate3d(4%, -3%, 0) scale(1.08);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes bar-grow {
+  from { transform: scaleY(0.15); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.7); opacity: 0.5; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Native select arrows sit flush against the field edge. A shared custom
+   arrow keeps the same look everywhere with a little breathing room. */
+select:not([multiple]) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 1rem;
+  padding-right: 2.6rem;
+}
+
+select:not([multiple])::-ms-expand {
+  display: none;
+}
