@@ -8,11 +8,11 @@ import {
   PlusCircle,
   ScrollText,
   ShoppingBag,
-  UserRound,
-  Users,
+  Wallet,
 } from "lucide-react";
 import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { Link, redirect } from "@/i18n/navigation";
+import { AdminSignupChart } from "@/components/admin/admin-signup-chart";
 import { AdminPageIntro, AdminSection } from "@/components/admin/admin-ui";
 import { StatCard } from "@/components/ui/stat-card";
 import { formatSP } from "@/lib/money";
@@ -35,8 +35,8 @@ export default async function AdminDashboardPage() {
   const queues = [
     {
       href: "/admin/investments?proof=pending",
-      label: ta("pendingPayments"),
-      count: stats.pendingProofs,
+      label: ta("pendingInvestments"),
+      count: stats.pendingInvestments,
       icon: <ShoppingBag className="size-4" />,
     },
     {
@@ -90,19 +90,20 @@ export default async function AdminDashboardPage() {
         </div>
       </AdminSection>
 
+      <AdminSection id="member-growth" title={ta("memberGrowth")}>
+        <AdminSignupChart
+          totalMembers={stats.totalMembers}
+          signups={stats.signups}
+          locale={locale}
+        />
+      </AdminSection>
+
       <AdminSection id="overview" title={ta("overview")}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <StatCard
-            label={ta("newMembersThisMonth")}
-            value={stats.newMembersThisMonth}
-            hint={`${ta("lastMonth")}: ${stats.newMembersLastMonth}`}
-            icon={<Users className="size-4" />}
-          />
-          <StatCard
-            label={ta("memberStatus")}
-            value={`${ta("activeMembers")} ${stats.activeMembers}`}
-            hint={`${ta("inactiveMembers")} ${stats.inactiveMembers} · ${ta("suspendedMembers")} ${stats.suspendedMembers}`}
-            icon={<UserRound className="size-4" />}
+            label={ta("totalTopUpAmount")}
+            value={formatSP(stats.totalTopUpPaisa)}
+            icon={<Wallet className="size-4" />}
           />
           <StatCard
             label={ta("totalInvested")}
