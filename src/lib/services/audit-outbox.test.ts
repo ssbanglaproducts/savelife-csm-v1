@@ -20,17 +20,36 @@ function makeRow() {
   };
 }
 
-function makeClient({ upsertFails = false } = {}) {
+function makeClient({
+  createFailure = "none",
+  existingAudit = false,
+  existingAuditAfterFailure = false,
+}: {
+  createFailure?: "none" | "database" | "unique";
+  existingAudit?: boolean;
+  existingAuditAfterFailure?: boolean;
+} = {}) {
   const row = makeRow();
-  const auditLogUpsert = vi.fn(async (args: { create: Record<string, unknown> }) => {
-    if (upsertFails) throw new Error("database unavailable");
-    return args.create;
+  let findCalls = 0;
+  const auditLogFindUnique = vi.fn(async () => {
+    findCalls += 1;
+    if (existingAudit) return { id: row.id };
+    if (existingAuditAfterFailure && findCalls > 1) return { id: row.id };
+    return null;
+  });
+  const auditLogCreate = vi.fn(async (args: { data: Record<string, unknown> }) => {
+    if (createFailure === "unique") {
+      throw { code: "P2002", message: "Unique constraint failed on AuditLog_pkey" };
+    }
+    if (createFailure === "database") throw new Error("database unavailable");
+    return args.data;
   });
   const auditOutboxDeleteMany = vi.fn(async () => ({ count: 1 }));
   const auditOutboxUpdateMany = vi.fn(async () => ({ count: 1 }));
   const client = {
     auditLog: {
-      upsert: auditLogUpsert,
+      findUnique: auditLogFindUnique,
+      create: auditLogCreate,
     },
     auditOutbox: {
       create: vi.fn(async (args: { data: Record<string, unknown> }) => ({
@@ -43,7 +62,13 @@ function makeClient({ upsertFails = false } = {}) {
     },
     $transaction: vi.fn(async (run: (tx: unknown) => Promise<unknown>) => run(client)),
   } as unknown as PrismaClient;
-  return { client, auditLogUpsert, auditOutboxDeleteMany, auditOutboxUpdateMany };
+  return {
+    client,
+    auditLogFindUnique,
+    auditLogCreate,
+    auditOutboxDeleteMany,
+    auditOutboxUpdateMany,
+  };
 }
 
 describe("audit outbox", () => {
@@ -60,24 +85,46 @@ describe("audit outbox", () => {
   });
 
   it("replays with the queued id so a crash cannot duplicate the audit", async () => {
-    const { client, auditLogUpsert, auditOutboxDeleteMany } = makeClient();
+    const { client, auditLogCreate, auditOutboxDeleteMany } = makeClient();
 
     const result = await flushAuditOutbox(client);
 
-    expect(auditLogUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "outbox-1" },
-        create: expect.objectContaining({ id: "outbox-1" }),
-        update: {},
-      }),
+    expect(auditLogCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ id: "outbox-1" }) }),
     );
     expect(auditOutboxDeleteMany).toHaveBeenCalledWith({ where: { id: "outbox-1" } });
     expect(result).toEqual({ flushed: 1, failed: 0 });
   });
 
-  it("schedules a retry even if a concurrent runner deleted the row", async () => {
-    const { client, auditOutboxUpdateMany } = makeClient({ upsertFails: true });
+  it("clears replayed rows when the audit already exists by id", async () => {
+    const { client, auditLogCreate, auditOutboxDeleteMany } = makeClient({ existingAudit: true });
+
+    const result = await flushAuditOutbox(client);
+
+    expect(auditLogCreate).not.toHaveBeenCalled();
+    expect(auditOutboxDeleteMany).toHaveBeenCalledWith({ where: { id: "outbox-1" } });
+    expect(result).toEqual({ flushed: 1, failed: 0 });
+  });
+
+  it("treats an insert race with the same audit id as success", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { client, auditOutboxDeleteMany, auditOutboxUpdateMany } = makeClient({
+      createFailure: "unique",
+      existingAuditAfterFailure: true,
+    });
+
+    const result = await flushAuditOutbox(client);
+
+    expect(auditOutboxDeleteMany).toHaveBeenCalledWith({ where: { id: "outbox-1" } });
+    expect(auditOutboxUpdateMany).not.toHaveBeenCalled();
+    expect(result).toEqual({ flushed: 1, failed: 0 });
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it("schedules a retry when the audit insert fails", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { client, auditOutboxUpdateMany } = makeClient({ createFailure: "database" });
 
     const result = await flushAuditOutbox(client);
 

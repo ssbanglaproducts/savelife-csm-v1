@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "../../generated/prisma/client";
+import { isUniqueViolation } from "./ledger";
 
 export interface AuditOutboxPayload {
   actorId?: string | null;
@@ -27,6 +28,32 @@ function jsonInput(value: Prisma.JsonValue | null): Prisma.InputJsonValue | unde
 function errorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   return message.slice(0, 500);
+}
+
+function auditCreateData(row: {
+  id: string;
+  createdAt: Date;
+  actorId: string | null;
+  actorRole: "MEMBER" | "ADMIN" | "STAFF" | null;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  before: Prisma.JsonValue | null;
+  after: Prisma.JsonValue | null;
+  ip: string | null;
+}) {
+  return {
+    id: row.id,
+    createdAt: row.createdAt,
+    actorId: row.actorId,
+    actorRole: row.actorRole,
+    action: row.action,
+    entityType: row.entityType,
+    entityId: row.entityId,
+    before: jsonInput(row.before),
+    after: jsonInput(row.after),
+    ip: row.ip,
+  };
 }
 
 /**
@@ -72,31 +99,42 @@ export async function flushAuditOutbox(
   for (const row of due) {
     try {
       await client.$transaction(async (tx) => {
-        // Upsert keeps replay idempotent without a caught constraint error,
-        // which would abort the PostgreSQL transaction and block the delete.
-        await tx.auditLog.upsert({
+        // A crash after the audit insert but before outbox deletion leaves the
+        // row replayable. Check by id first so replay never inserts a duplicate.
+        const existing = await tx.auditLog.findUnique({
           where: { id: row.id },
-          create: {
-            // Reuse the outbox id so an earlier successful insert cannot be
-            // duplicated if this row survived a crash before deletion.
-            id: row.id,
-            createdAt: row.createdAt,
-            actorId: row.actorId,
-            actorRole: row.actorRole,
-            action: row.action,
-            entityType: row.entityType,
-            entityId: row.entityId,
-            before: jsonInput(row.before),
-            after: jsonInput(row.after),
-            ip: row.ip,
-          },
-          update: {},
+          select: { id: true },
         });
+        if (!existing) {
+          await tx.auditLog.create({ data: auditCreateData(row) });
+        }
         // Another replay runner may have already deleted the row.
         await tx.auditOutbox.deleteMany({ where: { id: row.id } });
       });
       flushed += 1;
     } catch (error) {
+      // A concurrent runner can win the insert race after findUnique. Only
+      // clear the row when the conflicting id is this event's audit record.
+      if (isUniqueViolation(error)) {
+        let recovered = false;
+        try {
+          const existing = await client.auditLog.findUnique({
+            where: { id: row.id },
+            select: { id: true },
+          });
+          if (existing) {
+            await client.auditOutbox.deleteMany({ where: { id: row.id } });
+            recovered = true;
+          }
+        } catch (recoveryError) {
+          console.error("Audit outbox recovery failed", { id: row.id }, recoveryError);
+        }
+        if (recovered) {
+          flushed += 1;
+          continue;
+        }
+      }
+
       failed += 1;
       const attempts = row.attempts + 1;
       const delay = Math.min(MAX_BACKOFF_MS, BACKOFF_BASE_MS * 2 ** Math.min(attempts, 6));
