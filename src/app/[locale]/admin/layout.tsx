@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { redirect } from "@/i18n/navigation";
+import { AdminAccent } from "@/components/admin/admin-accent";
 import { PanelShell } from "@/components/layout/panel-shell";
 import type { PanelLink } from "@/components/layout/panel-nav-types";
 import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
@@ -191,20 +192,23 @@ export default async function AdminLayout({
   ].filter((href) => availableHrefs.has(href));
 
   return (
-    <PanelShell
-      title={tn("admin")}
-      links={links}
-      primaryHrefs={primaryHrefs}
-      hideMobilePreferences
-      avatar={{
-        name: adminMember?.fullName ?? access.name,
-        image: adminMember?.profileImage ?? null,
-        memberId: access.memberId,
-        role: access.role,
-        status: "ACTIVE",
-      }}
-    >
-      {children}
-    </PanelShell>
+    <>
+      <AdminAccent />
+      <PanelShell
+        title={tn("admin")}
+        links={links}
+        primaryHrefs={primaryHrefs}
+        hideMobilePreferences
+        avatar={{
+          name: adminMember?.fullName ?? access.name,
+          image: adminMember?.profileImage ?? null,
+          memberId: access.memberId,
+          role: access.role,
+          status: "ACTIVE",
+        }}
+      >
+        {children}
+      </PanelShell>
+    </>
   );
 }

@@ -90,14 +90,6 @@ export default async function AdminDashboardPage() {
         </div>
       </AdminSection>
 
-      <AdminSection id="member-growth" title={ta("memberGrowth")}>
-        <AdminSignupChart
-          totalMembers={stats.totalMembers}
-          signups={stats.signups}
-          locale={locale}
-        />
-      </AdminSection>
-
       <AdminSection id="overview" title={ta("overview")}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <StatCard
@@ -128,6 +120,14 @@ export default async function AdminDashboardPage() {
             icon={<Building2 className="size-4" />}
           />
         </div>
+      </AdminSection>
+
+      <AdminSection id="member-growth" title={ta("memberGrowth")}>
+        <AdminSignupChart
+          totalMembers={stats.totalMembers}
+          signups={stats.signups}
+          locale={locale}
+        />
       </AdminSection>
     </div>
   );

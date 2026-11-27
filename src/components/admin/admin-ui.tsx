@@ -51,16 +51,29 @@ export function AdminSection({
   id,
   title,
   actions,
+  hideTitleOnDesktop = false,
   children,
 }: {
   id: string;
   title: string;
   actions?: ReactNode;
+  hideTitleOnDesktop?: boolean;
   children: ReactNode;
 }) {
   return (
-    <section aria-labelledby={`${id}-heading`} className="scroll-mt-24 space-y-3 sm:space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+    <section
+      aria-labelledby={`${id}-heading`}
+      className={cn(
+        "scroll-mt-24",
+        hideTitleOnDesktop ? "space-y-3 sm:space-y-4 md:space-y-0" : "space-y-3 sm:space-y-4",
+      )}
+    >
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-3",
+          hideTitleOnDesktop && "md:sr-only",
+        )}
+      >
         <h2
           id={`${id}-heading`}
           className="font-display text-lg font-bold tracking-tight sm:text-2xl"

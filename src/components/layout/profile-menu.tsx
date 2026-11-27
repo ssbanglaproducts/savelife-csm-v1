@@ -13,6 +13,10 @@ import type { Viewer } from "@/lib/viewer";
 import { cn } from "@/lib/utils";
 import { SignOutConfirmDialog } from "./sign-out-confirm-dialog";
 
+function firstName(name: string) {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
 /**
  * Signed-in identity control. The trigger shows the avatar (with the name on
  * desktop only for the storefront); the dialog carries the name, Member ID and
@@ -41,8 +45,11 @@ export function ProfileMenu({
   const [confirming, setConfirming] = useState(false);
   const [cloneOpen, setCloneOpen] = useState(false);
   const [lastPathname, setLastPathname] = useState(pathname);
+  const [useShortName, setUseShortName] = useState(false);
   const dialogId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const headerNameRef = useRef<HTMLSpanElement>(null);
+  const headerNameMirrorRef = useRef<HTMLSpanElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef(false);
 
@@ -51,6 +58,28 @@ export function ProfileMenu({
     setOpen(false);
     setSwitchOpen(false);
   }
+
+  useEffect(() => {
+    if (!header) return;
+    const target = headerNameRef.current;
+    const mirror = headerNameMirrorRef.current;
+    if (!target || !mirror) return;
+
+    const update = () => {
+      setUseShortName(mirror.getBoundingClientRect().width > target.clientWidth);
+    };
+    update();
+
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    observer?.observe(target);
+    observer?.observe(mirror);
+    window.addEventListener("resize", update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [header, viewer.name]);
 
   const close = useCallback((restoreFocus = true) => {
     restoreFocusRef.current = restoreFocus;
@@ -185,11 +214,21 @@ export function ProfileMenu({
           textClassName="text-[11px]"
         />
         {header ? (
-          <span className="hidden min-w-0 text-left lg:block">
+          <span className="relative hidden min-w-0 text-left lg:block">
             <span className="block text-[10px] font-bold tracking-[0.08em] text-muted-foreground">
               {t("account")}
             </span>
-            <span className="block max-w-24 truncate text-sm font-semibold leading-tight">
+            <span
+              ref={headerNameRef}
+              className="block max-w-24 truncate text-sm font-semibold leading-tight"
+            >
+              {useShortName ? firstName(viewer.name) : viewer.name}
+            </span>
+            <span
+              ref={headerNameMirrorRef}
+              aria-hidden="true"
+              className="pointer-events-none invisible absolute whitespace-nowrap text-sm font-semibold leading-tight"
+            >
               {viewer.name}
             </span>
           </span>

@@ -7,16 +7,19 @@ import { Button } from "@/components/ui/button";
 import type { SignupPoint } from "@/lib/services/admin-dashboard-stats";
 import { cn } from "@/lib/utils";
 
-type Range = "30d" | "7d" | "today";
+type Range = "30d" | "7d" | "today" | "all";
+
+type RangeLabel = "range30Days" | "range7Days" | "rangeToday" | "rangeAllTime";
 
 const RANGE_OPTIONS: Array<{
   id: Range;
-  label: "range30Days" | "range7Days" | "rangeToday";
-  days: number;
+  label: RangeLabel;
+  days?: number;
 }> = [
   { id: "30d", label: "range30Days", days: 30 },
   { id: "7d", label: "range7Days", days: 7 },
   { id: "today", label: "rangeToday", days: 1 },
+  { id: "all", label: "rangeAllTime" },
 ];
 
 export function AdminSignupChart({
@@ -31,11 +34,17 @@ export function AdminSignupChart({
   const t = useTranslations("adminPanel");
   const [range, setRange] = useState<Range>("today");
   const option = RANGE_OPTIONS.find((item) => item.id === range) ?? RANGE_OPTIONS[2]!;
-  const points = signups.slice(-option.days);
+  const points: readonly SignupPoint[] =
+    range === "all"
+      ? [{ date: t("rangeAllTime"), count: totalMembers }]
+      : signups.slice(-(option.days ?? 30));
   const rangeTotal = points.reduce((sum, point) => sum + point.count, 0);
+  const rangeLabel = range === "all" ? t("allTimeSignUps") : t("newMembersThisMonth");
+  const chartLabel = range === "all" ? t("allTimeSignUps") : t("signupChartLabel");
   const max = Math.max(1, ...points.map((point) => point.count));
 
   const formatLabel = (date: string, index: number) => {
+    if (range === "all") return t("rangeAllTime");
     if (range === "today") return t("rangeToday");
     if (range === "7d") {
       return new Intl.DateTimeFormat(locale, {
@@ -60,7 +69,7 @@ export function AdminSignupChart({
             {totalMembers}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {t("newMembersThisMonth")}: {rangeTotal}
+            {rangeLabel}: {rangeTotal}
           </p>
         </div>
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/20">
@@ -95,7 +104,7 @@ export function AdminSignupChart({
 
       <div
         role="img"
-        aria-label={t("signupChartLabel")}
+        aria-label={chartLabel}
         className="mt-4 flex h-48 min-w-0 items-stretch gap-1 overflow-hidden rounded-xl border border-border/60 bg-[var(--glass)] p-2 sm:gap-2 sm:p-3"
       >
         {points.map((point, index) => (
@@ -115,7 +124,7 @@ export function AdminSignupChart({
       </div>
 
       <table className="sr-only">
-        <caption>{t("signupChartLabel")}</caption>
+        <caption>{chartLabel}</caption>
         <thead>
           <tr>
             <th>{t("signupChartDate")}</th>

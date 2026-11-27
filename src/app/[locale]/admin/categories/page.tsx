@@ -47,7 +47,11 @@ export default async function AdminCategoriesPage() {
         intro={ta("categoriesIntro")}
         icon={<LayoutGrid className="size-5" aria-hidden="true" />}
       />
-      <AdminSection id="categories" title={ta("categoriesTitle")}>
+      <AdminSection
+        id="categories"
+        title={ta("categoriesTitle")}
+        hideTitleOnDesktop
+      >
         <CategoryManager categories={categories} />
       </AdminSection>
     </div>

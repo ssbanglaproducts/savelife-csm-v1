@@ -72,6 +72,44 @@
   --shadow-glow: 0 26px 70px -28px rgba(62, 240, 179, 0.5);
 }
 
+/* Admin-only blue accent. Set on <html> by AdminAccent so portaled dialogs and
+   menus inherit it too; the storefront and member panel keep the green palette. */
+html.admin-accent {
+  --background: #f4f7fd;
+  --card: rgba(255, 255, 255, 0.76);
+  --card-solid: #ffffff;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #1d4ed8;
+  --accent: #e8f0ff;
+  --accent-foreground: #153b8a;
+  --ring: #1d4ed8;
+  --glass: rgba(255, 255, 255, 0.64);
+  --glass-strong: rgba(255, 255, 255, 0.86);
+  --glass-border: rgba(255, 255, 255, 0.82);
+  --shadow-glow: 0 22px 60px -28px rgba(37, 99, 235, 0.6);
+}
+
+html.admin-accent.dark {
+  --background: #060c18;
+  --card: rgba(15, 25, 43, 0.68);
+  --card-solid: #0d1729;
+  --primary: #60a5fa;
+  --primary-foreground: #061229;
+  --secondary: #3b82f6;
+  --accent: rgba(96, 165, 250, 0.14);
+  --accent-foreground: #bfdbfe;
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: #9fb1c9;
+  --rule: rgba(255, 255, 255, 0.11);
+  --border: var(--rule);
+  --glass: rgba(12, 22, 39, 0.6);
+  --glass-strong: rgba(16, 29, 50, 0.82);
+  --glass-border: rgba(255, 255, 255, 0.13);
+  --ring: #60a5fa;
+  --shadow-glow: 0 26px 70px -28px rgba(96, 165, 250, 0.5);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
