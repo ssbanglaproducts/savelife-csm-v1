@@ -20,23 +20,17 @@ function makeRow() {
   };
 }
 
-function makeClient(alreadyInserted = false) {
+function makeClient({ upsertFails = false } = {}) {
   const row = makeRow();
-  const auditLogCreate = vi.fn(async (args: { data: Record<string, unknown> }) => {
-    if (alreadyInserted) {
-      const error = new Error("duplicate");
-      Object.assign(error, { code: "P2002" });
-      throw error;
-    }
-    return args.data;
+  const auditLogUpsert = vi.fn(async (args: { create: Record<string, unknown> }) => {
+    if (upsertFails) throw new Error("database unavailable");
+    return args.create;
   });
-  const auditOutboxDelete = vi.fn(async () => row);
+  const auditOutboxDeleteMany = vi.fn(async () => ({ count: 1 }));
+  const auditOutboxUpdateMany = vi.fn(async () => ({ count: 1 }));
   const client = {
     auditLog: {
-      create: auditLogCreate,
-      findUnique: vi.fn(async () =>
-        alreadyInserted ? { id: row.id } : null,
-      ),
+      upsert: auditLogUpsert,
     },
     auditOutbox: {
       create: vi.fn(async (args: { data: Record<string, unknown> }) => ({
@@ -44,12 +38,12 @@ function makeClient(alreadyInserted = false) {
         ...args.data,
       })),
       findMany: vi.fn(async () => [row]),
-      update: vi.fn(async (args: { data: Record<string, unknown> }) => args.data),
-      delete: auditOutboxDelete,
+      updateMany: auditOutboxUpdateMany,
+      deleteMany: auditOutboxDeleteMany,
     },
     $transaction: vi.fn(async (run: (tx: unknown) => Promise<unknown>) => run(client)),
   } as unknown as PrismaClient;
-  return { client, auditLogCreate, auditOutboxDelete };
+  return { client, auditLogUpsert, auditOutboxDeleteMany, auditOutboxUpdateMany };
 }
 
 describe("audit outbox", () => {
@@ -66,24 +60,32 @@ describe("audit outbox", () => {
   });
 
   it("replays with the queued id so a crash cannot duplicate the audit", async () => {
-    const { client, auditLogCreate, auditOutboxDelete } = makeClient();
+    const { client, auditLogUpsert, auditOutboxDeleteMany } = makeClient();
 
     const result = await flushAuditOutbox(client);
 
-    expect(auditLogCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ id: "outbox-1" }) }),
+    expect(auditLogUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "outbox-1" },
+        create: expect.objectContaining({ id: "outbox-1" }),
+        update: {},
+      }),
     );
-    expect(auditOutboxDelete).toHaveBeenCalledWith({ where: { id: "outbox-1" } });
+    expect(auditOutboxDeleteMany).toHaveBeenCalledWith({ where: { id: "outbox-1" } });
     expect(result).toEqual({ flushed: 1, failed: 0 });
   });
 
-  it("clears a queued row when the audit was already inserted", async () => {
-    const { client, auditOutboxDelete } = makeClient(true);
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  it("schedules a retry even if a concurrent runner deleted the row", async () => {
+    const { client, auditOutboxUpdateMany } = makeClient({ upsertFails: true });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     const result = await flushAuditOutbox(client);
 
-    expect(auditOutboxDelete).toHaveBeenCalledWith({ where: { id: "outbox-1" } });
-    expect(result).toEqual({ flushed: 1, failed: 0 });
+    expect(result).toEqual({ flushed: 0, failed: 1 });
+    expect(auditOutboxUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "outbox-1" } }),
+    );
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
   });
 });

@@ -1,5 +1,4 @@
 import type { Prisma, PrismaClient } from "../../generated/prisma/client";
-import { isUniqueViolation } from "./ledger";
 
 export interface AuditOutboxPayload {
   actorId?: string | null;
@@ -73,32 +72,28 @@ export async function flushAuditOutbox(
   for (const row of due) {
     try {
       await client.$transaction(async (tx) => {
-        try {
-          await tx.auditLog.create({
-            data: {
-              // Reuse the outbox id so an earlier successful insert cannot be
-              // duplicated if this row survived a crash before deletion.
-              id: row.id,
-              createdAt: row.createdAt,
-              actorId: row.actorId,
-              actorRole: row.actorRole,
-              action: row.action,
-              entityType: row.entityType,
-              entityId: row.entityId,
-              before: jsonInput(row.before),
-              after: jsonInput(row.after),
-              ip: row.ip,
-            },
-          });
-        } catch (error) {
-          if (!isUniqueViolation(error)) throw error;
-          const existing = await tx.auditLog.findUnique({
-            where: { id: row.id },
-            select: { id: true },
-          });
-          if (!existing) throw error;
-        }
-        await tx.auditOutbox.delete({ where: { id: row.id } });
+        // Upsert keeps replay idempotent without a caught constraint error,
+        // which would abort the PostgreSQL transaction and block the delete.
+        await tx.auditLog.upsert({
+          where: { id: row.id },
+          create: {
+            // Reuse the outbox id so an earlier successful insert cannot be
+            // duplicated if this row survived a crash before deletion.
+            id: row.id,
+            createdAt: row.createdAt,
+            actorId: row.actorId,
+            actorRole: row.actorRole,
+            action: row.action,
+            entityType: row.entityType,
+            entityId: row.entityId,
+            before: jsonInput(row.before),
+            after: jsonInput(row.after),
+            ip: row.ip,
+          },
+          update: {},
+        });
+        // Another replay runner may have already deleted the row.
+        await tx.auditOutbox.deleteMany({ where: { id: row.id } });
       });
       flushed += 1;
     } catch (error) {
@@ -116,7 +111,9 @@ export async function flushAuditOutbox(
         error,
       );
       try {
-        await client.auditOutbox.update({
+        // A concurrent runner may have already deleted this row; updateMany
+        // makes retry scheduling a no-op instead of a P2025 failure.
+        await client.auditOutbox.updateMany({
           where: { id: row.id },
           data: {
             attempts,
