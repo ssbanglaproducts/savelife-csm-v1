@@ -10,6 +10,8 @@
     "more": "More",
     "moreMenu": "More menu",
     "sections": "Panel sections",
+    "collapseSection": "Collapse {section} section",
+    "expandSection": "Expand {section} section",
     "groupOverview": "Overview",
     "groupNetwork": "Network",
     "groupWallet": "Wallet & payments",

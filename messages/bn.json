@@ -10,6 +10,8 @@
     "more": "আরও",
     "moreMenu": "আরও মেন্যু",
     "sections": "প্যানেল বিভাগ",
+    "collapseSection": "{section} বিভাগ সংকুচিত করুন",
+    "expandSection": "{section} বিভাগ প্রসারিত করুন",
     "groupOverview": "সারসংক্ষেপ",
     "groupNetwork": "নেটওয়ার্ক",
     "groupWallet": "ওয়ালেট ও পেমেন্ট",
