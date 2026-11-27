@@ -269,7 +269,7 @@ export function CatalogControls({
             tabIndex={-1}
             aria-label={t("closeFilters")}
             onClick={() => setOpen(false)}
-            className="fixed inset-0 z-50 h-[100dvh] w-full cursor-default"
+            className="fixed inset-0 z-50 h-[100dvh] w-full cursor-default bg-black/25"
           />
           <div
             id={panelId}

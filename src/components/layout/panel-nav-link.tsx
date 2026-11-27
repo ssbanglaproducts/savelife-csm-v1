@@ -1,89 +1,11 @@
 "use client";
 
-import {
-  ArrowLeftRight,
-  Award,
-  Banknote,
-  Building2,
-  CalendarDays,
-  Circle,
-  Clock,
-  FileText,
-  History,
-  Image as ImageIcon,
-  Info,
-  LayoutDashboard,
-  Landmark,
-  LockKeyhole,
-  Megaphone,
-  Network,
-  Package,
-  PieChart,
-  PlusCircle,
-  ScrollText,
-  Send,
-  Settings,
-  Settings2,
-  ShoppingBag,
-  SlidersHorizontal,
-  TrendingUp,
-  Trophy,
-  UserPlus,
-  UserRound,
-  Users,
-  Video,
-  Wallet,
-  type LucideIcon,
-} from "lucide-react";
+import { Circle, LockKeyhole } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { usePathname } from "@/i18n/navigation";
-import { Link } from "@/i18n/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
+import { panelNavIcons } from "./panel-nav-icons";
 import type { PanelNavBadge } from "./panel-nav-types";
-
-export const panelNavIcons: Record<string, LucideIcon> = {
-  "/member/dashboard": LayoutDashboard,
-  "/member/profile": UserRound,
-  "/member/network": Network,
-  "/member/team": Users,
-  "/member/referrals": UserPlus,
-  "/member/orders": ShoppingBag,
-  "/member/investments": TrendingUp,
-  "/member/wallet": Wallet,
-  "/member/top-up": PlusCircle,
-  "/member/send-money": Send,
-  "/member/transactions": ArrowLeftRight,
-  "/member/withdrawals": Banknote,
-  "/member/program": Building2,
-  "/member/rank-rewards": Trophy,
-  "/member/salary": CalendarDays,
-  "/member/company-info": Info,
-  "/admin/dashboard": LayoutDashboard,
-  "/admin/members": Users,
-  "/admin/orders": ShoppingBag,
-  "/admin/products": Package,
-  "/admin/investments": Landmark,
-  "/admin/distributions": PieChart,
-  "/admin/ranks": Award,
-  "/admin/salary": CalendarDays,
-  "/admin/rank-salary": Trophy,
-  "/admin/rank-salary/overview": Clock,
-  "/admin/rank-salary/rank-configuration": SlidersHorizontal,
-  "/admin/rank-salary/rank-members": Users,
-  "/admin/rank-salary/rank-treasuries": Wallet,
-  "/admin/rank-salary/weekly-distribution": Send,
-  "/admin/rank-salary/distribution-history": History,
-  "/admin/rank-salary/salary-payment-records": FileText,
-  "/admin/withdrawals": Banknote,
-  "/admin/top-ups": PlusCircle,
-  "/admin/settings": Settings,
-  "/admin/settings/investments": Settings2,
-  "/admin/settings/top-up-accounts": Building2,
-  "/admin/settings/auth-banner": Video,
-  "/admin/gallery": ImageIcon,
-  "/admin/announcements": Megaphone,
-  "/admin/audit": ScrollText,
-};
 
 export function PanelNavLink({
   href,

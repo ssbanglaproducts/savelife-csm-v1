@@ -99,6 +99,12 @@ export default async function AdminLayout({
       permission: "distributions.view",
     },
     {
+      href: "/admin/affiliate-commissions",
+      label: ta("affiliateCommissionsTitle"),
+      group: ta("navGroupRewards"),
+      permission: "affiliateCommissions.view",
+    },
+    {
       href: "/admin/roi-commission",
       label: ta("roiCommissionTitle"),
       group: ta("navGroupRewards"),
@@ -181,7 +187,7 @@ export default async function AdminLayout({
     "/admin/dashboard",
     "/admin/members",
     "/admin/investments",
-    "/admin/withdrawals",
+    "/admin/staff",
   ].filter((href) => availableHrefs.has(href));
 
   return (
@@ -189,6 +195,7 @@ export default async function AdminLayout({
       title={tn("admin")}
       links={links}
       primaryHrefs={primaryHrefs}
+      hideMobilePreferences
       avatar={{
         name: adminMember?.fullName ?? access.name,
         image: adminMember?.profileImage ?? null,

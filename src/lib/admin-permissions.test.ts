@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  ADMIN_PERMISSION_KEYS,
   ADMIN_PERMISSION_VALUES,
   BASELINE_PERMISSIONS,
   isAdminPermission,
   isBaselinePermission,
   parseAssignedPermissions,
+  PERMISSION_GROUPS,
 } from "./admin-permissions";
 
 describe("admin permission catalogue", () => {
@@ -41,5 +43,22 @@ describe("admin permission catalogue", () => {
     expect(isAdminPermission("view")).toBe(false);
     expect(isAdminPermission("all")).toBe(false);
     expect(isAdminPermission(undefined)).toBe(false);
+  });
+
+  it("includes the read-only affiliate commission permission in rewards", () => {
+    expect(ADMIN_PERMISSION_VALUES).toContain("affiliateCommissions.view");
+    expect(isAdminPermission("affiliateCommissions.view")).toBe(true);
+    expect(parseAssignedPermissions(["affiliateCommissions.view"])).toEqual([
+      "affiliateCommissions.view",
+    ]);
+
+    const rewards = PERMISSION_GROUPS.find((group) => group.id === "rewards");
+    expect(rewards?.permissions).toContainEqual({
+      value: "affiliateCommissions.view",
+      labelKey: "permissionAffiliateCommissionsView",
+    });
+    expect(ADMIN_PERMISSION_KEYS.affiliateCommissionsView).toBe(
+      "permissionAffiliateCommissionsView",
+    );
   });
 });

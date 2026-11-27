@@ -12,12 +12,14 @@ export async function PanelShell({
   links,
   primaryHrefs,
   avatar,
+  hideMobilePreferences = false,
   children,
 }: {
   title?: string;
   links: PanelLink[];
   primaryHrefs: string[];
   avatar?: Viewer;
+  hideMobilePreferences?: boolean;
   children: ReactNode;
 }) {
   const t = await getTranslations("nav");
@@ -39,6 +41,7 @@ export async function PanelShell({
       avatar={avatar}
       links={links}
       primaryHrefs={primaryHrefs}
+      hideMobilePreferences={hideMobilePreferences}
       desktopNav={
         <nav aria-label={t("sections")} className="w-full">
           <p className="border-b border-border px-3 py-3 text-xs font-bold tracking-[0.12em] text-muted-foreground">

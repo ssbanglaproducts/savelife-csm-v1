@@ -21,6 +21,7 @@ export function PanelChrome({
   desktopNav,
   links,
   primaryHrefs,
+  hideMobilePreferences = false,
   children,
 }: {
   title?: string;
@@ -28,6 +29,7 @@ export function PanelChrome({
   desktopNav: ReactNode;
   links: PanelLink[];
   primaryHrefs: string[];
+  hideMobilePreferences?: boolean;
   children: ReactNode;
 }) {
   const t = useTranslations("nav");
@@ -66,7 +68,10 @@ export function PanelChrome({
             <div
               role="group"
               aria-label={t("preferences")}
-              className="flex items-center rounded-full border border-border bg-muted/40 p-0.5"
+              className={cn(
+                "flex items-center rounded-full border border-border bg-muted/40 p-0.5",
+                hideMobilePreferences && "hidden sm:flex",
+              )}
             >
               <ThemeToggle className="size-8" />
               <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />

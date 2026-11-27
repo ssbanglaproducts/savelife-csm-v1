@@ -7,7 +7,7 @@ import { Link, usePathname } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { LanguageToggle } from "./language-toggle";
 import { LogoutButton } from "./logout-button";
-import { panelNavIcons } from "./panel-nav-link";
+import { panelNavIcons } from "./panel-nav-icons";
 import type { PanelLink } from "./panel-nav-types";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -174,6 +174,8 @@ export function PanelBottomNav({
         return t("adminTabInvestments");
       case "/admin/distributions":
         return t("adminTabDistributions");
+      case "/admin/affiliate-commissions":
+        return t("adminTabAffiliateCommissions");
       case "/admin/roi-commission":
         return t("adminTabRoi");
       case "/admin/ranks":
@@ -212,7 +214,7 @@ export function PanelBottomNav({
     const content = (
       <>
         <Icon className="size-4 shrink-0" aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate">{shortLabel(item)}</span>
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
         {item.badge && item.badge.count > 0 ? (
           <span
             className={cn(
@@ -325,7 +327,7 @@ export function PanelBottomNav({
             aria-label={t("closeMenu")}
             tabIndex={-1}
             onClick={() => close()}
-            className="absolute inset-0 size-full cursor-default"
+            className="absolute inset-0 size-full cursor-default bg-black/25"
           />
 
           <div

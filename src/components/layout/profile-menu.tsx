@@ -170,7 +170,7 @@ export function ProfileMenu({
           panel
             ? "size-11 justify-center p-0 md:hidden"
             : header
-              ? "rounded-full border border-border bg-[var(--glass-strong)] py-1 pl-1 pr-2.5 shadow-sm hover:border-primary/50"
+              ? "size-8 justify-center rounded-full border-0 bg-transparent p-0 shadow-none hover:bg-accent sm:size-auto sm:justify-start sm:rounded-full sm:border sm:border-border sm:bg-[var(--glass-strong)] sm:py-1 sm:pl-1 sm:pr-2.5 sm:shadow-sm sm:hover:border-primary/50"
               : "sm:p-1.5",
         )}
       >
@@ -225,7 +225,7 @@ export function ProfileMenu({
                 tabIndex={-1}
                 aria-label={t("closeMenu")}
                 onClick={() => close()}
-                className="absolute inset-0 size-full cursor-default"
+                className="absolute inset-0 size-full cursor-default bg-black/25"
               />
 
               <div

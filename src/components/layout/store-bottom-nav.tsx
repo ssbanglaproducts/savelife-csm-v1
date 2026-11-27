@@ -313,7 +313,7 @@ export function StoreBottomNav() {
             tabIndex={-1}
             aria-label={t("closeMenu")}
             onClick={() => close()}
-            className="fixed inset-0 z-40 h-[100dvh] w-full cursor-default"
+            className="fixed inset-0 z-40 h-[100dvh] w-full cursor-default bg-black/25"
           />
           <div
             ref={sheetRef}

@@ -2,12 +2,13 @@ import { getLocale, getTranslations } from "next-intl/server";
 import {
   ArrowUpRight,
   Banknote,
+  Building2,
   CreditCard,
   Landmark,
   PlusCircle,
-  ReceiptText,
   ScrollText,
   ShoppingBag,
+  UserRound,
   Users,
 } from "lucide-react";
 import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
@@ -16,6 +17,7 @@ import { AdminPageIntro, AdminSection } from "@/components/admin/admin-ui";
 import { StatCard } from "@/components/ui/stat-card";
 import { formatSP } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
+import { loadAdminDashboardStats } from "@/lib/services/admin-dashboard-stats";
 
 export const dynamic = "force-dynamic";
 
@@ -28,62 +30,25 @@ export default async function AdminDashboardPage() {
   ]);
   if (!session || !hasAdminPermission(session, "dashboard.view")) redirect({ href: "/admin-login", locale });
 
-  const [
-    members,
-    pendingProofs,
-    pendingWithdrawals,
-    pendingTopUps,
-    activeInvestments,
-    distributions,
-    investedAggregate,
-    withdrawnAggregate,
-  ] = await Promise.all([
-    prisma.member.count({ where: { role: "MEMBER" } }),
-    prisma.paymentProof.count({
-      where: { status: "PENDING", member: { role: "MEMBER" } },
-    }),
-    prisma.withdrawal.count({
-      where: { status: "PENDING", member: { role: "MEMBER" } },
-    }),
-    prisma.walletTopUp.count({
-      where: { status: "PENDING", member: { role: "MEMBER" } },
-    }),
-    prisma.investment.count({
-      where: { status: "ACTIVE", member: { role: "MEMBER" } },
-    }),
-    prisma.profitDistribution.count({
-      where: { lines: { some: { member: { role: "MEMBER" } } } },
-    }),
-    prisma.investment.aggregate({
-      where: { status: "ACTIVE", member: { role: "MEMBER" } },
-      _sum: { amountPaisa: true },
-    }),
-    prisma.withdrawal.aggregate({
-      where: { status: "PAID", member: { role: "MEMBER" } },
-      _sum: { netPaisa: true },
-    }),
-  ]);
-
-  const totalInvestedPaisa = investedAggregate._sum.amountPaisa ?? 0n;
-  const totalWithdrawnPaisa = withdrawnAggregate._sum.netPaisa ?? 0n;
+  const stats = await loadAdminDashboardStats(prisma);
 
   const queues = [
     {
       href: "/admin/investments?proof=pending",
       label: ta("pendingPayments"),
-      count: pendingProofs,
+      count: stats.pendingProofs,
       icon: <ShoppingBag className="size-4" />,
     },
     {
       href: "/admin/withdrawals",
       label: ta("pendingWithdrawals"),
-      count: pendingWithdrawals,
+      count: stats.pendingWithdrawals,
       icon: <Banknote className="size-4" />,
     },
     {
       href: "/admin/top-ups",
       label: ta("topUpsTitle"),
-      count: pendingTopUps,
+      count: stats.pendingTopUps,
       icon: <PlusCircle className="size-4" />,
     },
   ];
@@ -128,40 +93,39 @@ export default async function AdminDashboardPage() {
       <AdminSection id="overview" title={ta("overview")}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <StatCard
-            label={ta("membersCount")}
-            value={members}
+            label={ta("newMembersThisMonth")}
+            value={stats.newMembersThisMonth}
+            hint={`${ta("lastMonth")}: ${stats.newMembersLastMonth}`}
             icon={<Users className="size-4" />}
           />
           <StatCard
+            label={ta("memberStatus")}
+            value={`${ta("activeMembers")} ${stats.activeMembers}`}
+            hint={`${ta("inactiveMembers")} ${stats.inactiveMembers} · ${ta("suspendedMembers")} ${stats.suspendedMembers}`}
+            icon={<UserRound className="size-4" />}
+          />
+          <StatCard
             label={ta("totalInvested")}
-            value={formatSP(totalInvestedPaisa)}
+            value={formatSP(stats.totalInvestedPaisa)}
+            hint={`${ta("lastMonth")}: ${formatSP(stats.lastMonthInvestedPaisa)}`}
             icon={<ShoppingBag className="size-4" />}
           />
           <StatCard
             label={ta("totalWithdrawn")}
-            value={formatSP(totalWithdrawnPaisa)}
+            value={formatSP(stats.totalWithdrawnPaisa)}
             icon={<CreditCard className="size-4" />}
           />
           <StatCard
             label={ta("activeInvestments")}
-            value={activeInvestments}
+            value={stats.activeInvestments}
             icon={<Landmark className="size-4" />}
           />
           <StatCard
-            label={ta("distributionsCount")}
-            value={distributions}
-            icon={<ReceiptText className="size-4" />}
+            label={ta("rankSalaryTreasury")}
+            value={formatSP(stats.salaryTreasuryPaisa)}
+            hint={ta("rankSalaryTreasuryHint")}
+            icon={<Building2 className="size-4" />}
           />
-          <Link
-            href="/admin/audit"
-            className="block min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <StatCard
-              label={ta("auditTitle")}
-              value={ta("viewDetails")}
-              icon={<ScrollText className="size-4" />}
-            />
-          </Link>
         </div>
       </AdminSection>
     </div>
