@@ -12,6 +12,7 @@ const REVIEW_SECONDS = 10;
 export type AdminConfigChange = {
   label: string;
   value: string;
+  previous?: string;
 };
 
 /**
@@ -27,6 +28,8 @@ export function AdminConfigCommitDialog({
   error,
   onClearError,
   onCommit,
+  versioned = false,
+  nextVersion,
 }: {
   onClose: () => void;
   changes: readonly AdminConfigChange[];
@@ -34,6 +37,8 @@ export function AdminConfigCommitDialog({
   error?: string | null;
   onClearError?: () => void;
   onCommit: (password: string) => Promise<boolean>;
+  versioned?: boolean;
+  nextVersion?: number;
 }) {
   const t = useTranslations("adminPanel");
   const tc = useTranslations("common");
@@ -43,6 +48,7 @@ export function AdminConfigCommitDialog({
   const [stage, setStage] = useState<"review" | "final">("review");
   const [countdown, setCountdown] = useState(REVIEW_SECONDS);
   const [password, setPassword] = useState("");
+  const hasPrevious = changes.some((change) => change.previous !== undefined);
 
   useEffect(() => {
     if (stage !== "review") return;
@@ -81,22 +87,55 @@ export function AdminConfigCommitDialog({
           onClose={onClose}
         >
           <div className="space-y-4">
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-              {changes.map((change) => (
-                <div
-                  key={change.label}
-                  className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2.5 text-sm"
-                >
-                  <span className="font-semibold text-muted-foreground">{change.label}</span>
-                  <span
-                    className="min-w-0 break-words text-right font-semibold tabular-nums"
-                    translate="no"
+            {hasPrevious ? (
+              <div className="overflow-hidden rounded-xl border border-border">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead className="bg-[var(--glass-strong)] text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th scope="col" className="px-3 py-2">
+                        {t("configChangeSetting")}
+                      </th>
+                      <th scope="col" className="px-3 py-2">
+                        {tc("previous")}
+                      </th>
+                      <th scope="col" className="px-3 py-2">
+                        {tc("next")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {changes.map((change) => (
+                      <tr key={change.label}>
+                        <td className="px-3 py-2 font-semibold">{change.label}</td>
+                        <td className="px-3 py-2 text-muted-foreground" translate="no">
+                          {change.previous ?? "—"}
+                        </td>
+                        <td className="px-3 py-2 font-semibold tabular-nums" translate="no">
+                          {change.value}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+                {changes.map((change) => (
+                  <div
+                    key={change.label}
+                    className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2.5 text-sm"
                   >
-                    {change.value}
-                  </span>
-                </div>
-              ))}
-            </div>
+                    <span className="font-semibold text-muted-foreground">{change.label}</span>
+                    <span
+                      className="min-w-0 break-words text-right font-semibold tabular-nums"
+                      translate="no"
+                    >
+                      {change.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div
               className={
                 countdown > 0
@@ -109,7 +148,11 @@ export function AdminConfigCommitDialog({
                 ? t("configReviewCountdown", { seconds: countdown })
                 : t("configReviewReady")}
             </div>
-            <p className="text-xs leading-relaxed text-muted-foreground">{t("configReviewNote")}</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {versioned
+                ? t("configVersionReviewNote", { version: nextVersion ?? 0 })
+                : t("configReviewNote")}
+            </p>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
                 {tc("cancel")}
@@ -124,8 +167,12 @@ export function AdminConfigCommitDialog({
 
       {stage === "final" ? (
         <DialogShell
-          title={t("configFinalTitle")}
-          intro={t("configFinalIntro")}
+          title={versioned ? t("configVersionFinalTitle") : t("configFinalTitle")}
+          intro={
+            versioned
+              ? t("configVersionFinalIntro", { version: nextVersion ?? 0 })
+              : t("configFinalIntro")
+          }
           titleId={finalTitleId}
           onClose={onClose}
         >
@@ -133,12 +180,12 @@ export function AdminConfigCommitDialog({
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3">
               <div className="flex items-center gap-2 text-sm font-bold text-red-700">
                 <ShieldCheck className="size-4" aria-hidden="true" />
-                {t("configFinalWarningTitle")}
+                {versioned ? t("configVersionFinalWarningTitle") : t("configFinalWarningTitle")}
               </div>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-relaxed text-red-700">
-                <li>{t("configFinalWarning1")}</li>
-                <li>{t("configFinalWarning2")}</li>
-                <li>{t("configFinalWarning3")}</li>
+                <li>{versioned ? t("configVersionFinalWarning1") : t("configFinalWarning1")}</li>
+                <li>{versioned ? t("configVersionFinalWarning2") : t("configFinalWarning2")}</li>
+                <li>{versioned ? t("configVersionFinalWarning3") : t("configFinalWarning3")}</li>
               </ul>
             </div>
 

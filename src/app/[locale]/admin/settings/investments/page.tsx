@@ -41,7 +41,11 @@ export default async function AdminInvestmentSettingsPage() {
   return (
     <div className="space-y-8">
       <AdminSection id="new-version" title={ta("createVersion")}>
-        <SettingsForm version={nextVersion} defaults={defaults} />
+        <SettingsForm
+          currentVersion={active?.version ?? 0}
+          nextVersion={nextVersion}
+          defaults={defaults}
+        />
       </AdminSection>
 
       <AdminSection id="versions" title={ta("settingsTitle")}>

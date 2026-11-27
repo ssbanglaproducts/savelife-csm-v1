@@ -198,10 +198,12 @@ export type SettingsDefaults = {
 };
 
 export function SettingsForm({
-  version,
+  currentVersion,
+  nextVersion,
   defaults,
 }: {
-  version: number;
+  currentVersion: number;
+  nextVersion: number;
   defaults: SettingsDefaults;
 }) {
   const t = useTranslations("adminPanel");
@@ -227,12 +229,36 @@ export function SettingsForm({
       minWithdrawal,
     });
     setPendingChanges([
-      { label: t("version"), value: String(version) },
-      { label: t("installmentMonths"), value: String(installmentDurationMonths) },
-      { label: t("capitalRepayment"), value: t("capitalOnly") },
-      { label: t("lockInMonths"), value: String(profitOnlyLockInMonths) },
-      { label: t("withdrawalFeePercent"), value: `${withdrawalFeePercent}%` },
-      { label: t("minWithdrawal"), value: minWithdrawal },
+      {
+        label: t("version"),
+        previous: String(currentVersion),
+        value: String(nextVersion),
+      },
+      {
+        label: t("installmentMonths"),
+        previous: String(defaults.installmentDurationMonths),
+        value: String(installmentDurationMonths),
+      },
+      {
+        label: t("capitalRepayment"),
+        previous: t("capitalOnly"),
+        value: t("capitalOnly"),
+      },
+      {
+        label: t("lockInMonths"),
+        previous: String(defaults.profitOnlyLockInMonths),
+        value: String(profitOnlyLockInMonths),
+      },
+      {
+        label: t("withdrawalFeePercent"),
+        previous: `${defaults.withdrawalFeePercent}%`,
+        value: `${withdrawalFeePercent}%`,
+      },
+      {
+        label: t("minWithdrawal"),
+        previous: defaults.minWithdrawal,
+        value: minWithdrawal,
+      },
     ]);
     setReviewOpen(true);
   }
@@ -264,7 +290,7 @@ export function SettingsForm({
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <div>
           <span className={adminLabelClass}>{t("version")}</span>
-          <output className={`${adminInputClass} mt-2 flex items-center`}>{version}</output>
+          <output className={`${adminInputClass} mt-2 flex items-center`}>{nextVersion}</output>
         </div>
         <div>
           <label htmlFor={`${fieldId}-duration`} className={adminLabelClass}>
@@ -351,6 +377,8 @@ export function SettingsForm({
           error={error}
           onClearError={() => setError(null)}
           onCommit={commit}
+          versioned
+          nextVersion={nextVersion}
         />
       ) : null}
     </form>
