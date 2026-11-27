@@ -36,8 +36,11 @@ function isSafeHttpUrl(value: string): URL | null {
     return null;
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-  if (url.protocol === "http:" && !["localhost", "127.0.0.1"].includes(url.hostname)) {
-    return null;
+  if (url.protocol === "http:") {
+    // Local HTTP is a development convenience only. It must never be rendered
+    // by a deployed auth page, including via a stored admin-configured URL.
+    if (process.env.NODE_ENV === "production") return null;
+    if (!["localhost", "127.0.0.1"].includes(url.hostname)) return null;
   }
   return url;
 }

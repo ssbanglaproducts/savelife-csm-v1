@@ -34,7 +34,9 @@ Open `http://localhost:3000/en` (or `/bn`).
 
 **Seed admin:** `SL000000` / `Admin@123456` (login uses member ID only)
 
-> Change this password immediately after your first login in any non-local environment.
+> These defaults are development-only. `npm run db:seed` with `NODE_ENV=production`
+> refuses to run unless `SEED_ADMIN_PASSWORD` and `SEED_FOUNDER_PASSWORD` are set
+> (minimum 12 characters). Rotate both immediately after the first production login.
 
 ## Scripts
 
@@ -128,16 +130,36 @@ weekly distributions at `/admin/salary`, and can trigger the current Sunday post
 ## Deployment (Hostinger VPS2)
 
 1. Install Docker and Git on the VPS, then clone this repository.
-2. Create `.env` from `.env.example` and set a strong `POSTGRES_PASSWORD`, `AUTH_SECRET`
-   and the public `AUTH_URL` (for example `https://your-domain.com`).
+2. Create `.env` from `.env.example` and set a strong `POSTGRES_PASSWORD`, a freshly
+   generated `AUTH_SECRET`, and the canonical public `AUTH_URL`/`APP_URL` (for example
+   `https://your-domain.com`). Leave `AUTH_TRUST_HOST=false` unless a local proxy setup
+   explicitly requires Host-header trust. The literal `.env.example` placeholder secret
+   is rejected when `NODE_ENV=production`.
 3. Run `docker compose up -d --build`. The app waits for PostgreSQL to become healthy,
    applies all committed migrations automatically, then starts the server.
-4. Run `docker compose exec app npm run db:seed` once on the fresh database.
+4. Set `SEED_ADMIN_PASSWORD` and `SEED_FOUNDER_PASSWORD` in `.env`, then run
+   `docker compose exec app npm run db:seed` once on the fresh database. Treat those
+   values as one-time bootstrap secrets and rotate them (admin password via the admin
+   UI, founder password at first login) immediately afterwards.
 5. Put a TLS reverse proxy (Caddy/Nginx) in front of port 3000 and point the domain at it.
 
 Uploads live in the named `uploads` volume and database files in `postgres_data`; back up
 both volumes daily. The app also runs due investment and salary automation passes every
 five minutes, so an always-on Node server is required.
+
+### Security notes
+
+- Login, admin re-auth and public registration uploads use injectable, in-memory
+  rate limiters. They are an additional defense layer per process, not a shared
+  cluster-wide quota; put a reverse-proxy/edge rate limit in front of multi-replica
+  deployments. The limiters are keyed by hashed client/account identifiers and log
+  hashed keys only.
+- `ALLOW_DEV_SECRET=1` exists solely for an intentional local-only production build
+  with a stand-in `AUTH_SECRET`; never set it on a deployed host.
+- Non-public member APIs re-read role/status from PostgreSQL on each request via
+  `requireActiveMemberApi()`, so a stale JWT cannot keep a suspended member authorized.
+  Shared admin/member endpoints use its principal-level counterpart. Cart/checkout keep
+  their explicit activation rules and money routes use transactional status checks.
 
 GitHub Actions runs typecheck, lint, tests and the production build on every push to `main`.
 

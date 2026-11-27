@@ -159,6 +159,7 @@ export async function createSalaryPlanVersion(
     readonly effectiveFrom?: Date;
     readonly approvedChanges?: Prisma.InputJsonValue;
     readonly commitToken?: string;
+    readonly expectedVersion?: number;
   },
 ): Promise<SalaryPlan> {
   return runInTransaction(client, async (tx) => {
@@ -166,7 +167,11 @@ export async function createSalaryPlanVersion(
       orderBy: { version: "desc" },
       select: { version: true },
     });
-    const nextVersion = (latest?.version ?? 0) + 1;
+    const currentVersion = latest?.version ?? 0;
+    if (input.expectedVersion !== undefined && input.expectedVersion !== currentVersion) {
+      throw new Error("STALE_VERSION");
+    }
+    const nextVersion = currentVersion + 1;
     const created = await tx.salaryPlanVersion.create({
       data: {
         version: nextVersion,

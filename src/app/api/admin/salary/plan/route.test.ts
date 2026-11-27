@@ -216,6 +216,58 @@ describe("POST /api/admin/salary/plan", () => {
     expect(mocks.versionUpdateMany).not.toHaveBeenCalled();
   });
 
+  it("rejects a stale expected version with 409 STALE_VERSION", async () => {
+    const response = await POST(request(body({ expectedVersion: 1 })));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "STALE_VERSION" });
+    expect(mocks.versionCreate).not.toHaveBeenCalled();
+  });
+
+  it("maps a lost version race to 409 STALE_VERSION", async () => {
+    mocks.versionCreate.mockRejectedValueOnce(new Error("STALE_VERSION"));
+
+    const response = await POST(request(body()));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "STALE_VERSION" });
+  });
+
+  it("maps a duplicate version constraint to 409 STALE_VERSION", async () => {
+    mocks.versionCreate.mockRejectedValueOnce(
+      Object.assign(new Error("duplicate key"), {
+        code: "P2002",
+        meta: { target: ["SalaryPlanVersion_version_key"] },
+      }),
+    );
+
+    const response = await POST(request(body()));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "STALE_VERSION" });
+  });
+
+  it("keeps a replayed commit token a duplicate, not a stale version", async () => {
+    const raced = { ...savedVersion(), createdById: ADMIN_ID };
+    // Both pre-create lookups miss; the catch-block lookup finds the row a
+    // concurrent admin wrote with the same commit token.
+    mocks.versionFindUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(raced);
+    mocks.versionCreate.mockRejectedValueOnce(
+      Object.assign(new Error("duplicate key"), {
+        code: "P2002",
+        meta: { target: ["SalaryPlanVersion_commitToken_key"] },
+      }),
+    );
+
+    const response = await POST(request(body()));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ duplicate: true, version: 3 });
+  });
+
   it("commits a reviewed version while leaving prior definitions unchanged", async () => {
     const active = activeVersion();
     const before = snapshot(active);

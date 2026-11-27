@@ -8,6 +8,7 @@ import { invalidInput } from "./errors";
 import {
   adjustWalletField,
   categoryForWalletField,
+  debitWalletFieldIfSufficient,
   hasLedgerEntry,
   isUniqueViolation,
   makeKey,
@@ -27,6 +28,9 @@ import {
 
 const DEBIT = "DEBIT" as const;
 const CREDIT = "CREDIT" as const;
+
+/** Thrown inside a posting transaction when an atomic debit loses a race. */
+class BalanceClaimLostError extends Error {}
 
 export type CollectRewardsResult =
   | {
@@ -109,13 +113,16 @@ export async function collectRewardsToAvailable(
 
     for (const walletDefinition of positiveFields) {
       const amount = balances[walletDefinition.field];
-      const debited = await adjustWalletField(
+      // The snapshot above is only a hint: spend the currently committed
+      // balance with a conditional update so concurrent collections cannot
+      // double-spend the same reward bucket.
+      const debited = await debitWalletFieldIfSufficient(
         tx,
         input.memberId,
         walletDefinition.field as RewardWalletField,
         amount,
-        DEBIT,
       );
+      if (!debited) throw new BalanceClaimLostError();
       const credited = await adjustWalletField(
         tx,
         input.memberId,
@@ -164,6 +171,11 @@ export async function collectRewardsToAvailable(
   try {
     return await client.$transaction(post);
   } catch (error) {
+    if (error instanceof BalanceClaimLostError) {
+      // Another posting already spent the observed balance; roll back any
+      // earlier buckets in this posting and report a safe no-op.
+      return { applied: false, reason: "DUPLICATE", collectedPaisa: 0n, ledgerEntryIds: [] };
+    }
     if (isUniqueViolation(error) && (await hasLedgerEntry(client, keys[0]))) {
       return { applied: false, reason: "DUPLICATE", collectedPaisa: 0n, ledgerEntryIds: [] };
     }
@@ -246,24 +258,24 @@ export async function transferMoneyBetweenMembers(
     if (sender.status !== "ACTIVE" || recipient.status === "SUSPENDED") {
       return { applied: false as const, reason: "INELIGIBLE" as const, ledgerEntryIds: [] as const };
     }
-    if (senderWallet.availablePaisa < input.amountPaisa) {
+    const senderMemberId = requireMemberId(sender);
+    const recipientMemberId = requireMemberId(recipient);
+
+    // Claim the sender's balance conditionally; the earlier read only proves
+    // the wallet exists, it must never authorize the debit by itself.
+    const debited = await debitWalletFieldIfSufficient(
+      tx,
+      input.senderId,
+      "availablePaisa",
+      input.amountPaisa,
+    );
+    if (!debited) {
       return {
         applied: false as const,
         reason: "INSUFFICIENT_BALANCE" as const,
         ledgerEntryIds: [] as const,
       };
     }
-
-    const senderMemberId = requireMemberId(sender);
-    const recipientMemberId = requireMemberId(recipient);
-
-    const debited = await adjustWalletField(
-      tx,
-      input.senderId,
-      "availablePaisa",
-      input.amountPaisa,
-      DEBIT,
-    );
     const credited = await adjustWalletField(
       tx,
       input.recipientId,

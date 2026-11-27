@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       action: "INVESTMENT_CREATED",
       entityType: "Investment",
       entityId: investment.id,
-      after: { type: parsed.data.type, amountPaisa: Number(amount) },
+      after: { type: parsed.data.type, amountPaisa: amount.toString() },
     });
 
     return NextResponse.json({ investment }, { status: 201 });

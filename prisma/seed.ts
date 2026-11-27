@@ -2,6 +2,7 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { resolveSeedPasswords } from "../src/lib/seed-credentials";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -574,7 +575,8 @@ async function main() {
     await prisma.memberSequence.update({ where: { id: 1 }, data: { lastValue: 1 } });
   }
 
-  const passwordHash = await bcrypt.hash("Admin@123456", 12);
+  const { adminPassword, founderPassword } = resolveSeedPasswords();
+  const passwordHash = await bcrypt.hash(adminPassword, 12);
 
   // Keep the legacy SL000000 super admin untouched when reseeding an existing
   // database. A freshly seeded admin is an identity only, with no member ID.
@@ -612,7 +614,7 @@ async function main() {
 
   // Root of the sponsor tree. Not a sponsor/downline of anyone, so it has no
   // upline rows; new registrations use SL000001 as their sponsorMemberId.
-  const founderPasswordHash = await bcrypt.hash("Founder@123456", 12);
+  const founderPasswordHash = await bcrypt.hash(founderPassword, 12);
   const founder = await prisma.member.upsert({
     where: { memberId: "SL000001" },
     update: {},

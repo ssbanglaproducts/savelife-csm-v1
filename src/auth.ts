@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -11,8 +11,22 @@ import {
   normalizeAdminEmail,
   type LoginRole,
 } from "@/lib/admin-login";
+import { loginContext, loginThrottle } from "@/lib/login-throttle";
 
 const MEMBER_ID_PATTERN = /^SL\d{6}$/;
+
+/** Stable Auth.js error code; the UI keeps showing its generic invalid-credentials copy. */
+class LoginRateLimitError extends CredentialsSignin {
+  code = "TOO_MANY_ATTEMPTS";
+
+  constructor(scope: "ip" | "account") {
+    super("Login temporarily unavailable");
+    this.name = "LoginRateLimitError";
+    this.scope = scope;
+  }
+
+  readonly scope: "ip" | "account";
+}
 
 type Identity = {
   id: string;
@@ -48,12 +62,44 @@ export const {
         password: { label: "Password", type: "password" },
         expectedRole: { label: "Expected role", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
         const expectedRole: LoginRole = parsed.data.expectedRole ?? "MEMBER";
         const adminLogin = expectedRole === "ADMIN";
+        const throttleContext = loginContext(
+          request,
+          expectedRole,
+          adminLogin ? (parsed.data.email ?? "") : (parsed.data.memberId ?? ""),
+        );
+
+        const decision = await loginThrottle.check(throttleContext);
+        if (!decision.ok) {
+          console.warn("Credentials login throttled", {
+            role: expectedRole,
+            ipKey: throttleContext.ipKey,
+            accountKey: throttleContext.accountKey,
+            scope: decision.scope,
+            retryAfterMs: decision.retryAfterMs,
+          });
+          throw new LoginRateLimitError(decision.scope);
+        }
+
+        // All rejected credentials take the same path: increment both counters
+        // and emit a structured internal audit line. Keys are hashed and the
+        // caller never sees whether the account exists.
+        const reject = async (reason: string) => {
+          await loginThrottle.recordFailure(throttleContext);
+          console.warn("Credentials login rejected", {
+            role: expectedRole,
+            ipKey: throttleContext.ipKey,
+            accountKey: throttleContext.accountKey,
+            reason,
+          });
+          return null;
+        };
+
         const identityFields = {
           id: true,
           email: true,
@@ -71,7 +117,7 @@ export const {
           // The admin form has one identifier only. A Member ID is rejected so
           // internal IDs such as SL000000 can never become login names.
           const email = normalizeAdminEmail(parsed.data.email);
-          if (!email || parsed.data.memberId) return null;
+          if (!email || parsed.data.memberId) return reject("INVALID_IDENTIFIER");
           member = await prisma.member.findFirst({
             where: {
               email: { equals: email, mode: "insensitive" },
@@ -80,20 +126,23 @@ export const {
             select: identityFields,
           });
         } else {
-          if (parsed.data.email) return null;
+          if (parsed.data.email) return reject("INVALID_IDENTIFIER");
           const memberId = normalizeMemberId(parsed.data.memberId ?? "");
-          if (!MEMBER_ID_PATTERN.test(memberId)) return null;
+          if (!MEMBER_ID_PATTERN.test(memberId)) return reject("INVALID_IDENTIFIER");
           member = await prisma.member.findUnique({
             where: { memberId },
             select: identityFields,
           });
         }
-        if (!member || !credentialRoleAllowed(member.role, expectedRole)) return null;
-        if (adminLogin && member.status !== "ACTIVE") return null;
+        if (!member || !credentialRoleAllowed(member.role, expectedRole)) {
+          return reject("IDENTITY_REJECTED");
+        }
+        if (adminLogin && member.status !== "ACTIVE") return reject("ADMIN_NOT_ACTIVE");
 
         const valid = await bcrypt.compare(parsed.data.password, member.passwordHash);
-        if (!valid) return null;
+        if (!valid) return reject("PASSWORD_INVALID");
 
+        await loginThrottle.clearAccount(throttleContext.accountKey);
         return {
           id: member.id,
           email: member.email,

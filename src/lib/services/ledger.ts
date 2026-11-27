@@ -204,4 +204,27 @@ export function isUniqueViolation(error: unknown): boolean {
   return (error as { code?: unknown }).code === "P2002";
 }
 
+/**
+ * Distinguishes a P2002 on a specific column/constraint from other duplicate
+ * keys so callers can map version collisions to STALE_VERSION without hiding
+ * legitimate duplicate-submission replies.
+ */
+export function isUniqueViolationOn(error: unknown, target: string): boolean {
+  if (!isUniqueViolation(error)) return false;
+  const meta = (error as { meta?: { target?: unknown } }).meta?.target;
+  const entries = Array.isArray(meta) ? meta : typeof meta === "string" ? [meta] : [];
+  // Match whole field-name segments, not substrings: a commitToken violation
+  // on "RankPlanVersion_commitToken_key" must NOT look like a version one just
+  // because the table name contains "Version".
+  const needle = target.toLowerCase();
+  return entries.some(
+    (item) =>
+      typeof item === "string" &&
+      item
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .includes(needle),
+  );
+}
+
 export { Direction as LedgerDirectionValues };

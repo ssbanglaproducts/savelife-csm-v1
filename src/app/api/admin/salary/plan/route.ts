@@ -27,7 +27,7 @@ import {
   type SalaryPlanDefinitionInput,
   type SalaryPlanRankDto,
 } from "@/lib/services/salary-plan";
-import { isUniqueViolation } from "@/lib/services/ledger";
+import { isUniqueViolation, isUniqueViolationOn } from "@/lib/services/ledger";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +43,7 @@ const schema = z.object({
   effectiveFrom: effectiveDate,
   adminPassword: z.string().min(1).max(200),
   commitToken: z.string().uuid(),
+  expectedVersion: z.number().int().min(0).optional(),
   ranks: z
     .array(
       z.object({
@@ -207,6 +208,13 @@ export async function POST(request: Request) {
     }),
   ]);
 
+  if (
+    parsed.data.expectedVersion !== undefined &&
+    parsed.data.expectedVersion !== (currentVersion?.version ?? 0)
+  ) {
+    return NextResponse.json({ error: "STALE_VERSION" }, { status: 409 });
+  }
+
   const configs: Record<SalaryRankKey, SalaryRankConfig> = { ...SALARY_RANK_CONFIG };
   for (const definition of definitions) {
     configs[definition.rankKey] = {
@@ -245,6 +253,7 @@ export async function POST(request: Request) {
         effectiveFrom,
         commitToken: token,
         approvedChanges: changes as unknown as Prisma.InputJsonValue,
+        expectedVersion: parsed.data.expectedVersion,
       });
       const changed = await alignAllSalaryEntitlements(tx, saved);
       return { plan: saved, aligned: changed };
@@ -281,6 +290,13 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof Error && error.message === "STALE_VERSION") {
+      return NextResponse.json({ error: "STALE_VERSION" }, { status: 409 });
+    }
+    if (isUniqueViolationOn(error, "version")) {
+      // Another commit claimed the same sequential version number.
+      return NextResponse.json({ error: "STALE_VERSION" }, { status: 409 });
+    }
     if (error instanceof Error && error.message === "DUPLICATE_COMMIT") {
       const raced = await prisma.salaryPlanVersion.findUnique({
         where: { commitToken: token },

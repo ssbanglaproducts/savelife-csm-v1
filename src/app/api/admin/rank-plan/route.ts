@@ -13,7 +13,7 @@ import {
 } from "@/lib/rank-art";
 import { spToPaisa } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
-import { isUniqueViolation } from "@/lib/services/ledger";
+import { isUniqueViolation, isUniqueViolationOn } from "@/lib/services/ledger";
 import {
   createRankPlanVersion,
   ensureDefaultRankPlan,
@@ -32,6 +32,7 @@ const schema = z.object({
   note: z.string().trim().max(500).optional().nullable(),
   adminPassword: z.string().min(1).max(200),
   commitToken: z.string().uuid(),
+  expectedVersion: z.number().int().min(0).optional(),
   ranks: z
     .array(
       z.object({
@@ -174,6 +175,12 @@ export async function POST(request: Request) {
   if (!activeVersion) {
     return NextResponse.json({ error: "RANK_PLAN_FAILED" }, { status: 500 });
   }
+  if (
+    parsed.data.expectedVersion !== undefined &&
+    parsed.data.expectedVersion !== activeVersion.version
+  ) {
+    return NextResponse.json({ error: "STALE_VERSION" }, { status: 409 });
+  }
 
   const proposedRows: RankPlanDefinitionDto[] = parsed.data.ranks.map((rank) => ({
     id: `proposed-${rank.rankKey}`,
@@ -241,6 +248,7 @@ export async function POST(request: Request) {
         actorId: session.user.id,
         commitToken: token,
         approvedChanges: changes as unknown as Prisma.InputJsonValue,
+        expectedVersion: parsed.data.expectedVersion,
       });
     });
     const awarded = await evaluateAllMembers(prisma);
@@ -256,6 +264,13 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof Error && error.message === "STALE_VERSION") {
+      return NextResponse.json({ error: "STALE_VERSION" }, { status: 409 });
+    }
+    if (isUniqueViolationOn(error, "version")) {
+      // Another commit claimed the same sequential version number.
+      return NextResponse.json({ error: "STALE_VERSION" }, { status: 409 });
+    }
     if (error instanceof Error && error.message === "DUPLICATE_COMMIT") {
       const raced = await prisma.rankPlanVersion.findUnique({
         where: { commitToken: token },

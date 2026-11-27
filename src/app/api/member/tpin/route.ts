@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { auth } from "@/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { activeMemberErrorResponse, requireActiveMemberApi } from "@/lib/member-access";
 import { prisma } from "@/lib/prisma";
 import { isTPin } from "@/lib/tpin";
 
@@ -20,11 +20,8 @@ function error(code: string, status: number) {
 
 /** Members replace their own withdrawal T-PIN after proving their password. */
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return error("LOGIN_REQUIRED", 401);
-  }
-  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
   let body: unknown;
   try {
@@ -42,7 +39,7 @@ export async function POST(request: Request) {
   }
 
   const member = await prisma.member.findUnique({
-    where: { id: session.user.id },
+    where: { id: access.memberId },
     select: { passwordHash: true, tPinHash: true },
   });
   if (!member) return error("MEMBER_NOT_FOUND", 404);
@@ -55,16 +52,16 @@ export async function POST(request: Request) {
 
   const tPinHash = await bcrypt.hash(newTPin, 12);
   await prisma.member.update({
-    where: { id: session.user.id },
+    where: { id: access.memberId },
     data: { tPinHash, tPinUpdatedAt: new Date() },
   });
 
   await writeAuditLog({
-    actorId: session.user.id,
+    actorId: access.memberId,
     actorRole: "MEMBER",
     action: "MEMBER_TPIN_CHANGED",
     entityType: "Member",
-    entityId: session.user.id,
+    entityId: access.memberId,
     before: { hasTPin: Boolean(member.tPinHash) },
     after: { hasTPin: true },
   });

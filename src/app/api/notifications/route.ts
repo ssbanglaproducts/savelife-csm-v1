@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { activeMemberErrorResponse, requireActivePrincipalApi } from "@/lib/member-access";
 import { getNotificationsForMember, markNotificationsRead } from "@/lib/services/notifications";
 
 export const dynamic = "force-dynamic";
@@ -15,17 +15,17 @@ function error(code: string, status: number) {
 }
 
 export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return error("LOGIN_REQUIRED", 401);
+  const access = await requireActivePrincipalApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
   const locale = new URL(request.url).searchParams.get("locale") === "bn" ? "bn" : "en";
-  const data = await getNotificationsForMember(session.user.id, locale);
+  const data = await getNotificationsForMember(access.memberId, locale);
   return NextResponse.json(data);
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return error("LOGIN_REQUIRED", 401);
+  const access = await requireActivePrincipalApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
   let body: unknown;
   try {
@@ -40,6 +40,6 @@ export async function POST(request: Request) {
   const ids = parsed.data.all ? undefined : parsed.data.ids;
   if (!ids && !parsed.data.all) return error("INVALID_REQUEST", 400);
 
-  await markNotificationsRead(session.user.id, ids);
+  await markNotificationsRead(access.memberId, ids);
   return NextResponse.json({ ok: true });
 }

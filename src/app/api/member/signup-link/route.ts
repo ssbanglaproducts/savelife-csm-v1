@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { activeMemberErrorResponse, requireActiveMemberApi } from "@/lib/member-access";
 import { normalizeMemberId } from "@/lib/member-id";
 import { prisma } from "@/lib/prisma";
 import { getSponsorRegistrationError } from "@/lib/registration";
@@ -16,11 +16,8 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
-  }
-  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
   let body: unknown;
   try {

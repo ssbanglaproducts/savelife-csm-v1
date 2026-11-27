@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { ServiceError, invalidInput } from "@/lib/services/errors";
 import { notifyOrderConfirmed } from "@/lib/services/notification-events";
 import {
-  adjustWalletField,
+  debitWalletFieldIfSufficient,
   hasLedgerEntry,
   isUniqueViolation,
   recordLedgerEntry,
@@ -133,15 +133,16 @@ export async function POST(request: Request) {
         select: { availablePaisa: true },
       });
       if (!wallet) throw new Error("WALLET_NOT_FOUND");
-      if (wallet.availablePaisa < subtotal) throw new Error("INSUFFICIENT_BALANCE");
 
-      const debited = await adjustWalletField(
+      // Existence was read above; spending is authorized only by this
+      // conditional update, which cannot be won by two concurrent checkouts.
+      const debited = await debitWalletFieldIfSufficient(
         tx,
         session.user.id,
         "availablePaisa",
         subtotal,
-        "DEBIT",
       );
+      if (!debited) throw new Error("INSUFFICIENT_BALANCE");
 
       const address = await tx.address.create({
         data: {

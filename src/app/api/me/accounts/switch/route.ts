@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth, updateSession } from "@/auth";
+import { updateSession } from "@/auth";
 import { canAccessAccount } from "@/lib/account-ownership";
 import { writeAuditLog } from "@/lib/audit";
+import { activeMemberErrorResponse, requireActiveMemberApi } from "@/lib/member-access";
 import { clearCart } from "@/lib/cart";
 import { prisma } from "@/lib/prisma";
 
@@ -11,11 +12,8 @@ export const dynamic = "force-dynamic";
 const schema = z.object({ memberId: z.string().trim().min(5).max(20) });
 
 export async function POST(request: Request) {
-  const session = await auth();
-  const user = session?.user;
-  if (!user?.id) {
-    return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
-  }
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
   let body: unknown;
   try {
@@ -29,7 +27,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "INVALID_REQUEST" }, { status: 400 });
   }
 
-  const principalId = user.principalId ?? user.id;
+  const principalId = access.identity.principalId ?? access.identity.id;
   const target = await prisma.member.findUnique({
     where: { memberId: parsed.data.memberId.trim().toUpperCase() },
     select: {
@@ -50,7 +48,7 @@ export async function POST(request: Request) {
   if (!allowed) {
     return NextResponse.json({ error: "ACCOUNT_NOT_OWNED" }, { status: 403 });
   }
-  if (target.id === user.id) {
+  if (target.id === access.identity.id) {
     return NextResponse.json({ ok: true, memberId: target.memberId });
   }
 
@@ -70,11 +68,11 @@ export async function POST(request: Request) {
 
   await writeAuditLog({
     actorId: principalId,
-    actorRole: user.role,
+    actorRole: access.identity.role,
     action: "ACCOUNT_SWITCHED",
     entityType: "Member",
     entityId: target.id,
-    after: { fromMemberId: user.memberId, toMemberId: target.memberId },
+    after: { fromMemberId: access.identity.memberId, toMemberId: target.memberId },
   });
 
   return NextResponse.json({ ok: true, memberId: target.memberId });

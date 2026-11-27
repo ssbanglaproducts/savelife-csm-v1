@@ -59,6 +59,9 @@ export async function POST(request: Request) {
       if (!result.applied) {
         if (result.reason === "NOT_FOUND") return errorResponse("NOT_FOUND", 404);
         if (result.reason === "DUPLICATE") return errorResponse("DUPLICATE", 409);
+        if (result.reason === "INSUFFICIENT_BALANCE") {
+          return errorResponse("INSUFFICIENT_BALANCE", 409);
+        }
         return errorResponse("REVERSAL_FAILED", 500);
       }
       processed = 1;

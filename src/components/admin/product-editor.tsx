@@ -1054,6 +1054,8 @@ function ProductEditorDialog({
                     src={videoMedia.src}
                     title={t("productVideo")}
                     allow="autoplay; encrypted-media; picture-in-picture"
+                    sandbox="allow-scripts allow-same-origin allow-autoplay allow-presentation"
+                    referrerPolicy="strict-origin-when-cross-origin"
                     className="size-full border-0"
                   />
                 )

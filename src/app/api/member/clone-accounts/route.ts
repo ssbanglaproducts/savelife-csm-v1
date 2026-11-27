@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
 import { buildCloneMemberData, canAccessAccount } from "@/lib/account-ownership";
 import { writeAuditLog } from "@/lib/audit";
+import { activeMemberErrorResponse, requireActiveMemberApi } from "@/lib/member-access";
 import { allocateMemberId, normalizeMemberId } from "@/lib/member-id";
 import { prisma } from "@/lib/prisma";
 import { getSponsorRegistrationError } from "@/lib/registration";
@@ -44,12 +44,8 @@ function fail(code: string, status: number, slots?: PlacementSlotInfo[] | null) 
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  const user = session?.user;
-  if (!user?.id) {
-    return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
-  }
-  if (user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
   let body: unknown;
   try {
@@ -69,12 +65,12 @@ export async function POST(request: Request) {
   const sponsorMemberId = normalizeMemberId(parsed.data.sponsorMemberId);
   const placementMemberId = normalizeMemberId(parsed.data.placementMemberId);
   const placementSlot = parsed.data.placementSlot;
-  const principalId = user.principalId ?? user.id;
+  const principalId = access.principalId;
 
   try {
     const clone = await prisma.$transaction(async (tx) => {
       const original = await tx.member.findUnique({
-        where: { id: user.id, role: "MEMBER" },
+        where: { id: access.memberId, role: "MEMBER" },
         select: {
           id: true,
           fullName: true,
@@ -181,7 +177,7 @@ export async function POST(request: Request) {
 
     await writeAuditLog({
       actorId: principalId,
-      actorRole: user.role,
+      actorRole: "MEMBER",
       action: "CLONE_ACCOUNT_CREATED",
       entityType: "Member",
       entityId: clone.id,

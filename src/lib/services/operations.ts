@@ -409,13 +409,16 @@ export async function reverseInstallmentCredit(
     if (await hasLedgerEntry(tx, reversalKey)) {
       return { applied: false, reason: "DUPLICATE", ledgerEntryIds: [] };
     }
-    const { walletId, balanceAfterPaisa } = await adjustWalletField(
+    const debited = await debitWalletFieldIfSufficient(
       tx,
       credit.memberId,
       "availablePaisa",
       credit.amountPaisa,
-      DEBIT,
     );
+    if (!debited) {
+      return { applied: false, reason: "INSUFFICIENT_BALANCE", ledgerEntryIds: [] };
+    }
+    const { walletId, balanceAfterPaisa } = debited;
     const ledger = await recordLedgerEntry(tx, {
       walletId,
       memberId: credit.memberId,
@@ -872,18 +875,15 @@ export async function transferBalanceToAvailable(
     });
     if (!wallet) return { applied: false, reason: "NOT_FOUND", ledgerEntryIds: [] };
 
-    const sourceBalance = wallet[sourceField];
-    if (sourceBalance < input.amountPaisa) {
-      return { applied: false, reason: "INSUFFICIENT_BALANCE", ledgerEntryIds: [] };
-    }
-
-    const debited = await adjustWalletField(
+    const debited = await debitWalletFieldIfSufficient(
       tx,
       input.memberId,
       sourceField,
       input.amountPaisa,
-      DEBIT,
     );
+    if (!debited) {
+      return { applied: false, reason: "INSUFFICIENT_BALANCE", ledgerEntryIds: [] };
+    }
     const credited = await adjustWalletField(
       tx,
       input.memberId,
@@ -1010,7 +1010,13 @@ export async function createWithdrawalRequest(
         netPaisa: 0n,
       };
     }
-    if (wallet.availablePaisa < input.amountPaisa) {
+    const debited = await debitWalletFieldIfSufficient(
+      tx,
+      input.memberId,
+      "availablePaisa",
+      input.amountPaisa,
+    );
+    if (!debited) {
       return {
         applied: false,
         reason: "INSUFFICIENT_BALANCE",
@@ -1019,14 +1025,6 @@ export async function createWithdrawalRequest(
         netPaisa: 0n,
       };
     }
-
-    const debited = await adjustWalletField(
-      tx,
-      input.memberId,
-      "availablePaisa",
-      input.amountPaisa,
-      DEBIT,
-    );
     const requestNumber = makeWithdrawalRequestNumber(input.idempotencyKey);
     const withdrawal = await tx.withdrawal.create({
       data: {

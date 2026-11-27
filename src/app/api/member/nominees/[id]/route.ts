@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
 import { writeAuditLog } from "@/lib/audit";
+import { activeMemberErrorResponse, requireActiveMemberApi } from "@/lib/member-access";
 import { nomineeInputSchema } from "@/lib/nominee-input";
 import { prisma } from "@/lib/prisma";
 
@@ -9,20 +9,9 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-async function requireMember() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { error: NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 }) } as const;
-  }
-  if (session.user.role !== "MEMBER") {
-    return { error: NextResponse.json({ error: "FORBIDDEN" }, { status: 403 }) } as const;
-  }
-  return { memberId: session.user.id } as const;
-}
-
 export async function PATCH(request: Request, context: RouteContext) {
-  const access = await requireMember();
-  if ("error" in access) return access.error;
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
   const { id } = await context.params;
 
   let body: unknown;
@@ -61,8 +50,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const access = await requireMember();
-  if ("error" in access) return access.error;
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
   const { id } = await context.params;
 
   const existing = await prisma.nominee.findFirst({

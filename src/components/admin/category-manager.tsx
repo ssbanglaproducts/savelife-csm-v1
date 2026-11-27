@@ -118,7 +118,7 @@ export function CategoryManager({
         role="tablist"
         aria-label={t("categoryTabsLabel")}
         aria-orientation="vertical"
-        className="glass flex gap-1 overflow-x-auto p-1 lg:sticky lg:top-24 lg:h-fit lg:flex-col"
+        className="glass flex w-full flex-col gap-1 p-1 lg:sticky lg:top-24 lg:h-fit"
       >
         {(["MAIN", "SUB"] as const).map((value) => (
           <button
@@ -130,7 +130,7 @@ export function CategoryManager({
             aria-controls={`category-panel-${value}`}
             onClick={() => setTab(value)}
             className={cn(
-              "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "inline-flex min-h-11 w-full shrink-0 items-center justify-start gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               tab === value
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground",

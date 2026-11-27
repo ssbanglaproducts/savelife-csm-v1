@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   normalizeAuthBannerImageInput,
   normalizeAuthBannerVideoInput,
@@ -7,6 +7,10 @@ import {
   parseAuthBannerVideo,
   toAuthBannerMedia,
 } from "./auth-banner-video";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("auth banner video", () => {
   it("accepts local uploads", () => {
@@ -83,5 +87,28 @@ describe("auth banner image", () => {
     expect(parseAuthBannerSetting(setting)).toEqual(setting);
     expect(toAuthBannerMedia(setting)).toEqual({ kind: "image", src: "/api/uploads/a.png" });
     expect(normalizeAuthBannerVideoInput("https://cdn.example.test/a.png")).toBeNull();
+  });
+});
+
+describe("auth banner external media validation", () => {
+  it("allows loopback HTTP only outside production", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    expect(normalizeAuthBannerVideoInput("http://localhost:3000/clip.mp4")).toMatchObject({
+      kind: "direct",
+    });
+    expect(normalizeAuthBannerImageInput("http://127.0.0.1:3000/poster.jpg")).toMatchObject({
+      kind: "imageDirect",
+    });
+  });
+
+  it("rejects loopback and plain HTTP URLs in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(normalizeAuthBannerVideoInput("http://localhost:3000/clip.mp4")).toBeNull();
+    expect(normalizeAuthBannerVideoInput("http://127.0.0.1:3000/clip.webm")).toBeNull();
+    expect(normalizeAuthBannerVideoInput("http://cdn.example.test/clip.mp4")).toBeNull();
+    expect(normalizeAuthBannerImageInput("http://localhost:3000/poster.png")).toBeNull();
+    expect(normalizeAuthBannerVideoInput("https://cdn.example.test/clip.mp4")).toMatchObject({
+      kind: "direct",
+    });
   });
 });

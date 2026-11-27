@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
 import { addressInputSchema } from "@/lib/address-input";
-import { getMemberStatus } from "@/lib/member-access";
+import { activeMemberErrorResponse, requireActiveMemberApi } from "@/lib/member-access";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -15,23 +14,9 @@ const updateSchema = z.discriminatedUnion("action", [
   addressInputSchema.extend({ action: z.literal("UPDATE") }),
 ]);
 
-async function requireActiveMember() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { error: NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 }) } as const;
-  }
-  if (session.user.role !== "MEMBER") {
-    return { error: NextResponse.json({ error: "FORBIDDEN" }, { status: 403 }) } as const;
-  }
-  if ((await getMemberStatus(session.user.id)) !== "ACTIVE") {
-    return { error: NextResponse.json({ error: "MEMBER_NOT_ACTIVE" }, { status: 403 }) } as const;
-  }
-  return { memberId: session.user.id } as const;
-}
-
 export async function PATCH(request: Request, context: RouteContext) {
-  const access = await requireActiveMember();
-  if ("error" in access) return access.error;
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
   const { id } = await context.params;
 
   let body: unknown;
@@ -84,8 +69,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const access = await requireActiveMember();
-  if ("error" in access) return access.error;
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
   const { id } = await context.params;
 
   const deleted = await prisma.address.deleteMany({

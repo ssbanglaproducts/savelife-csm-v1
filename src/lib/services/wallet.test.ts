@@ -97,6 +97,7 @@ class FakePrisma {
     }
   > = [];
   private sequence = 0;
+  walletUpdateManyCalls: Array<{ where: Data; data: Data }> = [];
 
   private nextId(prefix: string): string {
     this.sequence += 1;
@@ -156,6 +157,23 @@ class FakePrisma {
       if (!found) throw new Error("wallet not found");
       applyUpdate(found, data);
       return { ...found };
+    },
+    // Mirrors Prisma's conditional updateMany so tests exercise the same
+    // atomic debit path used in production (not the find/update fallback).
+    updateMany: async ({ where, data }: { where: Data; data: Data }) => {
+      this.walletUpdateManyCalls.push({ where, data });
+      const found = this.wallets.find((item) => item.memberId === where.memberId);
+      if (!found) return { count: 0 };
+      for (const [field, condition] of Object.entries(where)) {
+        if (field === "memberId" || !condition || typeof condition !== "object") continue;
+        const threshold = (condition as Data).gte;
+        const current = (found as Data)[field];
+        if (typeof threshold === "bigint" && typeof current === "bigint" && current < threshold) {
+          return { count: 0 };
+        }
+      }
+      applyUpdate(found, data);
+      return { count: 1 };
     },
   };
 
@@ -328,6 +346,26 @@ describe("transferMoneyBetweenMembers", () => {
     ]);
     expect(db.ledgerEntries.every((entry) => entry.referenceId === "SL-TR-1")).toBe(true);
     expect(db.ledgerEntries.every((entry) => entry.description === "Lunch")).toBe(true);
+  });
+
+  it("claims the sender balance with a conditional atomic debit", async () => {
+    const { db } = setup("ACTIVE", "ACTIVE");
+
+    await transferMoneyBetweenMembers(db.asClient(), baseInput);
+
+    // The sender debit must be a guarded updateMany (>= amount), never an
+    // unconditional decrement that a concurrent transfer could also win.
+    expect(db.walletUpdateManyCalls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          where: {
+            memberId: "SL1",
+            availablePaisa: { gte: spToPaisa("300") },
+          },
+          data: { availablePaisa: { decrement: spToPaisa("300") } },
+        }),
+      ]),
+    );
   });
 
   it("blocks suspended recipients and inactive senders", async () => {

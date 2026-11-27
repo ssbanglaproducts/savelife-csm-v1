@@ -39,6 +39,7 @@ export async function PATCH(
       id,
       session.user.id,
       parsed.data.note ?? null,
+      session.user.role,
     );
     if (!achievement) {
       return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });

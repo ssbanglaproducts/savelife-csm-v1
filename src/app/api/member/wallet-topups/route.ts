@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { spToPaisa } from "@/lib/money";
+import { isUniqueViolation } from "@/lib/services/ledger";
 import { notifyTopUpRequested } from "@/lib/services/notification-events";
 import { uploadedImageUrlSource } from "@/lib/uploads";
 
@@ -74,22 +75,40 @@ export async function POST(request: Request) {
   const amount = spToPaisa(parsed.data.amount);
   if (amount <= 0n) return errorResponse("INVALID_AMOUNT", 400);
 
+  const reference = {
+    memberId: session.user.id,
+    method: parsed.data.method,
+    transactionRef: parsed.data.transactionRef,
+  };
+
+  // A payment reference cannot fund two wallet requests. The pre-check gives a
+  // stable answer for ordinary replays; the unique index handles the race.
+  const duplicate = await prisma.walletTopUp.findFirst({
+    where: { ...reference, status: { in: ["PENDING", "APPROVED"] } },
+    select: { id: true },
+  });
+  if (duplicate) return errorResponse("DUPLICATE", 409);
+
   const requestNumber = `SL-TU-${Date.now().toString().slice(-8)}-${randomUUID()
     .slice(0, 4)
     .toUpperCase()}`;
 
-  const created = await prisma.walletTopUp.create({
-    data: {
-      requestNumber,
-      memberId: session.user.id,
-      amountPaisa: amount,
-      method: parsed.data.method,
-      transactionRef: parsed.data.transactionRef,
-      proofImageUrl: parsed.data.proofImageUrl || null,
-      note: parsed.data.note || null,
-    },
-    select: { id: true, requestNumber: true, status: true },
-  });
+  let created: { id: string; requestNumber: string; status: string };
+  try {
+    created = await prisma.walletTopUp.create({
+      data: {
+        requestNumber,
+        ...reference,
+        amountPaisa: amount,
+        proofImageUrl: parsed.data.proofImageUrl || null,
+        note: parsed.data.note || null,
+      },
+      select: { id: true, requestNumber: true, status: true },
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) return errorResponse("DUPLICATE", 409);
+    throw error;
+  }
 
   await notifyTopUpRequested(session.user.id, created.requestNumber, amount);
 

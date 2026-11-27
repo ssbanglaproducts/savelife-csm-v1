@@ -1,12 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { PrismaClient } from "../../generated/prisma/client";
 import { spToPaisa } from "../money";
 import {
   DEFAULT_ROI_RATE_CONFIG,
+  ROI_RATES_SETTING_KEY,
+  StaleRoiRateVersionError,
   calculateRoiCommissions,
   loadRoiSponsorIndex,
   normalizeRoiRatesBps,
   parseRoiRatesSetting,
   resolveSponsorChain,
+  saveRoiRateConfig,
   totalRoiCommissionPaisa,
   totalRoiRateBps,
   type RoiSponsorCandidate,
@@ -46,6 +50,12 @@ describe("ROI commission rates", () => {
     expect(() => normalizeRoiRatesBps([200, 50, 50, 30, -1])).toThrow();
     expect(() => normalizeRoiRatesBps([200, 50, 50, 30, 10_001])).toThrow();
     expect(() => normalizeRoiRatesBps([200, 50, 50, 30, 1.5])).toThrow();
+  });
+
+  it("caps the combined rate at 100 percent", () => {
+    expect(normalizeRoiRatesBps([2_000, 2_000, 2_000, 2_000, 2_000])).toHaveLength(5);
+    expect(() => normalizeRoiRatesBps([10_000, 1, 0, 0, 0])).toThrow(/100%/);
+    expect(parseRoiRatesSetting([10_000, 1, 0, 0, 0])).toBeNull();
   });
 
   it("falls back to defaults for an invalid stored setting", () => {
@@ -153,5 +163,61 @@ describe("ROI commission calculation", () => {
       spToPaisa("100"),
       spToPaisa("100"),
     ]);
+  });
+});
+
+describe("ROI rate save concurrency", () => {
+  const rates = [200, 50, 50, 30, 20] as const;
+
+  function clientWithVersion(version: number | null, claimed = 1) {
+    const findUnique = vi.fn(async () => (version === null ? null : { version }));
+    const updateMany = vi.fn(async () => ({ count: claimed }));
+    const create = vi.fn(async () => ({}));
+    const client = { systemSetting: { findUnique, updateMany, create } };
+    return { client: client as unknown as PrismaClient, findUnique, updateMany, create };
+  }
+
+  it("increments the version with a conditional update", async () => {
+    const { client, updateMany } = clientWithVersion(4);
+
+    await expect(saveRoiRateConfig(client, rates, 4)).resolves.toEqual([...rates]);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { key: ROI_RATES_SETTING_KEY, version: 4 },
+      data: {
+        value: [...rates],
+        version: 5,
+      },
+    });
+  });
+
+  it("rejects a stale expected version before writing", async () => {
+    const { client, updateMany } = clientWithVersion(4);
+
+    await expect(saveRoiRateConfig(client, rates, 3)).rejects.toBeInstanceOf(
+      StaleRoiRateVersionError,
+    );
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects a concurrent winner whose conditional update claimed zero rows", async () => {
+    const { client } = clientWithVersion(4, 0);
+
+    await expect(saveRoiRateConfig(client, rates, 4)).rejects.toBeInstanceOf(
+      StaleRoiRateVersionError,
+    );
+  });
+
+  it("creates the missing setting at version one", async () => {
+    const { client, create, updateMany } = clientWithVersion(null);
+
+    await expect(saveRoiRateConfig(client, rates, 0)).resolves.toEqual([...rates]);
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        key: ROI_RATES_SETTING_KEY,
+        value: [...rates],
+        version: 1,
+      },
+    });
+    expect(updateMany).not.toHaveBeenCalled();
   });
 });

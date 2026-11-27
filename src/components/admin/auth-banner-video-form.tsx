@@ -206,6 +206,8 @@ export function AuthBannerVideoForm({
             src={media.src}
             title={t("authBannerVideoPreview")}
             allow="autoplay; encrypted-media; picture-in-picture"
+            sandbox="allow-scripts allow-same-origin allow-autoplay allow-presentation"
+            referrerPolicy="strict-origin-when-cross-origin"
             className="absolute inset-0 size-full rounded-xl border-0"
           />
         ) : (

@@ -773,6 +773,7 @@ model WalletTopUp {
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
+  @@unique([memberId, method, transactionRef])
   @@index([memberId, createdAt])
   @@index([status, createdAt])
 }
@@ -1198,6 +1199,8 @@ model InvestmentSideEffectOutbox {
 model SystemSetting {
   key       String   @id
   value     Json
+  /// Optimistic-lock counter: rate writes use it to reject stale admin saves.
+  version   Int      @default(0)
   updatedAt DateTime @updatedAt
 }
 

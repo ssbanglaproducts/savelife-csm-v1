@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
+import { activeMemberErrorResponse, requireActiveMemberApi } from "@/lib/member-access";
 import { writeAuditLog } from "@/lib/audit";
 import { nomineeInputSchema } from "@/lib/nominee-input";
 import { prisma } from "@/lib/prisma";
@@ -8,12 +8,11 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
-  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
   const nominees = await prisma.nominee.findMany({
-    where: { memberId: session.user.id },
+    where: { memberId: access.memberId },
     orderBy: { createdAt: "asc" },
     select: { id: true, fullName: true, relation: true, phone: true },
   });
@@ -21,11 +20,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
-  if (session.user.role !== "MEMBER") {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  }
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
   let body: unknown;
   try {
@@ -37,12 +33,12 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
   const nominee = await prisma.nominee.create({
-    data: { memberId: session.user.id, ...parsed.data },
+    data: { memberId: access.memberId, ...parsed.data },
     select: { id: true, fullName: true, relation: true, phone: true },
   });
 
   await writeAuditLog({
-    actorId: session.user.id,
+    actorId: access.memberId,
     actorRole: "MEMBER",
     action: "NOMINEE_CREATED",
     entityType: "Nominee",

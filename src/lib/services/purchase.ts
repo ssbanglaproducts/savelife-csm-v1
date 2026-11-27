@@ -5,7 +5,7 @@ import {
   WalletCategory as Category,
 } from "@/generated/prisma/enums";
 import {
-  adjustWalletField,
+  debitWalletFieldIfSufficient,
   hasLedgerEntry,
   isUniqueViolation,
   recordLedgerEntry,
@@ -160,7 +160,6 @@ export async function createPaidOrder(
         select: { availablePaisa: true },
       });
       if (!wallet) throw purchaseError("WALLET_NOT_FOUND");
-      if (wallet.availablePaisa < totalPaisa) throw purchaseError("INSUFFICIENT_BALANCE");
 
       let snapshot: PurchaseAddressSnapshot;
       if (input.address.mode === "office") {
@@ -242,13 +241,15 @@ export async function createPaidOrder(
         };
       }
 
-      const debited = await adjustWalletField(
+      // The wallet read above proves existence only; the conditional debit is
+      // the authority to spend and rolls back the stock claim when it loses.
+      const debited = await debitWalletFieldIfSufficient(
         tx,
         input.memberId,
         "availablePaisa",
         totalPaisa,
-        "DEBIT",
       );
+      if (!debited) throw purchaseError("INSUFFICIENT_BALANCE");
 
       const isPickup = input.fulfillment === "OFFICE_PICKUP";
       const statusNote = isPickup

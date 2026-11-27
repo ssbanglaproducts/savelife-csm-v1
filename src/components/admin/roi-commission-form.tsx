@@ -35,10 +35,14 @@ export function RoiCommissionForm({
     const percent = Number(value);
     return Number.isFinite(percent) ? Math.round(percent * 100) : -1;
   });
-  const invalid = ratesBps.some(
-    (bps) => !Number.isInteger(bps) || bps < 0 || bps > 10_000,
+  const ratesValid = ratesBps.every(
+    (bps) => Number.isInteger(bps) && bps >= 0 && bps <= 10_000,
   );
-  const totalBps = invalid ? 0 : ratesBps.reduce((sum, bps) => sum + bps, 0);
+  const combinedBps = ratesValid ? ratesBps.reduce((sum, bps) => sum + bps, 0) : 0;
+  // The server enforces the same 100% combined cap; show it with the existing
+  // translated validation message instead of posting a doomed save.
+  const invalid = !ratesValid || combinedBps > 10_000;
+  const totalBps = combinedBps;
   const savedTotalBps = initialRatesBps.reduce((sum, bps) => sum + bps, 0);
 
   function update(index: number, value: string) {

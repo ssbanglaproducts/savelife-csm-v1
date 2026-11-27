@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { Prisma, type PrismaClient, type Role } from "@/generated/prisma/client";
 import {
   DEFAULT_RANK_REWARD_IMAGES,
   defaultRankRewardImage,
@@ -606,6 +606,7 @@ export async function createRankPlanVersion(
     actorId?: string | null;
     commitToken?: string | null;
     approvedChanges?: Prisma.InputJsonValue | null;
+    expectedVersion?: number;
   },
 ): Promise<PlanWithDefinitions> {
   return runInTransaction(client, async (tx) => {
@@ -613,7 +614,11 @@ export async function createRankPlanVersion(
       orderBy: { version: "desc" },
       select: { version: true },
     });
-    const version = (latest?.version ?? 0) + 1;
+    const currentVersion = latest?.version ?? 0;
+    if (input.expectedVersion !== undefined && input.expectedVersion !== currentVersion) {
+      throw new Error("STALE_VERSION");
+    }
+    const version = currentVersion + 1;
     await tx.rankPlanVersion.updateMany({ where: { isActive: true }, data: { isActive: false } });
     const created = await tx.rankPlanVersion.create({
       data: {
@@ -928,7 +933,8 @@ export async function markPhysicalRewardCollected(
   client: PrismaClient,
   achievementId: string,
   actorId: string,
-  note?: string | null,
+  note: string | null | undefined,
+  actorRole: Role,
 ): Promise<AchievementWithPlan | null> {
   return client.$transaction(async (tx) => {
     const achievement = await tx.rankAchievement.findUnique({
@@ -943,8 +949,11 @@ export async function markPhysicalRewardCollected(
       });
     }
 
-    await tx.rankAchievement.update({
-      where: { id: achievementId },
+    // Claim PENDING atomically. Only the caller that flips the status writes the
+    // reward event and audit entry; a concurrent collector sees ACHIEVED above
+    // (or loses this update) and becomes a no-op.
+    const claimed = await tx.rankAchievement.updateMany({
+      where: { id: achievementId, rewardStatus: "PENDING" },
       data: {
         rewardStatus: "ACHIEVED",
         physicalCollectedAt: new Date(),
@@ -952,6 +961,12 @@ export async function markPhysicalRewardCollected(
         note: note ?? null,
       },
     });
+    if (claimed.count === 0) {
+      return tx.rankAchievement.findUniqueOrThrow({
+        where: { id: achievementId },
+        include: { planVersion: { select: { version: true } } },
+      });
+    }
     await tx.rankRewardEvent.create({
       data: {
         achievementId,
@@ -965,7 +980,7 @@ export async function markPhysicalRewardCollected(
     await tx.auditLog.create({
       data: {
         actorId,
-        actorRole: "ADMIN",
+        actorRole,
         action: "RANK_PHYSICAL_REWARD_COLLECTED",
         entityType: "RankAchievement",
         entityId: achievementId,

@@ -9,6 +9,7 @@ import { invalidInput } from "./errors";
 import {
   LedgerDirectionValues as Direction,
   adjustWalletField,
+  isUniqueViolation,
   makeKey,
   recordLedgerEntry,
 } from "./ledger";
@@ -21,7 +22,16 @@ import {
 
 export const ROI_LEVEL_COUNT = 5;
 export const DEFAULT_ROI_RATES_BPS = [200, 50, 50, 30, 20] as const; // 2%, .5%, .5%, .3%, .2%
+export const MAX_TOTAL_ROI_RATES_BPS = 10_000; // 100%
 export const ROI_RATES_SETTING_KEY = "roiCommission.ratesBps";
+
+/** Raised when another admin changed the rates after the caller read them. */
+export class StaleRoiRateVersionError extends Error {
+  constructor() {
+    super("ROI commission rates changed concurrently");
+    this.name = "StaleRoiRateVersionError";
+  }
+}
 
 export interface RoiRateConfig {
   readonly ratesBps: readonly number[];
@@ -49,9 +59,13 @@ export function normalizeRoiRatesBps(value: readonly number[]): readonly number[
     throw invalidInput(`ROI commission requires exactly ${ROI_LEVEL_COUNT} rates`);
   }
   for (const rate of value) {
-    if (!Number.isInteger(rate) || rate < 0 || rate > 10_000) {
+    if (!Number.isInteger(rate) || rate < 0 || rate > MAX_TOTAL_ROI_RATES_BPS) {
       throw invalidInput(`Invalid ROI commission rate in basis points: ${rate}`);
     }
+  }
+  const total = value.reduce((sum, rate) => sum + rate, 0);
+  if (total > MAX_TOTAL_ROI_RATES_BPS) {
+    throw invalidInput("Total ROI commission rate cannot exceed 100%");
   }
   return [...value];
 }
@@ -78,14 +92,39 @@ export async function loadRoiRateConfig(
 export async function saveRoiRateConfig(
   client: PrismaClient,
   ratesBps: readonly number[],
+  expectedVersion?: number,
 ): Promise<readonly number[]> {
   const normalized = normalizeRoiRatesBps(ratesBps);
   const value = [...normalized] as unknown as Prisma.InputJsonValue;
-  await client.systemSetting.upsert({
+  const current = await client.systemSetting.findUnique({
     where: { key: ROI_RATES_SETTING_KEY },
-    create: { key: ROI_RATES_SETTING_KEY, value },
-    update: { value },
+    select: { version: true },
   });
+  const currentVersion = current?.version ?? 0;
+  if (expectedVersion !== undefined && expectedVersion !== currentVersion) {
+    throw new StaleRoiRateVersionError();
+  }
+  const nextVersion = currentVersion + 1;
+
+  if (!current) {
+    try {
+      await client.systemSetting.create({
+        data: { key: ROI_RATES_SETTING_KEY, value, version: nextVersion },
+      });
+    } catch (error) {
+      // Another admin created the setting after our read.
+      if (isUniqueViolation(error)) throw new StaleRoiRateVersionError();
+      throw error;
+    }
+    return normalized;
+  }
+
+  // CAS on the version column: two concurrent saves cannot both win.
+  const claimed = await client.systemSetting.updateMany({
+    where: { key: ROI_RATES_SETTING_KEY, version: currentVersion },
+    data: { value, version: nextVersion },
+  });
+  if (claimed.count === 0) throw new StaleRoiRateVersionError();
   return normalized;
 }
 

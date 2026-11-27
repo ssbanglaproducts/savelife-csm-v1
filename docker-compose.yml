@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-savelife}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-savelife}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: ${POSTGRES_DB:-savelife}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -25,10 +25,16 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-savelife}:${POSTGRES_PASSWORD:-savelife}@postgres:5432/${POSTGRES_DB:-savelife}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-savelife}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-savelife}?schema=public
       AUTH_SECRET: ${AUTH_SECRET}
+      # Canonical origin used for redirects and callbacks; never Host-derived.
+      APP_URL: ${AUTH_URL:-http://localhost:3000}
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}
-      AUTH_TRUST_HOST: "true"
+      # Explicit opt-in only. Production should rely on the canonical AUTH_URL.
+      AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-false}
+      # Required only when running db:seed inside the production container.
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_FOUNDER_PASSWORD: ${SEED_FOUNDER_PASSWORD:-}
       INVESTMENT_AUTOMATION_SECRET: ${INVESTMENT_AUTOMATION_SECRET:-}
       SALARY_AUTOMATION_SECRET: ${SALARY_AUTOMATION_SECRET:-}
       UPLOAD_DIR: /app/uploads

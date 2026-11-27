@@ -1,18 +1,16 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { addressInputSchema } from "@/lib/address-input";
-import { getMemberStatus } from "@/lib/member-access";
+import { activeMemberErrorResponse, requireActiveMemberApi } from "@/lib/member-access";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
-  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
   const addresses = await prisma.address.findMany({
-    where: { memberId: session.user.id },
+    where: { memberId: access.memberId },
     orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     select: {
       id: true,
@@ -40,15 +38,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
-  if (session.user.role !== "MEMBER") {
-    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-  }
-  // Live status: the JWT snapshot may be stale after activation or suspension.
-  if ((await getMemberStatus(session.user.id)) !== "ACTIVE") {
-    return NextResponse.json({ error: "MEMBER_NOT_ACTIVE" }, { status: 403 });
-  }
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
   let body: unknown;
   try {
@@ -62,7 +53,7 @@ export async function POST(request: Request) {
   const data = parsed.data;
 
   const member = await prisma.member.findUnique({
-    where: { id: session.user.id },
+    where: { id: access.memberId },
     select: { fullName: true, phone: true },
   });
   if (!member) return NextResponse.json({ error: "MEMBER_NOT_FOUND" }, { status: 404 });
@@ -74,13 +65,13 @@ export async function POST(request: Request) {
   const address = await prisma.$transaction(async (tx) => {
     if (isMain) {
       await tx.address.updateMany({
-        where: { memberId: session.user.id },
+        where: { memberId: access.memberId },
         data: { isDefault: false },
       });
     }
     return tx.address.create({
       data: {
-        memberId: session.user.id,
+        memberId: access.memberId,
         label: data.label,
         fullName: member.fullName,
         phone: member.phone,

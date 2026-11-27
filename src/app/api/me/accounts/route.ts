@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { activeMemberErrorResponse, requireActiveMemberApi } from "@/lib/member-access";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 /** All accounts owned by the signed-in principal, for the account switcher. */
 export async function GET() {
-  const session = await auth();
-  const user = session?.user;
-  if (!user?.id) {
-    return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
-  }
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
-  const principalId = user.principalId ?? user.id;
+  const principalId = access.principalId;
   const [links, fallback] = await Promise.all([
     prisma.accountOwnership.findMany({
       where: { ownerId: principalId },
@@ -32,7 +29,7 @@ export async function GET() {
       },
     }),
     prisma.member.findUnique({
-      where: { id: user.id },
+      where: { id: access.memberId },
       select: { id: true },
     }),
   ]);
@@ -42,11 +39,11 @@ export async function GET() {
       accounts: [
         {
           id: fallback.id,
-          memberId: user.memberId,
-          name: user.name ?? "Member",
-          image: user.image ?? null,
-          role: user.role,
-          status: user.status,
+          memberId: access.identity.memberId,
+          name: access.identity.name ?? "Member",
+          image: access.identity.image ?? null,
+          role: access.identity.role,
+          status: "ACTIVE",
           availablePaisa: "0",
           current: true,
         },
@@ -63,7 +60,7 @@ export async function GET() {
       role: account.role,
       status: account.status,
       availablePaisa: (account.wallet?.availablePaisa ?? 0n).toString(),
-      current: account.id === user.id,
+      current: account.id === access.identity.id,
     })),
   });
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { activeMemberErrorResponse, requireActiveMemberApi } from "@/lib/member-access";
 import { hasLockedProfileFields } from "@/lib/profile-lock";
 import { uploadedImageUrlPattern } from "@/lib/uploads";
 import { prisma } from "@/lib/prisma";
@@ -18,11 +18,8 @@ const profileSchema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
-  }
-  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const access = await requireActiveMemberApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
   let body: unknown;
   try {
@@ -46,7 +43,7 @@ export async function PATCH(request: Request) {
 
   try {
     await prisma.member.update({
-      where: { id: session.user.id },
+      where: { id: access.memberId },
       data: { profileImage: parsed.data.profileImage },
     });
 

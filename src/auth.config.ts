@@ -1,4 +1,11 @@
 import type { NextAuthConfig } from "next-auth";
+import { assertSafeAuthSecret, resolveAuthTrustHost } from "@/lib/auth-env";
+
+assertSafeAuthSecret({
+  NODE_ENV: process.env.NODE_ENV,
+  AUTH_SECRET: process.env.AUTH_SECRET,
+  ALLOW_DEV_SECRET: process.env.ALLOW_DEV_SECRET,
+});
 
 type Identity = {
   id: string;
@@ -15,6 +22,8 @@ type Identity = {
 export const authConfig = {
   session: { strategy: "jwt" },
   pages: { signIn: "/en/login" },
+  // Explicit opt-in only; AUTH_URL remains the canonical origin in production.
+  trustHost: resolveAuthTrustHost(process.env.AUTH_TRUST_HOST),
   providers: [],
   callbacks: {
     jwt({ token, user }) {

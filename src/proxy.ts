@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import createIntlMiddleware from "next-intl/middleware";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
+import { appUrl } from "@/lib/auth-env";
 import { routing } from "@/i18n/routing";
 
 const { auth } = NextAuth(authConfig);
@@ -26,22 +27,22 @@ export default auth((request) => {
   const dashboard = isAdminSession ? "admin/dashboard" : "member/dashboard";
 
   if ((isLoginPage || isRegisterPage) && user?.id) {
-    return NextResponse.redirect(new URL(`/${locale}/${dashboard}`, request.url));
+    return NextResponse.redirect(appUrl(`/${locale}/${dashboard}`, request.url));
   }
 
   // The two login pages are role-specific. A member may still visit the admin
   // login to switch accounts; an admin/staff session may not revisit either.
   if ((isAdminLoginPage && isAdminSession) || (isLoginPage && user?.id && isAdminSession)) {
-    return NextResponse.redirect(new URL(`/${locale}/admin/dashboard`, request.url));
+    return NextResponse.redirect(appUrl(`/${locale}/admin/dashboard`, request.url));
   }
 
   if (isAdminArea && !isAdminSession) {
-    return NextResponse.redirect(new URL(`/${locale}/admin-login`, request.url));
+    return NextResponse.redirect(appUrl(`/${locale}/admin-login`, request.url));
   }
 
   if (isMemberArea && user?.role !== "MEMBER") {
     return NextResponse.redirect(
-      new URL(`/${locale}/${isAdminSession ? "admin-login" : "login"}`, request.url),
+      appUrl(`/${locale}/${isAdminSession ? "admin-login" : "login"}`, request.url),
     );
   }
 

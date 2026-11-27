@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { activeMemberErrorResponse, requireActivePrincipalApi } from "@/lib/member-access";
 import { UploadError, saveUploadedImage } from "@/lib/upload-server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
-  }
+  const access = await requireActivePrincipalApi();
+  if (!access.ok) return activeMemberErrorResponse(access);
 
   let formData: FormData;
   try {

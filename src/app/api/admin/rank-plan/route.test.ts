@@ -236,6 +236,63 @@ describe("POST /api/admin/rank-plan", () => {
     expect(mocks.createRankPlanVersion).not.toHaveBeenCalled();
   });
 
+  it("rejects a stale expected version with 409 STALE_VERSION", async () => {
+    const response = await POST(request(body({ expectedVersion: 1 })));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "STALE_VERSION" });
+    expect(mocks.createRankPlanVersion).not.toHaveBeenCalled();
+  });
+
+  it("maps a lost version race to 409 STALE_VERSION", async () => {
+    mocks.createRankPlanVersion.mockRejectedValueOnce(new Error("STALE_VERSION"));
+
+    const response = await POST(request(body()));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "STALE_VERSION" });
+  });
+
+  it("maps a duplicate version constraint to 409 STALE_VERSION", async () => {
+    mocks.createRankPlanVersion.mockRejectedValueOnce(
+      Object.assign(new Error("duplicate key"), {
+        code: "P2002",
+        meta: { target: ["RankPlanVersion_version_key"] },
+      }),
+    );
+
+    const response = await POST(request(body()));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "STALE_VERSION" });
+  });
+
+  it("keeps a replayed commit token a duplicate, not a stale version", async () => {
+    const raced = {
+      ...activeVersion(),
+      version: 3,
+      commitToken: TOKEN,
+      createdById: ADMIN_ID,
+    };
+    // Both pre-create lookups miss; the catch-block lookup finds the row a
+    // concurrent admin wrote with the same commit token.
+    mocks.versionFindUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(raced);
+    mocks.createRankPlanVersion.mockRejectedValueOnce(
+      Object.assign(new Error("duplicate key"), {
+        code: "P2002",
+        meta: { target: ["RankPlanVersion_commitToken_key"] },
+      }),
+    );
+
+    const response = await POST(request(body()));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ duplicate: true, version: 3 });
+  });
+
   it("stores the reviewed diff, commit token, and physical reward description", async () => {
     const ranks = payload();
     ranks[0].name = "1 Star Elite";
