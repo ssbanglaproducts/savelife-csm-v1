@@ -154,6 +154,51 @@ export function PanelBottomNav({
     const target = prefix ?? href;
     return pathname === target || pathname.startsWith(`${target}/`);
   };
+
+  // Mobile labels need to fit a five-column bar and the More sheet. Desktop
+  // keeps the full page titles, so keep these short names local to this nav.
+  const shortLabel = (item: PanelLink) => {
+    if (!item.href.startsWith("/admin/")) return item.label;
+    switch (item.href) {
+      case "/admin/dashboard":
+        return t("tabHome");
+      case "/admin/members":
+        return ta("membersTitle");
+      case "/admin/orders":
+        return ta("ordersTitle");
+      case "/admin/products":
+        return ta("productsTitle");
+      case "/admin/categories":
+        return ta("categoriesTitle");
+      case "/admin/investments":
+        return t("adminTabInvestments");
+      case "/admin/distributions":
+        return t("adminTabDistributions");
+      case "/admin/roi-commission":
+        return t("adminTabRoi");
+      case "/admin/ranks":
+        return t("adminTabRanks");
+      case "/admin/salary":
+        return t("salary");
+      case "/admin/withdrawals":
+        return t("adminTabWithdrawals");
+      case "/admin/top-ups":
+        return t("adminTabTopUps");
+      case "/admin/settings":
+        return ta("settingsHubTitle");
+      case "/admin/gallery":
+        return t("gallery");
+      case "/admin/announcements":
+        return t("adminTabAnnouncements");
+      case "/admin/audit":
+        return t("adminTabAudit");
+      case "/admin/staff":
+        return t("adminTabStaff");
+      default:
+        return item.label;
+    }
+  };
+
   const renderOverflowItem = (item: PanelLink, active: boolean, nested = false) => {
     const Icon = panelNavIcons[item.href] ?? Circle;
     const className = cn(
@@ -167,7 +212,7 @@ export function PanelBottomNav({
     const content = (
       <>
         <Icon className="size-4 shrink-0" aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+        <span className="min-w-0 flex-1 truncate">{shortLabel(item)}</span>
         {item.badge && item.badge.count > 0 ? (
           <span
             className={cn(
@@ -197,6 +242,7 @@ export function PanelBottomNav({
       <Link
         href={item.href}
         aria-current={active ? "page" : undefined}
+        title={item.label}
         onClick={() => close(false)}
         className={className}
       >
@@ -204,29 +250,6 @@ export function PanelBottomNav({
       </Link>
     );
   };
-  const tabLabel = (item: PanelLink) => {
-    switch (item.href) {
-      case "/member/dashboard":
-        return t("tabHome");
-      case "/member/wallet":
-        return t("tabWallet");
-      case "/member/team":
-        return t("team");
-      case "/member/profile":
-        return t("tabProfile");
-      case "/admin/dashboard":
-        return t("dashboard");
-      case "/admin/members":
-        return ta("membersTitle");
-      case "/admin/investments":
-        return t("investments");
-      case "/admin/withdrawals":
-        return t("withdrawals");
-      default:
-        return item.label;
-    }
-  };
-
   const overflowGroups: Array<{ label: string | null; items: PanelLink[] }> = [];
   for (const item of overflow) {
     const label = item.group ?? null;
@@ -252,6 +275,7 @@ export function PanelBottomNav({
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                title={item.label}
                 className={cn(
                   "flex min-h-14 flex-col items-center justify-center gap-1 px-1 py-2 text-center transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
@@ -259,7 +283,7 @@ export function PanelBottomNav({
               >
                 <NavIcon item={item} active={active} />
                 <span className="block max-w-full truncate text-[10px] font-semibold leading-tight">
-                  {tabLabel(item)}
+                  {shortLabel(item)}
                 </span>
                 {!item.locked && item.badge && item.badge.count > 0 ? (
                   <span className="sr-only">{item.badge.label}</span>
