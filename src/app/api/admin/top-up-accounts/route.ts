@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { verifyAdminPassword } from "@/lib/admin-password";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { loadTopUpAccounts, TOP_UP_ACCOUNTS_SETTING_KEY } from "@/lib/topup-accounts";
@@ -11,6 +12,7 @@ const schema = z.object({
   bkash: z.string().trim().max(200).optional().default(""),
   nagad: z.string().trim().max(200).optional().default(""),
   bank: z.string().trim().max(200).optional().default(""),
+  adminPassword: z.string().min(1).max(200),
 });
 
 function errorResponse(code: string, status: number) {
@@ -37,6 +39,10 @@ export async function PATCH(request: Request) {
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) return errorResponse("INVALID_REQUEST", 400);
+
+  if (!(await verifyAdminPassword(session.user.id, parsed.data.adminPassword))) {
+    return errorResponse("INVALID_ADMIN_PASSWORD", 401);
+  }
 
   const accounts = {
     BKASH: parsed.data.bkash,

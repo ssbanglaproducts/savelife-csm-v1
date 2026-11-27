@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { verifyAdminPassword } from "@/lib/admin-password";
 import { writeAuditLog } from "@/lib/audit";
 import { spToPaisa } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
@@ -16,11 +17,12 @@ const schema = z.object({
   profitOnlyLockInMonths: z.number().int().min(1).max(120),
   withdrawalFeeBps: z.number().int().min(0).max(5000),
   minWithdrawal: z.string().trim().regex(/^\d+(\.\d{1,2})?$/),
+  adminPassword: z.string().min(1).max(200),
 });
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
+  if (session?.user?.role !== "ADMIN" || !session.user.id) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -35,6 +37,10 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Please check the values" }, { status: 400 });
 
   const data = parsed.data;
+
+  if (!(await verifyAdminPassword(session.user.id, data.adminPassword))) {
+    return NextResponse.json({ error: "INVALID_ADMIN_PASSWORD" }, { status: 401 });
+  }
 
   try {
     const created = await prisma.$transaction(async (tx) => {

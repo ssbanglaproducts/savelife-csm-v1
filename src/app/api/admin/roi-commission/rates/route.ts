@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { verifyAdminPassword } from "@/lib/admin-password";
 import { writeAuditLog } from "@/lib/audit";
 import { ServiceError } from "@/lib/services/errors";
 import {
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 
 const schema = z.object({
   ratesBps: z.array(z.number().int().min(0).max(10_000)).length(5),
+  adminPassword: z.string().min(1).max(200),
 });
 
 function errorResponse(code: string, status: number) {
@@ -45,6 +47,10 @@ export async function POST(request: Request) {
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) return errorResponse("INVALID_RATES", 400);
+
+  if (!(await verifyAdminPassword(admin.user.id, parsed.data.adminPassword))) {
+    return errorResponse("INVALID_ADMIN_PASSWORD", 401);
+  }
 
   try {
     const ratesBps = await saveRoiRateConfig(prisma, parsed.data.ratesBps);

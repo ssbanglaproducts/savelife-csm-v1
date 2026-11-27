@@ -2,12 +2,16 @@
 
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, Upload, Video } from "lucide-react";
+import { Upload, Video } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { UploadField } from "@/components/ui/upload-field";
 import { useRouter } from "@/i18n/navigation";
 import { toAuthBannerMedia, type AuthBannerVideo } from "@/lib/auth-banner-video";
+import {
+  AdminConfigCommitDialog,
+  type AdminConfigChange,
+} from "./admin-config-commit-dialog";
 
 const inputClass =
   "h-12 w-full rounded-xl border border-border bg-[var(--glass-strong)] px-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-ring";
@@ -27,12 +31,40 @@ export function AuthBannerVideoForm({
   const [file, setFile] = useState<File | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<AdminConfigChange[]>([]);
+  const [pendingAction, setPendingAction] = useState<"save" | "remove">("save");
 
   const media = video ? toAuthBannerMedia(video) : null;
 
-  async function save() {
+  function openReview() {
+    setError(null);
+    setPendingAction("save");
+    setPendingChanges([
+      {
+        label: file ? t("authBannerVideoFileLabel") : t("authBannerVideoUrlLabel"),
+        value: file?.name || url || t("authBannerVideoNone"),
+      },
+    ]);
+    setReviewOpen(true);
+  }
+
+  function openRemoveReview() {
+    setError(null);
+    setPendingAction("remove");
+    setPendingChanges([
+      {
+        label: t("authBannerVideoTitle"),
+        value: t("authBannerVideoRemove"),
+      },
+    ]);
+    setReviewOpen(true);
+  }
+
+  async function save(password: string): Promise<boolean> {
     setError(null);
     setPending(true);
+    let saved = false;
     try {
       const response = file
         ? await fetch("/api/admin/auth-banner-video", {
@@ -40,13 +72,14 @@ export function AuthBannerVideoForm({
             body: (() => {
               const data = new FormData();
               data.append("file", file);
+              data.append("adminPassword", password);
               return data;
             })(),
           })
         : await fetch("/api/admin/auth-banner-video", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url }),
+            body: JSON.stringify({ url, adminPassword: password }),
           });
       const data = (await response.json().catch(() => ({}))) as {
         video?: AuthBannerVideo | null;
@@ -54,9 +87,13 @@ export function AuthBannerVideoForm({
       };
 
       if (!response.ok) {
-        setError(t("authBannerVideoInvalid"));
-        toast.error(t("authBannerVideoInvalid"));
-        return;
+        const message =
+          data.error === "INVALID_ADMIN_PASSWORD"
+            ? t("configInvalidPassword")
+            : t("authBannerVideoInvalid");
+        setError(message);
+        toast.error(message);
+        return false;
       }
 
       setVideo(data.video ?? null);
@@ -65,23 +102,37 @@ export function AuthBannerVideoForm({
       if (fileRef.current) fileRef.current.value = "";
       router.refresh();
       toast.success(tc("success"));
+      saved = true;
+      return true;
     } catch {
       setError(t("authBannerVideoInvalid"));
       toast.error(tc("error"));
+      return false;
     } finally {
       setPending(false);
+      if (saved) setReviewOpen(false);
     }
   }
 
-  async function remove() {
+  async function remove(password: string): Promise<boolean> {
     setError(null);
     setPending(true);
+    let removed = false;
     try {
-      const response = await fetch("/api/admin/auth-banner-video", { method: "DELETE" });
+      const response = await fetch("/api/admin/auth-banner-video", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminPassword: password }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) {
-        setError(t("authBannerVideoInvalid"));
-        toast.error(tc("error"));
-        return;
+        const message =
+          data.error === "INVALID_ADMIN_PASSWORD"
+            ? t("configInvalidPassword")
+            : t("authBannerVideoInvalid");
+        setError(message);
+        toast.error(message);
+        return false;
       }
       setVideo(null);
       setUrl("");
@@ -89,10 +140,14 @@ export function AuthBannerVideoForm({
       if (fileRef.current) fileRef.current.value = "";
       router.refresh();
       toast.success(tc("success"));
+      removed = true;
+      return true;
     } catch {
       toast.error(tc("error"));
+      return false;
     } finally {
       setPending(false);
+      if (removed) setReviewOpen(false);
     }
   }
 
@@ -170,20 +225,29 @@ export function AuthBannerVideoForm({
         ) : null}
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <Button type="button" onClick={() => void save()} disabled={pending}>
-            {pending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Upload className="size-4" aria-hidden="true" />
-            )}
+          <Button type="button" onClick={openReview} disabled={pending}>
+            <Upload className="size-4" aria-hidden="true" />
             {t("authBannerVideoSave")}
           </Button>
           {video ? (
-            <Button type="button" variant="outline" onClick={() => void remove()} disabled={pending}>
+            <Button type="button" variant="outline" onClick={openRemoveReview} disabled={pending}>
               {t("authBannerVideoRemove")}
             </Button>
           ) : null}
         </div>
+
+        {reviewOpen ? (
+          <AdminConfigCommitDialog
+            onClose={() => setReviewOpen(false)}
+            changes={pendingChanges}
+            pending={pending}
+            error={error}
+            onClearError={() => setError(null)}
+            onCommit={(password) =>
+              pendingAction === "remove" ? remove(password) : save(password)
+            }
+          />
+        ) : null}
       </div>
     </div>
   );

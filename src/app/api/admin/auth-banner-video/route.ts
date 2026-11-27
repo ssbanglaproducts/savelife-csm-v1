@@ -3,6 +3,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { verifyAdminPassword } from "@/lib/admin-password";
 import { Prisma } from "@/generated/prisma/client";
 import {
   AUTH_BANNER_VIDEO_SETTING_KEY,
@@ -17,7 +18,11 @@ import { saveUploadedVideo, UploadError } from "@/lib/upload-server";
 
 export const dynamic = "force-dynamic";
 
-const urlSchema = z.object({ url: z.string().trim().max(2048) });
+const urlSchema = z.object({
+  url: z.string().trim().max(2048),
+  adminPassword: z.string().min(1).max(200),
+});
+const deleteSchema = z.object({ adminPassword: z.string().min(1).max(200) });
 
 async function requireAdmin() {
   const session = await auth();
@@ -54,6 +59,10 @@ export async function POST(request: Request) {
   try {
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
+      const password = formData.get("adminPassword");
+      if (typeof password !== "string" || !(await verifyAdminPassword(admin.id, password))) {
+        return NextResponse.json({ error: "INVALID_ADMIN_PASSWORD" }, { status: 401 });
+      }
       const saved = await saveUploadedVideo(formData.get("file"));
       video = {
         kind: "upload",
@@ -65,6 +74,9 @@ export async function POST(request: Request) {
       const body: unknown = await request.json();
       const parsed = urlSchema.safeParse(body);
       if (!parsed.success) return NextResponse.json({ error: "INVALID_URL" }, { status: 400 });
+      if (!(await verifyAdminPassword(admin.id, parsed.data.adminPassword))) {
+        return NextResponse.json({ error: "INVALID_ADMIN_PASSWORD" }, { status: 401 });
+      }
       video = normalizeAuthBannerVideoInput(parsed.data.url);
     }
   } catch (error) {
@@ -102,9 +114,21 @@ export async function POST(request: Request) {
   return NextResponse.json({ video: parseAuthBannerVideo(video) });
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "INVALID_REQUEST" }, { status: 400 });
+  }
+  const parsed = deleteSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: "INVALID_REQUEST" }, { status: 400 });
+  if (!(await verifyAdminPassword(admin.id, parsed.data.adminPassword))) {
+    return NextResponse.json({ error: "INVALID_ADMIN_PASSWORD" }, { status: 401 });
+  }
 
   const previous = await loadAuthBannerVideo(prisma);
   await prisma.systemSetting.deleteMany({ where: { key: AUTH_BANNER_VIDEO_SETTING_KEY } });

@@ -5,6 +5,10 @@ import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminInputClass, adminLabelClass } from "@/components/admin/admin-ui";
+import {
+  AdminConfigCommitDialog,
+  type AdminConfigChange,
+} from "./admin-config-commit-dialog";
 import { useAdminAction } from "./use-admin-action";
 
 function bpsToInput(bps: number): string {
@@ -21,6 +25,10 @@ export function RoiCommissionForm({
   const fieldId = useId();
   const { pending, run } = useAdminAction();
   const [rates, setRates] = useState<string[]>(initialRatesBps.map(bpsToInput));
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [pendingRatesBps, setPendingRatesBps] = useState<number[]>([]);
+  const [pendingChanges, setPendingChanges] = useState<AdminConfigChange[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const ratesBps = rates.map((value) => {
     if (value.trim() === "") return -1;
@@ -37,10 +45,34 @@ export function RoiCommissionForm({
     setRates((current) => current.map((item, position) => (position === index ? value : item)));
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (invalid) return;
-    await run("/api/admin/roi-commission/rates", "POST", { ratesBps });
+    setError(null);
+    setPendingRatesBps(ratesBps);
+    setPendingChanges([
+      ...rates.map((rate, index) => ({
+        label: t("roiRateLevelValue", { level: index + 1 }),
+        value: `${rate}%`,
+      })),
+      { label: t("roiCombinedRate"), value: `${(totalBps / 100).toFixed(2)}%` },
+    ]);
+    setReviewOpen(true);
+  }
+
+  async function commit(password: string) {
+    const ok = await run(
+      "/api/admin/roi-commission/rates",
+      "POST",
+      { ratesBps: pendingRatesBps, adminPassword: password },
+      { INVALID_ADMIN_PASSWORD: t("configInvalidPassword") },
+      setError,
+    );
+    if (ok) {
+      setReviewOpen(false);
+      setError(null);
+    }
+    return ok;
   }
 
   return (
@@ -92,6 +124,17 @@ export function RoiCommissionForm({
             {pending ? t("roiRatesSaving") : t("roiRatesSave")}
           </Button>
         </div>
+
+        {reviewOpen ? (
+          <AdminConfigCommitDialog
+            onClose={() => setReviewOpen(false)}
+            changes={pendingChanges}
+            pending={pending}
+            error={error}
+            onClearError={() => setError(null)}
+            onCommit={commit}
+          />
+        ) : null}
       </form>
 
       <section

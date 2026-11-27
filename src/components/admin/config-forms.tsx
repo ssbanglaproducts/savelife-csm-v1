@@ -6,6 +6,10 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { percentToBps } from "@/lib/rates";
+import {
+  AdminConfigCommitDialog,
+  type AdminConfigChange,
+} from "./admin-config-commit-dialog";
 import { adminInputClass, adminLabelClass } from "./admin-ui";
 import { useAdminAction } from "./use-admin-action";
 
@@ -203,25 +207,56 @@ export function SettingsForm({
   const t = useTranslations("adminPanel");
   const fieldId = useId();
   const { pending, run } = useAdminAction();
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null);
+  const [pendingChanges, setPendingChanges] = useState<AdminConfigChange[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError(null);
     const data = new FormData(event.currentTarget);
-    await run(
+    const installmentDurationMonths = Number(data.get("installmentDurationMonths"));
+    const profitOnlyLockInMonths = Number(data.get("profitOnlyLockInMonths"));
+    const withdrawalFeePercent = Number(data.get("withdrawalFeePercent"));
+    const minWithdrawal = String(data.get("minWithdrawal") ?? "");
+    setPendingPayload({
+      installmentDurationMonths,
+      profitOnlyLockInMonths,
+      withdrawalFeeBps: percentToBps(withdrawalFeePercent),
+      minWithdrawal,
+    });
+    setPendingChanges([
+      { label: t("version"), value: String(version) },
+      { label: t("installmentMonths"), value: String(installmentDurationMonths) },
+      { label: t("capitalRepayment"), value: t("capitalOnly") },
+      { label: t("lockInMonths"), value: String(profitOnlyLockInMonths) },
+      { label: t("withdrawalFeePercent"), value: `${withdrawalFeePercent}%` },
+      { label: t("minWithdrawal"), value: minWithdrawal },
+    ]);
+    setReviewOpen(true);
+  }
+
+  async function commit(password: string) {
+    if (!pendingPayload) return false;
+    const ok = await run(
       "/api/admin/settings",
       "POST",
+      { ...pendingPayload, adminPassword: password },
       {
-        installmentDurationMonths: Number(data.get("installmentDurationMonths")),
-        profitOnlyLockInMonths: Number(data.get("profitOnlyLockInMonths")),
-        withdrawalFeeBps: percentToBps(Number(data.get("withdrawalFeePercent"))),
-        minWithdrawal: String(data.get("minWithdrawal") ?? ""),
-      },
-      {
+        INVALID_ADMIN_PASSWORD: t("configInvalidPassword"),
         VERSION_EXISTS: t("versionExists"),
         SETTINGS_FAILED: t("invalidState"),
         "Invalid request": t("invalidState"),
       },
+      setError,
     );
+    if (ok) {
+      setReviewOpen(false);
+      setPendingPayload(null);
+      setError(null);
+    }
+    return ok;
   }
 
   return (
@@ -307,6 +342,17 @@ export function SettingsForm({
           {t("createVersion")}
         </Button>
       </div>
+
+      {reviewOpen ? (
+        <AdminConfigCommitDialog
+          onClose={() => setReviewOpen(false)}
+          changes={pendingChanges}
+          pending={pending}
+          error={error}
+          onClearError={() => setError(null)}
+          onCommit={commit}
+        />
+      ) : null}
     </form>
   );
 }
