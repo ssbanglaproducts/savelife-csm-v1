@@ -56,9 +56,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
       const parent = await tx.member.findUnique({
         where: { memberId: placementMemberId.trim().toUpperCase() },
-        select: { id: true, memberId: true, status: true },
+        select: { id: true, memberId: true, status: true, role: true },
       });
-      if (!parent || parent.status !== "ACTIVE") throw new Error("INVALID_PLACEMENT_MOVE");
+      if (!parent || parent.role === "ADMIN" || parent.status !== "ACTIVE") {
+        throw new Error("INVALID_PLACEMENT_MOVE");
+      }
 
       const inSponsorNetwork = await isInPlacementSubtree(tx, member.sponsorId, parent.id);
       const createsCycle = await isInPlacementSubtree(tx, member.id, parent.id);

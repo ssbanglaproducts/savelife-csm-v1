@@ -11,6 +11,12 @@ describe("registration sponsor validation", () => {
     expect(getSponsorRegistrationError(undefined)).toBe("SPONSOR_NOT_FOUND");
   });
 
+  it("rejects administrator accounts as sponsors", () => {
+    expect(getSponsorRegistrationError({ status: "ACTIVE", role: "ADMIN" })).toBe(
+      "SPONSOR_NOT_ELIGIBLE",
+    );
+  });
+
   it("rejects inactive and suspended sponsors", () => {
     expect(getSponsorRegistrationError({ status: "INACTIVE" })).toBe("SPONSOR_INACTIVE");
     expect(getSponsorRegistrationError({ status: "SUSPENDED" })).toBe("SPONSOR_INACTIVE");

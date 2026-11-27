@@ -27,8 +27,10 @@ const schema = z.object({
 const ERROR_CODES = [
   "ORIGINAL_INACTIVE",
   "SPONSOR_NOT_FOUND",
+  "SPONSOR_NOT_ELIGIBLE",
   "SPONSOR_INACTIVE",
   "PLACEMENT_NOT_FOUND",
+  "PLACEMENT_NOT_ELIGIBLE",
   "PLACEMENT_INACTIVE",
   "PLACEMENT_OUTSIDE_SPONSOR_NETWORK",
   "PLACEMENT_SLOT_INVALID",
@@ -90,7 +92,7 @@ export async function POST(request: Request) {
 
       const sponsor = await tx.member.findUnique({
         where: { memberId: sponsorMemberId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, role: true },
       });
       const sponsorError = getSponsorRegistrationError(sponsor);
       if (sponsorError) throw new Error(sponsorError);

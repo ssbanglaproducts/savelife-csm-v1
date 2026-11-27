@@ -85,7 +85,7 @@ export function PanelChrome({
             content column, keeping the sidebar exactly aligned. */}
         <div className="pointer-events-none fixed inset-x-0 bottom-8 top-[calc(6rem+env(safe-area-inset-top))] z-30 hidden md:block">
           <div className="h-full w-full px-4 sm:px-6 xl:px-8">
-            <aside className="glass pointer-events-auto h-full w-64 overflow-y-auto overscroll-contain rounded-2xl">
+            <aside className="glass panel-scrollbar pointer-events-auto h-full w-64 overflow-y-auto overscroll-contain rounded-2xl">
               {desktopNav}
             </aside>
           </div>

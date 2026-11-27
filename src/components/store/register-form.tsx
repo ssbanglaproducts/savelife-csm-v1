@@ -108,8 +108,10 @@ export function RegisterForm() {
         INVALID_IMAGE: t("invalidImage"),
         ACCOUNT_EXISTS: t("accountExists"),
         SPONSOR_NOT_FOUND: t("sponsorInvalid"),
+        SPONSOR_NOT_ELIGIBLE: t("sponsorNotEligible"),
         SPONSOR_INACTIVE: t("sponsorInactive"),
         PLACEMENT_NOT_FOUND: t("placementInvalid"),
+        PLACEMENT_NOT_ELIGIBLE: t("placementNotEligible"),
         PLACEMENT_INACTIVE: t("placementInactive"),
         PLACEMENT_OUTSIDE_SPONSOR_NETWORK: t("placementOutsideNetwork"),
         PLACEMENT_SLOT_INVALID: t("placementSlotInvalid"),
@@ -291,6 +293,7 @@ export function RegisterForm() {
       if (!response.ok) {
         const placementCodes = [
           "PLACEMENT_NOT_FOUND",
+          "PLACEMENT_NOT_ELIGIBLE",
           "PLACEMENT_INACTIVE",
           "PLACEMENT_OUTSIDE_SPONSOR_NETWORK",
           "PLACEMENT_SLOT_INVALID",

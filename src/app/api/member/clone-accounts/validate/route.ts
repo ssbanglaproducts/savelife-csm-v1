@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
   const sponsor = await prisma.member.findUnique({
     where: { memberId: sponsorMemberId },
-    select: { id: true, memberId: true, fullName: true, status: true, profileImage: true },
+    select: { id: true, memberId: true, fullName: true, status: true, role: true, profileImage: true },
   });
   if (!sponsor) {
     return NextResponse.json({ error: "SPONSOR_NOT_FOUND" }, { status: 400 });
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
   const placement = await prisma.member.findUnique({
     where: { memberId: placementMemberId },
-    select: { id: true, memberId: true, fullName: true, status: true, profileImage: true },
+    select: { id: true, memberId: true, fullName: true, status: true, role: true, profileImage: true },
   });
   if (!placement) {
     return NextResponse.json({ error: "PLACEMENT_NOT_FOUND" }, { status: 400 });
@@ -69,7 +69,8 @@ export async function POST(request: Request) {
   const errors: string[] = [];
   const sponsorError = getSponsorRegistrationError(sponsor);
   if (sponsorError) errors.push(sponsorError);
-  if (placement.status !== "ACTIVE") errors.push("PLACEMENT_INACTIVE");
+  if (placement.role === "ADMIN") errors.push("PLACEMENT_NOT_ELIGIBLE");
+  else if (placement.status !== "ACTIVE") errors.push("PLACEMENT_INACTIVE");
   if (!(await isInPlacementSubtree(prisma, sponsor.id, placement.id))) {
     errors.push("PLACEMENT_OUTSIDE_SPONSOR_NETWORK");
   }

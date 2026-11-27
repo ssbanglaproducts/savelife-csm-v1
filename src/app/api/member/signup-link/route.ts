@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const [sponsor, placement] = await Promise.all([
     prisma.member.findUnique({
       where: { memberId: sponsorMemberId },
-      select: { id: true, memberId: true, fullName: true, status: true },
+      select: { id: true, memberId: true, fullName: true, status: true, role: true },
     }),
     prisma.member.findUnique({
       where: { memberId: placementMemberId },

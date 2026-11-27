@@ -6,6 +6,7 @@ type FakeMember = {
   memberId: string;
   fullName: string;
   status: string;
+  role?: string;
   placementParentId: string | null;
   placementSlot: number | null;
   sponsorParentId: string | null;
@@ -138,6 +139,19 @@ describe("placement slots", () => {
     });
 
     expect(result).toEqual({ ok: false, error: "PLACEMENT_INACTIVE" });
+  });
+
+  it("rejects administrator accounts as placement parents", async () => {
+    const admin = members.map((member) =>
+      member.id === "f" ? { ...member, role: "ADMIN" } : member,
+    );
+    const result = await validatePlacementSelection(fakeClient(admin), {
+      sponsorId: "s",
+      placementMemberId: "f",
+      placementSlot: 1,
+    });
+
+    expect(result).toEqual({ ok: false, error: "PLACEMENT_NOT_ELIGIBLE" });
   });
 
   it("rejects an occupied slot", async () => {

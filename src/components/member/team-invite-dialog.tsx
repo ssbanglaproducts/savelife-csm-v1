@@ -48,10 +48,14 @@ export function TeamInviteDialog({
     switch (code) {
       case "SPONSOR_NOT_FOUND":
         return t("auth.sponsorInvalid");
+      case "SPONSOR_NOT_ELIGIBLE":
+        return t("auth.sponsorNotEligible");
       case "SPONSOR_INACTIVE":
         return t("auth.sponsorInactive");
       case "PLACEMENT_NOT_FOUND":
         return t("auth.placementInvalid");
+      case "PLACEMENT_NOT_ELIGIBLE":
+        return t("auth.placementNotEligible");
       case "PLACEMENT_INACTIVE":
         return t("auth.placementInactive");
       case "PLACEMENT_OUTSIDE_SPONSOR_NETWORK":

@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   if (payload.mode === "sponsor") {
     const member = await prisma.member.findUnique({
       where: { memberId },
-      select: { id: true, memberId: true, fullName: true, status: true, profileImage: true },
+      select: { id: true, memberId: true, fullName: true, status: true, role: true, profileImage: true },
     });
     const error = getSponsorRegistrationError(member);
     if (error) return NextResponse.json({ error }, { status: 400 });
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   const sponsorId = payload.sponsorMemberId.trim().toUpperCase();
   const sponsor = await prisma.member.findUnique({
     where: { memberId: sponsorId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, role: true },
   });
   const sponsorError = getSponsorRegistrationError(sponsor);
   if (sponsorError) return NextResponse.json({ error: sponsorError }, { status: 400 });

@@ -5,6 +5,7 @@ export type PlacementSlot = (typeof PLACEMENT_SLOTS)[number];
 
 export type PlacementErrorCode =
   | "PLACEMENT_NOT_FOUND"
+  | "PLACEMENT_NOT_ELIGIBLE"
   | "PLACEMENT_INACTIVE"
   | "PLACEMENT_OUTSIDE_SPONSOR_NETWORK"
   | "PLACEMENT_SLOT_INVALID"
@@ -126,10 +127,12 @@ export async function validatePlacementSelection(
       fullName: true,
       profileImage: true,
       status: true,
+      role: true,
     },
   });
 
   if (!parent) return { ok: false, error: "PLACEMENT_NOT_FOUND" };
+  if (parent.role === "ADMIN") return { ok: false, error: "PLACEMENT_NOT_ELIGIBLE" };
   if (parent.status !== "ACTIVE") return { ok: false, error: "PLACEMENT_INACTIVE" };
 
   const inSponsorNetwork = await isInPlacementSubtree(client, sponsorId, parent.id);
