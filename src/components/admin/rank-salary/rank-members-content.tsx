@@ -38,7 +38,7 @@ function isHigher(candidate: Achievement, current: Achievement | null): boolean 
 
 export async function RankMembersContent({ rankKey }: { rankKey?: SalaryRankKey } = {}) {
   const [session, locale] = await Promise.all([auth(), getLocale()]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   await ensureDefaultRankPlan(prisma);
   const salaryPlan = await getActiveSalaryPlan(prisma);

@@ -143,6 +143,7 @@ export function InvestmentDetail({ row }: { row: InvestmentCardRow }) {
           paidAt: t("paidAt"),
           expand: t("expandInstallments"),
           collapse: t("collapseInstallments"),
+          noInstallments: t("noInstallments"),
           noPending: t("noPendingInstallments"),
           noPaid: t("noPaidInstallments"),
         }}
@@ -317,6 +318,8 @@ export type InstallmentPanelLabels = {
   paidAt: string;
   expand: string;
   collapse: string;
+  /** Only used when there are no installments at all. */
+  noInstallments?: string;
   noPending: string;
   noPaid: string;
 };
@@ -357,7 +360,9 @@ export function InstallmentPanel({
       </div>
 
       {installments.length === 0 ? (
-        <p className="mt-5 text-sm text-muted-foreground">{labels.noPending}</p>
+        <p className="mt-5 text-sm text-muted-foreground">
+          {labels.noInstallments ?? labels.noPending}
+        </p>
       ) : (
         <div className="mt-5 flex flex-wrap gap-1.5" role="list" aria-label={labels.title}>
           {installments.map((item) => (

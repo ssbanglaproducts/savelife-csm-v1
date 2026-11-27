@@ -17,6 +17,7 @@ export default auth((request) => {
 
   const user = request.auth?.user;
   const isLoginPage = pathname === `/${locale}/login`;
+  const isAdminLoginPage = pathname === `/${locale}/admin-login`;
   const isRegisterPage = pathname === `/${locale}/register`;
   const isAdminArea = pathname === `/${locale}/admin` || pathname.startsWith(`/${locale}/admin/`);
   const isMemberArea = pathname === `/${locale}/member` || pathname.startsWith(`/${locale}/member/`);
@@ -26,8 +27,14 @@ export default auth((request) => {
     return NextResponse.redirect(new URL(`/${locale}/${dashboard}`, request.url));
   }
 
+  // A member may open the administrator login to switch accounts, but an
+  // administrator has no reason to see it again.
+  if (isAdminLoginPage && user?.role === "ADMIN") {
+    return NextResponse.redirect(new URL(`/${locale}/admin/dashboard`, request.url));
+  }
+
   if (isAdminArea && user?.role !== "ADMIN") {
-    return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
+    return NextResponse.redirect(new URL(`/${locale}/admin-login`, request.url));
   }
 
   if (isMemberArea && !user) {

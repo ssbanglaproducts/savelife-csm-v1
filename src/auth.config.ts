@@ -17,7 +17,7 @@ export const authConfig = {
   pages: { signIn: "/en/login" },
   providers: [],
   callbacks: {
-    jwt({ token, user, trigger, session }) {
+    jwt({ token, user }) {
       if (user) {
         const identity = user as Identity;
         token.id = identity.id;
@@ -30,18 +30,8 @@ export const authConfig = {
         token.picture = identity.image ?? null;
       }
 
-      if (trigger === "update" && session?.user) {
-        const next = session.user as Partial<Identity>;
-        // The owner link is immutable here; the switch route validates it.
-        if (next.id) token.id = next.id;
-        if (next.role) token.role = next.role;
-        if (next.memberId) token.memberId = next.memberId;
-        if (next.status) token.status = next.status;
-        if (next.name !== undefined) token.name = next.name;
-        if (next.email !== undefined) token.email = next.email;
-        if (next.image !== undefined) token.picture = next.image;
-      }
-
+      // Identity and authorization claims are never accepted from client session
+      // updates. The Node-only auth instance handles trusted account switches.
       return token;
     },
     session({ session, token }) {

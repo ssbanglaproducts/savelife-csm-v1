@@ -21,6 +21,7 @@ import {
   LedgerDirectionValues as Direction,
   adjustWalletField,
   categoryForWalletField,
+  debitWalletFieldIfSufficient,
   hasLedgerEntry,
   isUniqueViolation,
   makeKey,
@@ -55,6 +56,9 @@ const DEFAULT_PREFIX = "csm";
 const DEFAULT_BATCH_LIMIT = 200;
 const MAX_BATCH_LIMIT = 1000;
 
+/** Thrown inside a transaction to force rollback after a lost CAS claim. */
+class ClaimLostError extends Error {}
+
 function shouldRethrow(error: unknown): boolean {
   return !isUniqueViolation(error);
 }
@@ -85,6 +89,8 @@ export interface PostProfitDistributionInput {
   readonly eligible: readonly ProfitEligibleInvestment[];
   readonly createdBy: string;
   readonly idempotencyPrefix?: string;
+  /** When supplied, a replay with the same key is a no-op (DUPLICATE). */
+  readonly idempotencyKey?: string;
 }
 
 export type PostProfitDistributionResult = OperationResult & {
@@ -101,6 +107,21 @@ export async function postProfitDistribution(
   client: PrismaClient,
   input: PostProfitDistributionInput,
 ): Promise<PostProfitDistributionResult> {
+  const duplicate = (): PostProfitDistributionResult => ({
+    applied: false,
+    reason: "DUPLICATE" as const,
+    ledgerEntryIds: [],
+    allocatedPaisa: 0n,
+  });
+
+  if (input.idempotencyKey) {
+    const existing = await client.profitDistribution.findUnique({
+      where: { idempotencyKey: input.idempotencyKey },
+      select: { id: true },
+    });
+    if (existing) return duplicate();
+  }
+
   const calculation = calculateMonthlyProfitDistribution(
     input.distributablePaisa,
     input.eligible,
@@ -123,6 +144,7 @@ export async function postProfitDistribution(
         distributablePaisa: calculation.distributablePaisa,
         totalEligiblePaisa: calculation.totalEligiblePaisa,
         profitPerThousandPaisa: calculation.profitPerThousandPaisa,
+        idempotencyKey: input.idempotencyKey ?? null,
         status: DistributionStatus.POSTED,
         createdBy: input.createdBy,
         postedAt: new Date(),
@@ -200,7 +222,21 @@ export async function postProfitDistribution(
     };
   };
 
-  const result = await client.$transaction(post);
+  let result: PostProfitDistributionResult;
+  try {
+    result = await client.$transaction(post);
+  } catch (error) {
+    // A concurrent replay may lose the pre-check and hit the unique index.
+    if (input.idempotencyKey && isUniqueViolation(error)) {
+      const raced = await client.profitDistribution.findUnique({
+        where: { idempotencyKey: input.idempotencyKey },
+        select: { id: true },
+      });
+      if (raced) return duplicate();
+    }
+    throw error;
+  }
+
   if (result.applied) {
     await Promise.all(
       calculation.lines.map((line) =>
@@ -729,6 +765,18 @@ export async function completePrincipalWithdrawal(
     if (await hasLedgerEntry(tx, key)) {
       return { applied: false, reason: "DUPLICATE", ledgerEntryIds: [] };
     }
+    // Spend the Available balance first. A short balance leaves the withdrawal
+    // APPROVED and writes no ledger entry, so it can be retried after top-up.
+    const debited = await debitWalletFieldIfSufficient(
+      tx,
+      withdrawal.memberId,
+      "availablePaisa",
+      withdrawal.netPaisa,
+    );
+    if (!debited) {
+      return { applied: false, reason: "INSUFFICIENT_BALANCE", ledgerEntryIds: [] };
+    }
+
     const claimed = await tx.withdrawal.updateMany({
       where: { id: withdrawal.id, status: "APPROVED" },
       data: {
@@ -737,15 +785,9 @@ export async function completePrincipalWithdrawal(
         processedAt: new Date(),
       },
     });
-    if (claimed.count === 0) return { applied: false, reason: "ALREADY_APPLIED", ledgerEntryIds: [] };
+    // Force a rollback so the debit above cannot commit without its ledger.
+    if (claimed.count === 0) throw new ClaimLostError();
 
-    const debited = await adjustWalletField(
-      tx,
-      withdrawal.memberId,
-      "availablePaisa",
-      withdrawal.netPaisa,
-      DEBIT,
-    );
     const ledger = await recordLedgerEntry(tx, {
       walletId: debited.walletId,
       memberId: withdrawal.memberId,
@@ -766,6 +808,9 @@ export async function completePrincipalWithdrawal(
   try {
     return await client.$transaction(complete);
   } catch (error) {
+    if (error instanceof ClaimLostError) {
+      return { applied: false, reason: "ALREADY_APPLIED", ledgerEntryIds: [] };
+    }
     if (isUniqueViolation(error) && (await hasLedgerEntry(client, key))) {
       return { applied: false, reason: "DUPLICATE", ledgerEntryIds: [] };
     }

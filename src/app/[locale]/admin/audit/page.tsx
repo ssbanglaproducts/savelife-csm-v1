@@ -21,7 +21,7 @@ export default async function AdminAuditPage() {
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const logs = await prisma.auditLog.findMany({
     orderBy: { createdAt: "desc" },

@@ -84,7 +84,12 @@ export function SignOutConfirmDialog({
           <Button
             type="button"
             variant="destructive"
-            onClick={() => void signOut({ callbackUrl: `/${locale}/login` })}
+            onClick={() => {
+              const adminArea = window.location.pathname.startsWith(`/${locale}/admin`);
+              void signOut({
+                callbackUrl: adminArea ? `/${locale}/admin-login` : `/${locale}/login`,
+              });
+            }}
           >
             {t("logoutConfirmAction")}
           </Button>

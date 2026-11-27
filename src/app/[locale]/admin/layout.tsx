@@ -20,7 +20,7 @@ export default async function AdminLayout({
 
   // The proxy also guards this area; this is defence in depth.
   const adminId = session?.user?.id;
-  if (!adminId || session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (!adminId || session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const [adminMember, pendingPayments, pendingWithdrawals, pendingTopUps] = await Promise.all([
     prisma.member.findUnique({

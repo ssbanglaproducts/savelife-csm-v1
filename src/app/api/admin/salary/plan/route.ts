@@ -1,8 +1,8 @@
-import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import type { Prisma } from "@/generated/prisma/client";
+import { verifyAdminPassword } from "@/lib/admin-password";
 import { writeAuditLog } from "@/lib/audit";
 import { spToPaisa } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
@@ -171,11 +171,7 @@ export async function POST(request: Request) {
     maxWeeks: parseWeeks(rank.maxWeeks),
   }));
 
-  const admin = await prisma.member.findUnique({
-    where: { id: session.user.id },
-    select: { passwordHash: true },
-  });
-  if (!admin || !(await bcrypt.compare(parsed.data.adminPassword, admin.passwordHash))) {
+  if (!(await verifyAdminPassword(session.user.id, parsed.data.adminPassword))) {
     return NextResponse.json({ error: "INVALID_ADMIN_PASSWORD" }, { status: 401 });
   }
 

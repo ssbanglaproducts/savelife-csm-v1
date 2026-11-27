@@ -9,12 +9,6 @@ import { AuthShell } from "@/components/layout/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Link, useRouter } from "@/i18n/navigation";
 
-type SessionResponse = {
-  user?: {
-    role?: string;
-  } | null;
-};
-
 export default function LoginPage() {
   const t = useTranslations("auth");
   const router = useRouter();
@@ -36,6 +30,7 @@ export default function LoginPage() {
     const result = await signIn("credentials", {
       memberId: memberId.trim(),
       password,
+      expectedRole: "MEMBER",
       redirect: false,
     });
 
@@ -45,22 +40,13 @@ export default function LoginPage() {
       return;
     }
 
-    let isAdmin = false;
-    try {
-      const response = await fetch("/api/auth/session", { cache: "no-store" });
-      const session = (await response.json()) as SessionResponse;
-      isAdmin = session.user?.role === "ADMIN";
-    } catch {
-      // The session cookie is already set; the member dashboard remains safe.
-    }
-
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["viewer"] }),
       queryClient.invalidateQueries({ queryKey: ["cart-count"] }),
       queryClient.invalidateQueries({ queryKey: ["notifications"] }),
     ]);
 
-    router.replace(isAdmin ? "/admin/dashboard" : "/member/dashboard");
+    router.replace("/member/dashboard");
   }
 
   const inputClass =
@@ -165,6 +151,11 @@ export default function LoginPage() {
           {t("noAccount")}{" "}
           <Link href="/register" className="font-semibold text-primary hover:underline">
             {t("signUp")}
+          </Link>
+        </p>
+        <p className="mt-3 text-center text-sm text-muted-foreground">
+          <Link href="/admin-login" className="font-semibold text-primary hover:underline">
+            {t("adminLoginLink")}
           </Link>
         </p>
       </div>

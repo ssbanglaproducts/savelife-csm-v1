@@ -40,7 +40,7 @@ export async function AdminTreasuryMembersContent({ rankKey }: { rankKey: string
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   if (!isSalaryRankKey(rankKey)) notFound();
 

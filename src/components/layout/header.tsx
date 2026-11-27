@@ -47,7 +47,7 @@ type ViewerResponse = {
 export function Header() {
   const t = useTranslations("nav");
   const pathname = usePathname();
-  const onLoginPage = pathname === "/login";
+  const onLoginPage = pathname === "/login" || pathname === "/admin-login";
   const onRegisterPage = pathname === "/register";
   const [mobileOpen, setMobileOpen] = useState(false);
   const { hidden, reveal } = useHideHeaderOnScroll(mobileOpen);

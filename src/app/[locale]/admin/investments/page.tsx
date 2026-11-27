@@ -20,7 +20,7 @@ export default async function AdminInvestmentsPage({
     getTranslations("adminPanel"),
     searchParams,
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const rows = await getInvestmentCardRows();
   const pendingProofOnly = query.proof === "pending";

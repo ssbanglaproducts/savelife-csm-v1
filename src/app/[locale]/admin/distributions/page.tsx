@@ -26,7 +26,7 @@ export default async function AdminDistributionsPage() {
     getTranslations("adminPanel"),
     getTranslations("common"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const distributions = await prisma.profitDistribution.findMany({
     orderBy: { createdAt: "desc" },

@@ -41,7 +41,7 @@ export default async function AdminMembersPage() {
     getTranslations("adminPanel"),
     getTranslations("memberPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const members = await prisma.member.findMany({
     orderBy: { createdAt: "desc" },

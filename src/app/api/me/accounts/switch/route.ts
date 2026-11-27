@@ -56,13 +56,7 @@ export async function POST(request: Request) {
 
   const updated = await updateSession({
     user: {
-      id: target.id,
-      name: target.fullName,
-      email: target.email,
-      image: target.profileImage,
-      memberId: target.memberId,
-      role: target.role,
-      status: target.status,
+      switchTo: target.id,
     },
   });
   if (!updated) {

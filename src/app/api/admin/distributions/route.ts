@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { verifyAdminPassword } from "@/lib/admin-password";
 import { writeAuditLog } from "@/lib/audit";
 import { spToPaisa } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
@@ -14,6 +15,8 @@ export const dynamic = "force-dynamic";
 
 const schema = z.object({
   amount: z.string().trim().regex(/^\d+(\.\d{1,2})?$/),
+  idempotencyKey: z.string().trim().min(1).max(200),
+  adminPassword: z.string().min(1).max(200),
 });
 
 function errorResponse(code: string, status: number) {
@@ -34,7 +37,11 @@ export async function POST(request: Request) {
   }
 
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return errorResponse("Invalid amount", 400);
+  if (!parsed.success) return errorResponse("Invalid request", 400);
+
+  if (!(await verifyAdminPassword(admin.user.id, parsed.data.adminPassword))) {
+    return errorResponse("INVALID_ADMIN_PASSWORD", 401);
+  }
 
   try {
     const distributable = spToPaisa(parsed.data.amount);
@@ -52,9 +59,13 @@ export async function POST(request: Request) {
       distributablePaisa: distributable,
       eligible,
       createdBy: admin.user.id,
+      idempotencyKey: parsed.data.idempotencyKey,
     });
 
-    if (!result.applied) return errorResponse("DISTRIBUTION_FAILED", 500);
+    if (!result.applied) {
+      if (result.reason === "DUPLICATE") return errorResponse("DUPLICATE", 409);
+      return errorResponse("DISTRIBUTION_FAILED", 500);
+    }
 
     await writeAuditLog({
       actorId: admin.user.id,
@@ -67,6 +78,7 @@ export async function POST(request: Request) {
         distributablePaisa: distributable.toString(),
         allocatedPaisa: result.allocatedPaisa.toString(),
         recipients: eligible.length,
+        idempotencyKey: parsed.data.idempotencyKey,
       },
     });
 

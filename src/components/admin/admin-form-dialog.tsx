@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { DialogShell } from "@/components/ui/dialog-shell";
 import { cn } from "@/lib/utils";
 
@@ -21,12 +21,13 @@ export function AdminFormDialog({
   wide?: boolean;
   children: ReactNode;
 }) {
+  const titleId = useId();
   return (
     <DialogShell
       title={title}
       intro={intro}
       onClose={onClose}
-      titleId="admin-form-dialog-title"
+      titleId={titleId}
       shellClassName="p-0 sm:p-4"
       panelClassName={cn(
         "h-full max-h-none w-full max-w-none rounded-none sm:h-auto sm:max-h-[92vh] sm:rounded-3xl",

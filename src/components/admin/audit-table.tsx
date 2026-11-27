@@ -52,8 +52,8 @@ export function AuditTable({ rows }: { rows: AuditRow[] }) {
             t("action"),
             t("entity"),
             t("createdAt"),
-            "Before",
-            "After",
+            t("before"),
+            t("after"),
           ]}
         >
           {filtered.map((row) => (

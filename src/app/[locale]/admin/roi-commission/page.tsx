@@ -69,7 +69,7 @@ export default async function AdminRoiCommissionPage({
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const requestedTab = first(query.tab);
   const tab: RoiTab =

@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { notifyTopUpRejected } from "@/lib/services/notification-events";
-import { approveWalletTopUp } from "@/lib/services/wallet";
+import { approveWalletTopUp, claimPendingWalletTopUp } from "@/lib/services/wallet";
 
 export const dynamic = "force-dynamic";
 
@@ -84,22 +84,25 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: true, status: "APPROVED" });
   }
 
-  const existing = await prisma.walletTopUp.findUnique({
-    where: { id: parsed.data.requestId },
-    select: { status: true, memberId: true, requestNumber: true },
-  });
-  if (!existing) return errorResponse("NOT_FOUND", 404);
-  if (existing.status !== "PENDING") return errorResponse("ALREADY_REVIEWED", 409);
+  const claim = await prisma.$transaction(async (tx) => {
+    const existing = await tx.walletTopUp.findUnique({
+      where: { id: parsed.data.requestId },
+      select: { status: true, memberId: true, requestNumber: true },
+    });
+    if (!existing) return { state: "NOT_FOUND" as const };
 
-  await prisma.walletTopUp.update({
-    where: { id: parsed.data.requestId },
-    data: {
+    const claimed = await claimPendingWalletTopUp(tx, parsed.data.requestId, {
       status: "REJECTED",
       reviewedBy: session.user.id,
       reviewedAt: new Date(),
       note: parsed.data.note || undefined,
-    },
+    });
+    if (!claimed) return { state: "ALREADY_REVIEWED" as const };
+    return { state: "CLAIMED" as const, existing };
   });
+  if (claim.state === "NOT_FOUND") return errorResponse("NOT_FOUND", 404);
+  if (claim.state === "ALREADY_REVIEWED") return errorResponse("ALREADY_REVIEWED", 409);
+  const { existing } = claim;
 
   await notifyTopUpRejected(existing.memberId, existing.requestNumber, parsed.data.note);
 

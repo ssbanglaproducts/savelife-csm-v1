@@ -19,6 +19,8 @@ declare module "next-auth" {
     role: Role;
     memberId: string;
     status: MemberStatus;
+    /** Server-validated account-switch marker; never accepted as an identity claim. */
+    switchTo?: string;
   }
 }
 

@@ -1,7 +1,7 @@
-import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { verifyAdminPassword } from "@/lib/admin-password";
 import type { Prisma } from "@/generated/prisma/client";
 import { buildRankPlanDiff } from "@/lib/rank-plan-diff";
 import { definitionToDto, type RankPlanDefinitionDto } from "@/lib/rank-plan-dto";
@@ -67,7 +67,8 @@ export async function GET() {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
-  await ensureDefaultRankPlan(prisma);
+  // GET is read-only. A missing default plan is represented by an empty list;
+  // bootstrapping happens only in POST.
   const [versions, achievements] = await Promise.all([
     prisma.rankPlanVersion.findMany({
       orderBy: { version: "desc" },
@@ -143,11 +144,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid rank artwork" }, { status: 400 });
   }
 
-  const admin = await prisma.member.findUnique({
-    where: { id: session.user.id },
-    select: { passwordHash: true },
-  });
-  if (!admin || !(await bcrypt.compare(parsed.data.adminPassword, admin.passwordHash))) {
+  if (!(await verifyAdminPassword(session.user.id, parsed.data.adminPassword))) {
     return NextResponse.json({ error: "INVALID_ADMIN_PASSWORD" }, { status: 401 });
   }
 
@@ -167,6 +164,7 @@ export async function POST(request: Request) {
     });
   }
 
+  await ensureDefaultRankPlan(prisma);
   const activeVersion = await prisma.rankPlanVersion.findFirst({
     where: { isActive: true },
     orderBy: { version: "desc" },

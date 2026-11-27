@@ -597,6 +597,9 @@ model ProfitDistribution {
   id                     String                     @id @default(cuid())
   /// Auto-derived YYYY-MM grouping key. Multiple distributions may share a month.
   month                  String
+  /// Caller-supplied idempotency key. A replay must never credit profit twice,
+  /// while a genuinely new distribution gets a new key.
+  idempotencyKey         String?                    @unique
   distributablePaisa     BigInt
   totalEligiblePaisa     BigInt
   profitPerThousandPaisa BigInt
@@ -1105,6 +1108,47 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+
+/// Write-ahead durable queue for audit rows. The primary insert reuses this id,
+/// so a crash between queue and insert still leaves a replayable audit trail.
+model AuditOutbox {
+  id            String   @id @default(cuid())
+  actorId       String?
+  actorRole     Role?
+  action        String
+  entityType    String
+  entityId      String?
+  before        Json?
+  after         Json?
+  ip            String?
+  attempts      Int      @default(0)
+  lastError     String?
+  nextAttemptAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([nextAttemptAt, createdAt])
+  @@index([entityType, entityId])
+}
+
+/// Durable retry queue for side effects that must follow a committed payment
+/// approval. Replaying them is safe because their ledger writes are keyed.
+model InvestmentSideEffectOutbox {
+  id            String    @id @default(cuid())
+  kind          String
+  investmentId  String
+  proofId       String
+  actorId       String?
+  uplines       Json?
+  attempts      Int       @default(0)
+  lastError     String?
+  nextAttemptAt DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  processedAt   DateTime?
+
+  @@unique([investmentId, kind, proofId])
+  @@index([nextAttemptAt, createdAt])
+  @@index([investmentId, kind])
 }
 
 model SystemSetting {

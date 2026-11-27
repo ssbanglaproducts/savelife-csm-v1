@@ -34,7 +34,7 @@ export async function SalaryOverviewBody() {
     getTranslations("common"),
   ]);
   if (!session?.user?.id || session.user.role !== "ADMIN") {
-    redirect({ href: "/login", locale });
+    redirect({ href: "/admin-login", locale });
     return null;
   }
 

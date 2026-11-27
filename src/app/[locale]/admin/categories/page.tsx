@@ -18,7 +18,7 @@ export default async function AdminCategoriesPage() {
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const rows = await prisma.category.findMany({
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],

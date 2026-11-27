@@ -13,11 +13,9 @@ import {
 import { auth } from "@/auth";
 import { Link, redirect } from "@/i18n/navigation";
 import { AdminPageIntro, AdminSection } from "@/components/admin/admin-ui";
-import { buttonVariants } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
 import { formatSP } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
-import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +26,7 @@ export default async function AdminDashboardPage() {
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const [
     members,
@@ -85,7 +83,7 @@ export default async function AdminDashboardPage() {
       <AdminPageIntro
         eyebrow={tn("admin")}
         title={tn("dashboard")}
-        intro={ta("auditIntro")}
+        intro={ta("dashboardIntro")}
         icon={<ScrollText className="size-3.5" aria-hidden="true" />}
       />
 
@@ -156,36 +154,6 @@ export default async function AdminDashboardPage() {
           </Link>
         </div>
       </AdminSection>
-
-      <section className="glass rounded-2xl p-4 sm:p-6" aria-labelledby="risk-audit-heading">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <ScrollText className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
-            <div className="min-w-0">
-              <h2 id="risk-audit-heading" className="font-display text-base font-bold">
-                {ta("auditTitle")}
-              </h2>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                {ta("auditIntro")}
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/admin/audit"
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "min-h-10")}
-            >
-              {ta("auditTitle")}
-            </Link>
-            <Link
-              href="/member/company-info"
-              className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "min-h-10")}
-            >
-              {tn("program")}
-            </Link>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

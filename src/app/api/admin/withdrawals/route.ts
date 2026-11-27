@@ -65,7 +65,9 @@ export async function PATCH(request: Request) {
           const code =
             result.reason === "DUPLICATE" || result.reason === "ALREADY_APPLIED"
               ? "DUPLICATE_REQUEST"
-              : "INVALID_STATE";
+              : result.reason === "INSUFFICIENT_BALANCE"
+                ? "INSUFFICIENT_BALANCE"
+                : "INVALID_STATE";
           return NextResponse.json({ error: code }, { status: 409 });
         }
         await writeAuditLog({

@@ -24,7 +24,7 @@ export default async function AdminInvestmentSettingsPage() {
     getTranslations("memberPanel"),
   ]);
   if (!session?.user?.id || session.user.role !== "ADMIN") {
-    redirect({ href: "/login", locale });
+    redirect({ href: "/admin-login", locale });
     return null;
   }
 
@@ -49,42 +49,45 @@ export default async function AdminInvestmentSettingsPage() {
       </AdminSection>
 
       <AdminSection id="versions" title={ta("settingsTitle")}>
-        {settings.length === 0 ? <EmptyState message={tc("noResults")} /> : null}
-        <AdminTable
-          caption={ta("settingsTitle")}
-          headers={[
-            ta("version"),
-            tc("status"),
-            ta("installmentMonths"),
-            ta("capitalRepayment"),
-            ta("lockInMonths"),
-            ta("withdrawalFeePercent"),
-            ta("minWithdrawal"),
-            tc("date"),
-          ]}
-        >
-          {settings.map((item) => (
-            <tr key={item.id} className="align-top">
-              <td className="whitespace-nowrap px-4 py-3 font-mono text-sm">{item.version}</td>
-              <td className="px-4 py-3">
-                <StatusBadge
-                  tone={item.isActive ? "success" : "neutral"}
-                  label={item.isActive ? tm("active") : tc("previous")}
-                />
-              </td>
-              <td className="px-4 py-3 tabular-nums">{item.installmentDurationMonths}</td>
-              <td className="px-4 py-3 tabular-nums">{ta("capitalOnly")}</td>
-              <td className="px-4 py-3 tabular-nums">{item.profitOnlyLockInMonths}</td>
-              <td className="px-4 py-3 tabular-nums">{formatPercent(item.withdrawalFeeBps)}</td>
-              <td className="whitespace-nowrap px-4 py-3 tabular-nums">
-                {formatSP(item.minWithdrawalPaisa)}
-              </td>
-              <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
-                {formatDate(item.effectiveFrom, locale)}
-              </td>
-            </tr>
-          ))}
-        </AdminTable>
+        {settings.length === 0 ? (
+          <EmptyState message={tc("noResults")} />
+        ) : (
+          <AdminTable
+            caption={ta("settingsTitle")}
+            headers={[
+              ta("version"),
+              tc("status"),
+              ta("installmentMonths"),
+              ta("capitalRepayment"),
+              ta("lockInMonths"),
+              ta("withdrawalFeePercent"),
+              ta("minWithdrawal"),
+              tc("date"),
+            ]}
+          >
+            {settings.map((item) => (
+              <tr key={item.id} className="align-top">
+                <td className="whitespace-nowrap px-4 py-3 font-mono text-sm">{item.version}</td>
+                <td className="px-4 py-3">
+                  <StatusBadge
+                    tone={item.isActive ? "success" : "neutral"}
+                    label={item.isActive ? tm("active") : tc("previous")}
+                  />
+                </td>
+                <td className="px-4 py-3 tabular-nums">{item.installmentDurationMonths}</td>
+                <td className="px-4 py-3 tabular-nums">{ta("capitalOnly")}</td>
+                <td className="px-4 py-3 tabular-nums">{item.profitOnlyLockInMonths}</td>
+                <td className="px-4 py-3 tabular-nums">{formatPercent(item.withdrawalFeeBps)}</td>
+                <td className="whitespace-nowrap px-4 py-3 tabular-nums">
+                  {formatSP(item.minWithdrawalPaisa)}
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                  {formatDate(item.effectiveFrom, locale)}
+                </td>
+              </tr>
+            ))}
+          </AdminTable>
+        )}
       </AdminSection>
     </div>
   );

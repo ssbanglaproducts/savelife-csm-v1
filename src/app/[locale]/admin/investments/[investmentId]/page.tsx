@@ -22,7 +22,7 @@ export default async function AdminInvestmentDetailPage({
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const { investmentId } = await params;
   const rows = await getInvestmentCardRows({ id: investmentId });

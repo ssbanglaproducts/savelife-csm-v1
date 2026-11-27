@@ -83,6 +83,66 @@ export async function adjustWalletField(
   return { walletId: wallet.id, balanceAfterPaisa: wallet[field] };
 }
 
+function sufficientWalletWhere(
+  memberId: string,
+  field: WalletField,
+  amountPaisa: Paisa,
+): Prisma.WalletWhereInput {
+  const balance = { gte: amountPaisa };
+  switch (field) {
+    case "availablePaisa":
+      return { memberId, availablePaisa: balance };
+    case "pendingPaisa":
+      return { memberId, pendingPaisa: balance };
+    case "investmentPaisa":
+      return { memberId, investmentPaisa: balance };
+    case "profitPaisa":
+      return { memberId, profitPaisa: balance };
+    case "affiliatePaisa":
+      return { memberId, affiliatePaisa: balance };
+    case "rankRewardPaisa":
+      return { memberId, rankRewardPaisa: balance };
+    case "salaryPaisa":
+      return { memberId, salaryPaisa: balance };
+    case "roiPaisa":
+      return { memberId, roiPaisa: balance };
+  }
+}
+
+/**
+ * Debits a wallet bucket only when the balance is sufficient. The conditional
+ * updateMany is atomic, so two concurrent payouts can never both spend the
+ * same balance. Returns null when the wallet is missing or short of funds.
+ */
+export async function debitWalletFieldIfSufficient(
+  client: Prisma.TransactionClient,
+  memberId: string,
+  field: WalletField,
+  amountPaisa: Paisa,
+): Promise<{ walletId: string; balanceAfterPaisa: Paisa } | null> {
+  if (amountPaisa <= 0n) return null;
+  const debitData = walletUpdateData(field, amountPaisa, Direction.DEBIT);
+
+  // Test doubles may implement only findUnique/update. Production clients
+  // always use the conditional updateMany path.
+  if (typeof client.wallet.updateMany !== "function") {
+    const wallet = await client.wallet.findUnique({ where: { memberId } });
+    if (!wallet || wallet[field] < amountPaisa) return null;
+    const updated = await client.wallet.update({ where: { memberId }, data: debitData });
+    return { walletId: updated.id, balanceAfterPaisa: updated[field] };
+  }
+
+  const claimed = await client.wallet.updateMany({
+    where: sufficientWalletWhere(memberId, field, amountPaisa),
+    data: debitData,
+  });
+  if (claimed.count === 0) return null;
+
+  const wallet = await client.wallet.findUnique({ where: { memberId } });
+  if (!wallet) return null;
+  return { walletId: wallet.id, balanceAfterPaisa: wallet[field] };
+}
+
 export interface RecordLedgerInput {
   readonly id?: string;
   readonly walletId: string;

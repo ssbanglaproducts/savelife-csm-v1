@@ -140,6 +140,12 @@ export function MemberActionDialog({
   const fieldId = useId();
   const { pending, run } = useAdminAction();
   const [error, setError] = useState<string | null>(null);
+  // Stable per dialog instance so a retry cannot double-credit the member.
+  const [topUpIdempotencyKey] = useState(() =>
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `topup-${fieldId}`,
+  );
   const isDeactivate = state.kind === "deactivate";
   const isResetTPin = state.kind === "resetTpin";
 
@@ -185,7 +191,11 @@ export function MemberActionDialog({
     const payload = isResetTPin
       ? { newTPin, confirmTPin, note }
       : state.kind === "topup"
-        ? { amount: String(data.get("amount") ?? "").trim(), note }
+        ? {
+            amount: String(data.get("amount") ?? "").trim(),
+            note,
+            idempotencyKey: topUpIdempotencyKey,
+          }
         : { action: statusAction, note };
     const url = isResetTPin
       ? `/api/admin/members/${state.member.id}/tpin`
@@ -200,8 +210,7 @@ export function MemberActionDialog({
       {
         NOTE_REQUIRED: t("noteRequired"),
         TOP_UP_FAILED: tc("error"),
-        FORBIDDEN: tc("error"),
-        INVALID_REQUEST: tc("error"),
+        DUPLICATE: t("adminErrorDuplicate"),
         MEMBER_NOT_FOUND: tc("error"),
         TPIN_MISMATCH: t("resetTpinMismatch"),
         INVALID_TPIN: t("resetTpinMismatch"),

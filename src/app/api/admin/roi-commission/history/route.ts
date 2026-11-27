@@ -56,7 +56,16 @@ export async function GET(request: Request) {
         })),
       },
     });
-  } catch {
+  } catch (error) {
+    console.error(
+      "ROI history load failed",
+      {
+        route: "/api/admin/roi-commission/history",
+        adminId: admin.user.id,
+        query: Object.fromEntries(new URL(request.url).searchParams),
+      },
+      error,
+    );
     return NextResponse.json({ error: "ROI_HISTORY_FAILED" }, { status: 500 });
   }
 }

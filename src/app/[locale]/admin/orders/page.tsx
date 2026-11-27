@@ -45,7 +45,7 @@ export default async function AdminOrdersPage({
     getTranslations("purchase"),
     searchParams,
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const pendingProofOnly = query.proof === "pending";
   const fulfillment =

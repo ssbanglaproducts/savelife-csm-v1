@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "@/i18n/navigation";
 import { percentToBps } from "@/lib/rates";
 import {
   AdminConfigCommitDialog,
@@ -29,6 +30,17 @@ type DistributionPreview = {
   recipients: DistributionRecipient[];
 };
 
+let fallbackKeyCounter = 0;
+
+function newIdempotencyKey(fallback: string): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // Rotate even without crypto.randomUUID so a spent key is never reused.
+  fallbackKeyCounter += 1;
+  return `${fallback}-${fallbackKeyCounter}`;
+}
+
 export function DistributionForm() {
   const t = useTranslations("adminPanel");
   const tc = useTranslations("common");
@@ -38,6 +50,11 @@ export function DistributionForm() {
   const [preview, setPreview] = useState<DistributionPreview | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  // One key per distribution, reused for retries and rotated after a success.
+  const [idempotencyKey, setIdempotencyKey] = useState(() =>
+    newIdempotencyKey(`distribution-${fieldId}`),
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,19 +84,27 @@ export function DistributionForm() {
     }
   }
 
-  async function confirmPost() {
+  async function commit(password: string) {
     const ok = await run(
       "/api/admin/distributions",
       "POST",
-      { amount },
-      { NO_ELIGIBLE_INVESTMENTS: t("noEligibleInvestments") },
+      { amount, idempotencyKey, adminPassword: password },
+      {
+        INVALID_ADMIN_PASSWORD: t("configInvalidPassword"),
+        DUPLICATE: t("adminErrorDuplicate"),
+        NO_ELIGIBLE_INVESTMENTS: t("noEligibleInvestments"),
+      },
       setError,
     );
     if (ok) {
+      setReviewOpen(false);
       setPreview(null);
       setAmount("");
       setError(null);
+      // A successful key is spent; a later intentional distribution gets a new one.
+      setIdempotencyKey(newIdempotencyKey(`distribution-${fieldId}`));
     }
+    return ok;
   }
 
   return (
@@ -173,17 +198,38 @@ export function DistributionForm() {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => setPreview(null)}
+                onClick={() => {
+                  setReviewOpen(false);
+                  setPreview(null);
+                }}
                 disabled={posting}
               >
                 {tc("cancel")}
               </Button>
-              <Button type="button" onClick={confirmPost} disabled={posting}>
-                {posting ? tc("saving") : tc("confirm")}
+              <Button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setReviewOpen(true);
+                }}
+                disabled={posting || reviewOpen}
+              >
+                {tc("confirm")}
               </Button>
             </div>
           </div>
         </div>
+      ) : null}
+
+      {reviewOpen ? (
+        <AdminConfigCommitDialog
+          onClose={() => setReviewOpen(false)}
+          changes={[{ label: `${tc("amount")} (SP)`, value: amount }]}
+          pending={posting}
+          error={error}
+          onClearError={() => setError(null)}
+          onCommit={commit}
+        />
       ) : null}
     </div>
   );
@@ -208,6 +254,7 @@ export function SettingsForm({
 }) {
   const t = useTranslations("adminPanel");
   const fieldId = useId();
+  const router = useRouter();
   const { pending, run } = useAdminAction();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null);
@@ -265,21 +312,34 @@ export function SettingsForm({
 
   async function commit(password: string) {
     if (!pendingPayload) return false;
+    let staleFailure = false;
     const ok = await run(
       "/api/admin/settings",
       "POST",
-      { ...pendingPayload, adminPassword: password },
+      { ...pendingPayload, expectedVersion: currentVersion, adminPassword: password },
       {
         INVALID_ADMIN_PASSWORD: t("configInvalidPassword"),
+        STALE_VERSION: t("adminErrorStaleVersion"),
         VERSION_EXISTS: t("versionExists"),
         SETTINGS_FAILED: t("invalidState"),
         "Invalid request": t("invalidState"),
       },
-      setError,
+      (message, code) => {
+        setError(message);
+        if (code === "STALE_VERSION" || code === "VERSION_EXISTS") staleFailure = true;
+      },
     );
+    if (staleFailure) {
+      // The version was taken while the admin was reviewing; reload defaults.
+      setReviewOpen(false);
+      setPendingPayload(null);
+      setPendingChanges([]);
+      router.refresh();
+    }
     if (ok) {
       setReviewOpen(false);
       setPendingPayload(null);
+      setPendingChanges([]);
       setError(null);
     }
     return ok;
@@ -290,7 +350,7 @@ export function SettingsForm({
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <div>
           <span className={adminLabelClass}>{t("version")}</span>
-          <output className={`${adminInputClass} mt-2 flex items-center`}>{nextVersion}</output>
+          <div className={`${adminInputClass} mt-2 flex items-center`}>{nextVersion}</div>
         </div>
         <div>
           <label htmlFor={`${fieldId}-duration`} className={adminLabelClass}>
@@ -298,6 +358,7 @@ export function SettingsForm({
           </label>
           <input
             id={`${fieldId}-duration`}
+            key={`duration-${currentVersion}`}
             name="installmentDurationMonths"
             type="number"
             min={1}
@@ -309,9 +370,9 @@ export function SettingsForm({
         </div>
         <div>
           <span className={adminLabelClass}>{t("capitalRepayment")}</span>
-          <output className={`${adminInputClass} mt-2 flex items-center`}>
+          <div className={`${adminInputClass} mt-2 flex items-center`}>
             {t("capitalOnly")}
-          </output>
+          </div>
           <p className="mt-1 text-xs text-muted-foreground">{t("capitalOnlyNote")}</p>
         </div>
         <div>
@@ -320,6 +381,7 @@ export function SettingsForm({
           </label>
           <input
             id={`${fieldId}-lockin`}
+            key={`lockin-${currentVersion}`}
             name="profitOnlyLockInMonths"
             type="number"
             min={1}
@@ -335,6 +397,7 @@ export function SettingsForm({
           </label>
           <input
             id={`${fieldId}-fee`}
+            key={`fee-${currentVersion}`}
             name="withdrawalFeePercent"
             type="number"
             min={0}
@@ -351,6 +414,7 @@ export function SettingsForm({
           </label>
           <input
             id={`${fieldId}-min`}
+            key={`min-${currentVersion}`}
             name="minWithdrawal"
             type="text"
             inputMode="decimal"
@@ -362,6 +426,7 @@ export function SettingsForm({
           />
         </div>
       </div>
+      {error && !reviewOpen ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex justify-end">
         <Button type="submit" disabled={pending}>
           {pending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}

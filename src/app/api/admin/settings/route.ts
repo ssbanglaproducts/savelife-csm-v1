@@ -13,12 +13,17 @@ const schema = z.object({
   // Kept for backwards compatibility with older admin forms. The server
   // assigns the next sequential version so clients cannot collide or rewind.
   version: z.number().int().min(1).optional(),
+  // When present, the mutation is rejected unless the client saw the latest
+  // committed version. Omitting it preserves the legacy behaviour.
+  expectedVersion: z.number().int().min(0).optional(),
   installmentDurationMonths: z.number().int().min(1).max(120),
   profitOnlyLockInMonths: z.number().int().min(1).max(120),
   withdrawalFeeBps: z.number().int().min(0).max(5000),
   minWithdrawal: z.string().trim().regex(/^\d+(\.\d{1,2})?$/),
   adminPassword: z.string().min(1).max(200),
 });
+
+class StaleVersionError extends Error {}
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -48,7 +53,11 @@ export async function POST(request: Request) {
         orderBy: { version: "desc" },
         select: { version: true },
       });
-      const nextVersion = Math.max(latest?.version ?? 0, data.version ?? 0) + 1;
+      const currentVersion = latest?.version ?? 0;
+      if (data.expectedVersion !== undefined && data.expectedVersion !== currentVersion) {
+        throw new StaleVersionError();
+      }
+      const nextVersion = Math.max(currentVersion, data.version ?? 0) + 1;
 
       await tx.investmentSettings.updateMany({
         where: { isActive: true },
@@ -78,8 +87,11 @@ export async function POST(request: Request) {
       after: { version: created.version },
     });
 
-    return NextResponse.json({ settings: created }, { status: 201 });
+    return NextResponse.json({ settings: created, version: created.version }, { status: 201 });
   } catch (error) {
+    if (error instanceof StaleVersionError) {
+      return NextResponse.json({ error: "STALE_VERSION" }, { status: 409 });
+    }
     if (isUniqueViolation(error)) {
       return NextResponse.json({ error: "VERSION_EXISTS" }, { status: 409 });
     }

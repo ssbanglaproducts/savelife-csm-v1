@@ -36,7 +36,7 @@ const schema = z.object({
   note: z.string().trim().max(300).optional().default(""),
   courierName: z.string().trim().max(80).nullable().optional(),
   trackingNumber: z.string().trim().max(80).nullable().optional(),
-  trackingUrl: z.string().trim().url().max(500).nullable().optional(),
+  trackingUrl: z.url({ protocol: /^https?$/ }).max(500).nullable().optional(),
 });
 
 async function isAdmin() {

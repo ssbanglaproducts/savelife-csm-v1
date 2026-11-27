@@ -29,7 +29,7 @@ export default async function AdminWithdrawalsPage() {
     getTranslations("adminPanel"),
     getTranslations("common"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const withdrawals = await prisma.withdrawal.findMany({
     orderBy: { requestedAt: "desc" },

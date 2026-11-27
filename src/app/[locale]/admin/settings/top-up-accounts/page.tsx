@@ -15,7 +15,7 @@ export default async function AdminTopUpAccountsSettingsPage() {
     getTranslations("adminPanel"),
   ]);
   if (!session?.user?.id || session.user.role !== "ADMIN") {
-    redirect({ href: "/login", locale });
+    redirect({ href: "/admin-login", locale });
     return null;
   }
 

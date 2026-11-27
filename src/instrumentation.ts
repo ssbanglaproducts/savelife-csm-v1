@@ -10,4 +10,9 @@ export async function register(): Promise<void> {
     "@/lib/services/salary-automation-timer"
   );
   startSalaryAutomationTimer();
+
+  const { startAuditOutboxTimer } = await import(
+    "@/lib/services/audit-outbox-timer"
+  );
+  startAuditOutboxTimer();
 }

@@ -21,7 +21,7 @@ export default async function AdminTopUpsPage() {
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const requests = await prisma.walletTopUp.findMany({
     orderBy: { createdAt: "desc" },

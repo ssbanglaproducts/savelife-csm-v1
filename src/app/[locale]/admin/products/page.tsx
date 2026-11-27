@@ -18,7 +18,7 @@ export default async function AdminProductsPage() {
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const [products, categories] = await Promise.all([
     prisma.product.findMany({

@@ -24,7 +24,7 @@ export default async function AdminAnnouncementsPage() {
     getTranslations("nav"),
     getTranslations("notifications"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const broadcasts = await getBroadcasts();
 

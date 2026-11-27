@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -179,16 +179,23 @@ export function PaymentReviewForm({ proofId }: { proofId: string }) {
   const fieldId = useId();
   const { pending, run } = useAdminAction();
   const closeDialog = useCloseAdminActionDialog();
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  // Approval is always an explicit button press; Enter in the note is inert.
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
-    const ok = await run("/api/admin/payments", "PATCH", {
-      proofId,
-      action: submitter?.value === "REJECT" ? "REJECT" : "APPROVE",
-      note: String(data.get("note") ?? ""),
-    });
+  }
+
+  async function review(action: "APPROVE" | "REJECT") {
+    setError(null);
+    const ok = await run(
+      "/api/admin/payments",
+      "PATCH",
+      { proofId, action, note },
+      undefined,
+      setError,
+    );
     if (ok) closeDialog();
   }
 
@@ -203,15 +210,30 @@ export function PaymentReviewForm({ proofId }: { proofId: string }) {
         className={adminInputClass}
         maxLength={300}
         placeholder={t("note")}
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.preventDefault();
+        }}
       />
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" name="action" value="APPROVE" disabled={pending}>
+        <Button type="button" onClick={() => void review("APPROVE")} disabled={pending}>
           {t("approve")}
         </Button>
-        <Button type="submit" name="action" value="REJECT" variant="outline" disabled={pending}>
+        <Button
+          type="button"
+          onClick={() => void review("REJECT")}
+          variant="outline"
+          disabled={pending}
+        >
           {t("reject")}
         </Button>
       </div>
+      {error ? (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }
@@ -227,6 +249,8 @@ export function WithdrawalReviewForm({
   const fieldId = useId();
   const { pending, run } = useAdminAction();
   const closeDialog = useCloseAdminActionDialog();
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const labels: Record<(typeof actions)[number], string> = {
     APPROVE: t("approve"),
@@ -234,17 +258,24 @@ export function WithdrawalReviewForm({
     PAID: t("markPaid"),
   };
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  // Approval is always an explicit button press; Enter in the note is inert.
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
-    const action = submitter?.value ?? "";
-    const ok = await run("/api/admin/withdrawals", "PATCH", {
-      withdrawalId,
-      action,
-      note: String(data.get("note") ?? ""),
-    });
+  }
+
+  async function review(action: (typeof actions)[number]) {
+    setError(null);
+    const ok = await run(
+      "/api/admin/withdrawals",
+      "PATCH",
+      {
+        withdrawalId,
+        action,
+        note,
+      },
+      undefined,
+      setError,
+    );
     if (ok) closeDialog();
   }
 
@@ -263,14 +294,18 @@ export function WithdrawalReviewForm({
         className={adminInputClass}
         maxLength={300}
         placeholder={t("note")}
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.preventDefault();
+        }}
       />
       <div className="flex flex-wrap gap-2">
         {actions.map((action) => (
           <Button
             key={action}
-            type="submit"
-            name="action"
-            value={action}
+            type="button"
+            onClick={() => void review(action)}
             variant={action === "APPROVE" || action === "PAID" ? "default" : "outline"}
             disabled={pending}
           >
@@ -279,6 +314,11 @@ export function WithdrawalReviewForm({
           </Button>
         ))}
       </div>
+      {error ? (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }

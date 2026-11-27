@@ -336,6 +336,33 @@ export async function transferMoneyBetweenMembers(
   }
 }
 
+/**
+ * Atomically claims a PENDING top-up for review. Only the caller that wins the
+ * status transition may credit the wallet or send notifications.
+ */
+export async function claimPendingWalletTopUp(
+  client: Prisma.TransactionClient | PrismaClient,
+  topUpId: string,
+  data: Prisma.WalletTopUpUpdateInput,
+): Promise<boolean> {
+  if (typeof client.walletTopUp.updateMany === "function") {
+    const claimed = await client.walletTopUp.updateMany({
+      where: { id: topUpId, status: "PENDING" },
+      data,
+    });
+    return claimed.count > 0;
+  }
+
+  // Test doubles may implement only findUnique/update.
+  const current = await client.walletTopUp.findUnique({
+    where: { id: topUpId },
+    select: { status: true },
+  });
+  if (!current || current.status !== "PENDING") return false;
+  await client.walletTopUp.update({ where: { id: topUpId }, data });
+  return true;
+}
+
 export interface ApproveTopUpInput {
   readonly topUpId: string;
   readonly adminId: string;
@@ -366,16 +393,19 @@ export async function approveWalletTopUp(
         memberId: true,
         requestNumber: true,
         amountPaisa: true,
-        status: true,
       },
     });
     if (!topUp) return { applied: false as const, reason: "NOT_FOUND" as const };
-    if (topUp.status !== "PENDING") {
-      return { applied: false as const, reason: "ALREADY_APPLIED" as const };
-    }
+
     if (await hasLedgerEntry(tx, idempotencyKey)) {
       return { applied: false as const, reason: "ALREADY_APPLIED" as const };
     }
+    const claimed = await claimPendingWalletTopUp(tx, input.topUpId, {
+      status: "APPROVED",
+      reviewedBy: input.adminId,
+      reviewedAt: new Date(),
+    });
+    if (!claimed) return { applied: false as const, reason: "ALREADY_APPLIED" as const };
 
     const credited = await adjustWalletField(
       tx,
@@ -396,15 +426,6 @@ export async function approveWalletTopUp(
       referenceType: "WalletTopUp",
       referenceId: topUp.requestNumber,
       createdBy: input.adminId,
-    });
-
-    await tx.walletTopUp.update({
-      where: { id: topUp.id },
-      data: {
-        status: "APPROVED",
-        reviewedBy: input.adminId,
-        reviewedAt: new Date(),
-      },
     });
 
     return {

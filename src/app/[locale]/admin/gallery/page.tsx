@@ -15,7 +15,7 @@ export default async function AdminGalleryPage() {
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/login", locale });
+  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
   const posts = await getAdminGalleryPosts(locale === "bn" ? "bn" : "en");
 

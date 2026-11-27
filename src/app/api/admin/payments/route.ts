@@ -9,6 +9,11 @@ import {
 import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/services/errors";
 import { generateInstallmentSchedule } from "@/lib/services/installments";
+import {
+  INVESTMENT_SIDE_EFFECT_GRACE_MS,
+  markInvestmentSideEffectProcessed,
+  queueInvestmentSideEffect,
+} from "@/lib/services/investment-side-effect-outbox";
 import { adjustWalletField, recordLedgerEntry } from "@/lib/services/ledger";
 import { resolveProfitOnlyMaturityDate } from "@/lib/services/maturity";
 import { notifyInvestmentApproved } from "@/lib/services/notification-events";
@@ -58,23 +63,25 @@ export async function PATCH(request: Request) {
     } = { value: null };
     const salaryFundingPaisa: { value: bigint } = { value: 0n };
 
-    const result = await prisma.$transaction(async (tx) => {
+    const outcome = await prisma.$transaction(async (tx) => {
       const proof = await tx.paymentProof.findUnique({
         where: { id: proofId },
         include: { investment: true, order: true },
       });
-      if (!proof) return null;
+      if (!proof) return { state: "NOT_FOUND" as const };
 
-      const updatedProof = await tx.paymentProof.update({
-        where: { id: proofId },
+      // Claim the PENDING proof with one CAS. Only the winner may run the
+      // approval side effects below; an APPROVED proof is never overwritten.
+      const claimed = await tx.paymentProof.updateMany({
+        where: { id: proofId, status: "PENDING" },
         data: {
           status,
           reviewedBy: admin.user.id,
           reviewedAt: new Date(),
           note: note || null,
         },
-        select: { id: true, memberId: true, orderId: true, investmentId: true },
       });
+      if (claimed.count === 0) return { state: "INVALID_STATE" as const };
 
       let activatedInvestmentId: string | null = null;
       let uplines: Array<{ memberId: string; level: number }> = [];
@@ -210,10 +217,40 @@ export async function PATCH(request: Request) {
         }
       }
 
-      return { proof: updatedProof, activatedInvestmentId, uplines };
+      // Queue inside the approval transaction so a crash after commit cannot
+      // lose either side effect. The request below gets a grace period to run
+      // them directly; the timer replays anything still pending.
+      if (activatedInvestmentId) {
+        const sideEffectBase = {
+          investmentId: activatedInvestmentId,
+          proofId: proof.id,
+          actorId: admin.user.id,
+        };
+        await queueInvestmentSideEffect(
+          tx,
+          { ...sideEffectBase, kind: "AFFILIATE_REWARDS", uplines },
+          INVESTMENT_SIDE_EFFECT_GRACE_MS,
+        );
+        await queueInvestmentSideEffect(
+          tx,
+          { ...sideEffectBase, kind: "RANK_EVALUATION" },
+          INVESTMENT_SIDE_EFFECT_GRACE_MS,
+        );
+      }
+
+      return {
+        state: "CLAIMED" as const,
+        result: {
+          proof: { id: proof.id },
+          activatedInvestmentId,
+          uplines,
+        },
+      };
     });
 
-    if (!result) return errorResponse("NOT_FOUND", 404);
+    if (outcome.state === "NOT_FOUND") return errorResponse("NOT_FOUND", 404);
+    if (outcome.state === "INVALID_STATE") return errorResponse("INVALID_STATE", 409);
+    const { result } = outcome;
 
     if (investmentNotice.value) {
       await notifyInvestmentApproved(
@@ -224,6 +261,7 @@ export async function PATCH(request: Request) {
     }
 
     let affiliateRewardsApplied = false;
+    let rankEvaluationCompleted = false;
     let rankAchievementsAwarded = 0;
     if (result.activatedInvestmentId) {
       try {
@@ -244,6 +282,29 @@ export async function PATCH(request: Request) {
           entityId: result.activatedInvestmentId,
           after: { proofId: result.proof.id },
         });
+        // The row was written with the approval; make it due for replay now.
+        try {
+          await queueInvestmentSideEffect(prisma, {
+            kind: "AFFILIATE_REWARDS",
+            investmentId: result.activatedInvestmentId,
+            proofId: result.proof.id,
+            actorId: admin.user.id,
+            uplines: result.uplines,
+          });
+        } catch (queueError) {
+          console.error("Affiliate reward retry queue failed", queueError);
+        }
+      }
+      if (affiliateRewardsApplied) {
+        try {
+          await markInvestmentSideEffectProcessed(prisma, {
+            kind: "AFFILIATE_REWARDS",
+            investmentId: result.activatedInvestmentId,
+            proofId: result.proof.id,
+          });
+        } catch (error) {
+          console.error("Affiliate side-effect completion marker failed", error);
+        }
       }
 
       // Ranks depend on the whole placement tree and the sponsor chain, so
@@ -254,6 +315,7 @@ export async function PATCH(request: Request) {
           prisma,
           result.activatedInvestmentId,
         );
+        rankEvaluationCompleted = true;
       } catch (error) {
         console.error("Rank evaluation failed after investment approval", error);
         await writeAuditLog({
@@ -264,6 +326,28 @@ export async function PATCH(request: Request) {
           entityId: result.activatedInvestmentId,
           after: { proofId: result.proof.id },
         });
+        // The row was written with the approval; make it due for replay now.
+        try {
+          await queueInvestmentSideEffect(prisma, {
+            kind: "RANK_EVALUATION",
+            investmentId: result.activatedInvestmentId,
+            proofId: result.proof.id,
+            actorId: admin.user.id,
+          });
+        } catch (queueError) {
+          console.error("Rank evaluation retry queue failed", queueError);
+        }
+      }
+      if (rankEvaluationCompleted) {
+        try {
+          await markInvestmentSideEffectProcessed(prisma, {
+            kind: "RANK_EVALUATION",
+            investmentId: result.activatedInvestmentId,
+            proofId: result.proof.id,
+          });
+        } catch (error) {
+          console.error("Rank side-effect completion marker failed", error);
+        }
       }
     }
 
