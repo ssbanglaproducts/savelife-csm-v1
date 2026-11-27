@@ -22,7 +22,6 @@ export type AdminCategoryView = {
   readonly name: string;
   readonly nameBn: string | null;
   readonly slug: string;
-  readonly description: string | null;
   readonly image: string | null;
   readonly sortOrder: number;
   readonly isActive: boolean;
@@ -33,7 +32,6 @@ type Draft = {
   name: string;
   nameBn: string;
   slug: string;
-  description: string;
   image: string;
   sortOrder: string;
   isActive: boolean;
@@ -44,7 +42,6 @@ function toDraft(category: AdminCategoryView | null): Draft {
     name: category?.name ?? "",
     nameBn: category?.nameBn ?? "",
     slug: category?.slug ?? "",
-    description: category?.description ?? "",
     image: category?.image ?? "",
     sortOrder: String(category?.sortOrder ?? 0),
     isActive: category?.isActive ?? true,
@@ -104,7 +101,6 @@ export function CategoryManager({ categories }: { categories: readonly AdminCate
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {categories.map((category) => {
             const name = locale === "bn" && category.nameBn ? category.nameBn : category.name;
-            const description = category.description;
             return (
               <article key={category.id} className="glass min-w-0 overflow-hidden rounded-2xl">
                 <div className="relative aspect-[16/9] bg-muted/40">
@@ -140,9 +136,6 @@ export function CategoryManager({ categories }: { categories: readonly AdminCate
                   <p className="truncate font-mono text-[11px] text-muted-foreground" translate="no">
                     {category.slug}
                   </p>
-                  {description ? (
-                    <p className="line-clamp-2 text-xs text-muted-foreground">{description}</p>
-                  ) : null}
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
@@ -283,7 +276,6 @@ function CategoryEditorDialog({
       name,
       nameBn: nullable(draft.nameBn),
       slug,
-      description: nullable(draft.description),
       image: nullable(draft.image),
       sortOrder,
       isActive: draft.isActive,
@@ -379,16 +371,6 @@ function CategoryEditorDialog({
             />
           </label>
         </div>
-
-        <label className="block space-y-1.5">
-          <span className={adminLabelClass}>{t("categoryDescriptionEn")}</span>
-          <textarea
-            className={cn(adminInputClass, "h-auto min-h-20 py-2")}
-            value={draft.description}
-            maxLength={4000}
-            onChange={(event) => update("description", event.target.value)}
-          />
-        </label>
 
         <div className="space-y-2">
           <span className={adminLabelClass}>{t("categoryImage")}</span>

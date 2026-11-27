@@ -22,10 +22,12 @@ export function ProfileMenu({
   viewer,
   showName = false,
   panel = false,
+  header = false,
 }: {
   viewer: Viewer;
   showName?: boolean;
   panel?: boolean;
+  header?: boolean;
 }) {
   const t = useTranslations("nav");
   const tm = useTranslations("memberPanel");
@@ -162,18 +164,36 @@ export function ProfileMenu({
         aria-expanded={open}
         aria-controls={open ? dialogId : undefined}
         aria-label={t("account")}
+        title={header ? viewer.name : undefined}
         className={cn(
           "flex min-w-0 items-center gap-2 rounded-xl p-1 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          panel ? "size-11 justify-center p-0 md:hidden" : "sm:p-1.5",
+          panel
+            ? "size-11 justify-center p-0 md:hidden"
+            : header
+              ? "rounded-full border border-border bg-[var(--glass-strong)] py-1 pl-1 pr-2.5 shadow-sm hover:border-primary/50"
+              : "sm:p-1.5",
         )}
       >
         <UserAvatar
           name={viewer.name}
           src={viewer.image}
-          className={cn("size-9 rounded-full", panel && "size-10")}
+          className={cn(
+            "size-9 shrink-0 rounded-full",
+            panel && "size-10",
+            header && "size-8 ring-2 ring-primary/20",
+          )}
           textClassName="text-[11px]"
         />
-        {showName ? (
+        {header ? (
+          <span className="hidden min-w-0 text-left lg:block">
+            <span className="block text-[10px] font-bold tracking-[0.08em] text-muted-foreground">
+              {t("account")}
+            </span>
+            <span className="block max-w-24 truncate text-sm font-semibold leading-tight">
+              {viewer.name}
+            </span>
+          </span>
+        ) : showName ? (
           <span className="hidden min-w-0 sm:block">
             <span className="block max-w-48 truncate text-sm font-semibold leading-tight">
               {viewer.name}
@@ -184,7 +204,13 @@ export function ProfileMenu({
           </span>
         ) : null}
         {!panel ? (
-          <ChevronDown className="hidden size-3.5 shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
+          <ChevronDown
+            className={cn(
+              "hidden size-3.5 shrink-0 text-muted-foreground sm:block",
+              header && "ml-0.5 text-primary",
+            )}
+            aria-hidden="true"
+          />
         ) : null}
       </button>
 

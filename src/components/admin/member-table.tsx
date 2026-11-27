@@ -7,7 +7,6 @@ import { Ban, CheckCircle2, Copy, Eye, Info, MoreVertical, RotateCcw, Wallet } f
 import { Link } from "@/i18n/navigation";
 import { copyText } from "@/lib/clipboard";
 import {
-  AdminRecordCard,
   AdminRecordField,
   AdminTable,
   EmptyState,
@@ -17,6 +16,7 @@ import {
   statusTone,
 } from "./admin-ui";
 import { buttonVariants } from "@/components/ui/button";
+import { RankBadge } from "@/components/ui/rank-badge";
 import {
   MemberActionDialog,
   MemberAvatar,
@@ -35,6 +35,13 @@ export type MemberRow = MemberActionMember & {
   email: string;
   phone: string;
   profileImage: string | null;
+  rankKey: string | null;
+  rankName: string;
+  rankBadge: string | null;
+  invested: string;
+  earned: string;
+  walletBalance: string;
+  walletTooltip: string;
   joined: string;
   note: string | null;
   levels: MemberLevelCell[];
@@ -54,11 +61,22 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
     const needle = query.trim().toLowerCase();
     if (!needle) return rows;
     return rows.filter((row) =>
-      [row.memberId, row.name, row.email, row.phone, row.status].some((value) =>
+      [row.memberId, row.name, row.rankName, row.email, row.phone, row.status].some((value) =>
         value.toLowerCase().includes(needle),
       ),
     );
   }, [query, rows]);
+
+  function teamTooltip(row: MemberRow): string {
+    const leg1 = row.levels.find((level) => level.level === 1);
+    const leg2 = row.levels.find((level) => level.level === 2);
+    const leg3 = row.levels.find((level) => level.level === 3);
+    return [
+      `${t("legA")}: ${leg1?.count ?? 0} ${t("teamMembers")} · ${t("invested")} ${leg1?.invested ?? "0 SP"}`,
+      `${t("legB")}: ${leg2?.count ?? 0} ${t("teamMembers")} · ${t("invested")} ${leg2?.invested ?? "0 SP"}`,
+      `${t("legC")}: ${leg3?.count ?? 0} ${t("teamMembers")} · ${t("invested")} ${leg3?.invested ?? "0 SP"}`,
+    ].join("\n");
+  }
 
   async function copy(value: string, label: string) {
     if (!(await copyText(value))) {
@@ -78,10 +96,11 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
     setDialog({ kind, member: row });
   }
 
+  const statusLabel = (row: MemberRow) => tm(memberStatusKey(row.status));
+
   const memberCards = (
     <div className="grid gap-3">
       {filtered.map((row) => {
-        const l1 = row.levels.find((level) => level.level === 1);
         const detailHref = `/admin/members/${row.memberId}`;
         const statusAction =
           row.status === "SUSPENDED"
@@ -91,29 +110,61 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
               : t("deactivate");
 
         return (
-          <AdminRecordCard
-            key={row.id}
-            title={
-              <Link
-                href={detailHref}
-                className="hover:text-primary focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {row.name}
-              </Link>
-            }
-            subtitle={`${row.memberId} · ${t("joined")} ${row.joined}`}
-            status={
-              <StatusBadge tone={statusTone(row.status)} label={tm(memberStatusKey(row.status))} />
-            }
-          >
-            <AdminRecordField label={t("email")} value={row.email} wide />
-            <AdminRecordField label={t("phone")} value={row.phone} />
-            <AdminRecordField
-              label={t("level1")}
-              value={`${l1?.count ?? 0} · ${l1?.earned ?? "0 SP"}`}
-            />
-            <AdminRecordField label={t("teamSize")} value={row.teamSize} />
-            <div className="col-span-2 flex flex-wrap gap-2">
+          <article key={row.id} className="glass min-w-0 rounded-2xl p-4">
+            <div className="flex items-start gap-3">
+              <MemberAvatar name={row.name} src={row.profileImage} />
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={detailHref}
+                  className="font-display text-base font-semibold hover:text-primary focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {row.name}
+                </Link>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {row.memberId} · {t("joined")} {row.joined}
+                </p>
+                <div className="mt-2">
+                  <StatusBadge tone={statusTone(row.status)} label={statusLabel(row)} />
+                </div>
+              </div>
+            </div>
+
+            <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 text-xs">
+              <AdminRecordField
+                label={tm("rank")}
+                value={
+                  <span className="flex items-center gap-2">
+                    {row.rankKey ? (
+                      <RankBadge src={row.rankBadge} rankKey={row.rankKey} size={28} />
+                    ) : null}
+                    {row.rankName}
+                  </span>
+                }
+              />
+              <AdminRecordField label={t("invested")} value={row.invested} />
+              <AdminRecordField label={t("earned")} value={row.earned} />
+              <AdminRecordField
+                label={t("walletBalances")}
+                value={
+                  <span title={row.walletTooltip} className="inline-flex cursor-help items-center gap-1">
+                    {row.walletBalance}
+                    <Info className="size-3 text-muted-foreground" aria-hidden="true" />
+                  </span>
+                }
+              />
+              <AdminRecordField
+                label={t("teamSize")}
+                value={
+                  <span title={teamTooltip(row)} className="inline-flex cursor-help items-center gap-1">
+                    {row.teamSize}
+                    <Info className="size-3 text-muted-foreground" aria-hidden="true" />
+                  </span>
+                }
+              />
+              <AdminRecordField label={t("email")} value={row.email} wide />
+            </dl>
+
+            <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 href={detailHref}
                 className={`${buttonVariants({ variant: "ghost", size: "sm" })} min-h-10`}
@@ -135,7 +186,7 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
                 {statusAction}
               </button>
             </div>
-          </AdminRecordCard>
+          </article>
         );
       })}
     </div>
@@ -164,24 +215,18 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
           caption={t("membersTitle")}
           headers={[
             "Member ID",
-            t("profile"),
             t("name"),
+            tm("rank"),
             t("email"),
-            t("level1"),
+            t("invested"),
+            t("earned"),
+            t("walletBalances"),
             t("teamSize"),
             t("actions"),
           ]}
           mobile={memberCards}
         >
           {filtered.map((row) => {
-            const l1 = row.levels.find((level) => level.level === 1);
-            const l2 = row.levels.find((level) => level.level === 2);
-            const l3 = row.levels.find((level) => level.level === 3);
-            const tooltip = [
-              `${t("level1")}: ${l1?.count ?? 0} ${t("teamMembers")} · ${t("earned")} ${l1?.earned ?? "0 SP"} · ${t("invested")} ${l1?.invested ?? "0 SP"}`,
-              `${t("level2")}: ${l2?.count ?? 0} ${t("teamMembers")} · ${t("earned")} ${l2?.earned ?? "0 SP"} · ${t("invested")} ${l2?.invested ?? "0 SP"}`,
-              `${t("level3")}: ${l3?.count ?? 0} ${t("teamMembers")} · ${t("earned")} ${l3?.earned ?? "0 SP"} · ${t("invested")} ${l3?.invested ?? "0 SP"}`,
-            ].join("\n");
             const detailHref = `/admin/members/${row.memberId}`;
 
             return (
@@ -194,25 +239,34 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
                   >
                     {row.memberId}
                   </Link>
-                  <span className="mt-1.5 block">
-                    <StatusBadge
-                      tone={statusTone(row.status)}
-                      label={tm(memberStatusKey(row.status))}
-                    />
-                  </span>
                 </td>
 
-                <td className="px-4 py-3">
-                  <MemberAvatar name={row.name} src={row.profileImage} />
+                <td className="min-w-[150px] px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <MemberAvatar name={row.name} src={row.profileImage} />
+                    <div className="min-w-0">
+                      <Link
+                        href={detailHref}
+                        className="block font-semibold hover:text-primary focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {row.name}
+                      </Link>
+                      <span className="mt-1 block">
+                        <StatusBadge tone={statusTone(row.status)} label={statusLabel(row)} />
+                      </span>
+                    </div>
+                  </div>
                 </td>
 
-                <td className="min-w-[140px] px-4 py-3 font-semibold">
-                  <Link
-                    href={detailHref}
-                    className="hover:text-primary focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {row.name}
-                  </Link>
+                <td className="whitespace-nowrap px-4 py-3">
+                  {row.rankKey ? (
+                    <div className="flex items-center gap-2">
+                      <RankBadge src={row.rankBadge} rankKey={row.rankKey} size={36} />
+                      <span className="text-xs font-semibold">{row.rankName}</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">{row.rankName}</span>
+                  )}
                 </td>
 
                 <td className="min-w-[180px] px-4 py-3 text-xs">
@@ -242,16 +296,32 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
                   </button>
                 </td>
 
-                <td className="whitespace-nowrap px-4 py-3 text-center">
-                  <span title={tooltip} className="inline-flex cursor-help items-center gap-1">
-                    <span className="text-sm font-bold tabular-nums">{l1?.count ?? 0}</span>
-                    <span className="text-xs text-muted-foreground">({l1?.earned ?? "0 SP"})</span>
+                <td className="whitespace-nowrap px-4 py-3 font-semibold tabular-nums">
+                  {row.invested}
+                </td>
+
+                <td className="whitespace-nowrap px-4 py-3 font-semibold tabular-nums">
+                  {row.earned}
+                </td>
+
+                <td className="whitespace-nowrap px-4 py-3">
+                  <span
+                    title={row.walletTooltip}
+                    className="inline-flex cursor-help items-center gap-1 font-semibold tabular-nums"
+                  >
+                    {row.walletBalance}
                     <Info className="size-3 text-muted-foreground" aria-hidden="true" />
                   </span>
                 </td>
 
-                <td className="px-4 py-3 text-center text-sm font-bold tabular-nums">
-                  {row.teamSize}
+                <td className="whitespace-nowrap px-4 py-3">
+                  <span
+                    title={teamTooltip(row)}
+                    className="inline-flex cursor-help items-center gap-1 text-sm font-bold tabular-nums"
+                  >
+                    {row.teamSize}
+                    <Info className="size-3 text-muted-foreground" aria-hidden="true" />
+                  </span>
                 </td>
 
                 <td className="relative px-4 py-3 text-right">

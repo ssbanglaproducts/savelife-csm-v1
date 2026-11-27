@@ -263,16 +263,10 @@ export function ProductManager({
                     </span>
                   </div>
                   <div className="min-w-0">
-                    <h3 className="truncate font-semibold">{product.name}</h3>
-                    <p className="truncate font-mono text-[11px] text-muted-foreground" translate="no">
-                      {product.sku ?? product.slug}
-                    </p>
+                    <h3 className="break-words font-semibold leading-snug">{product.name}</h3>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    {t("productMediaCount", {
-                      images: product.images.length,
-                      videos: hasVideo ? 1 : 0,
-                    })}
+                    {t("productStock")}: <span className="font-semibold tabular-nums">{product.stock}</span>
                   </p>
                   <Button
                     type="button"

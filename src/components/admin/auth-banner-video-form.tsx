@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { UploadField } from "@/components/ui/upload-field";
 import { useRouter } from "@/i18n/navigation";
 import { toAuthBannerMedia, type AuthBannerVideo } from "@/lib/auth-banner-video";
-import { AdminFormDialog } from "./admin-form-dialog";
 
 const inputClass =
   "h-12 w-full rounded-xl border border-border bg-[var(--glass-strong)] px-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-ring";
@@ -28,7 +27,6 @@ export function AuthBannerVideoForm({
   const [file, setFile] = useState<File | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
 
   const media = video ? toAuthBannerMedia(video) : null;
 
@@ -65,7 +63,6 @@ export function AuthBannerVideoForm({
       setUrl("");
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
-      setShowForm(false);
       router.refresh();
       toast.success(tc("success"));
     } catch {
@@ -90,7 +87,6 @@ export function AuthBannerVideoForm({
       setUrl("");
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
-      setShowForm(false);
       router.refresh();
       toast.success(tc("success"));
     } catch {
@@ -130,73 +126,65 @@ export function AuthBannerVideoForm({
         )}
       </div>
 
-      {showForm ? (
-        <AdminFormDialog
-          title={t("authBannerVideoTitle")}
-          intro={t("authBannerVideoIntro")}
-          onClose={() => setShowForm(false)}
-        >
+      <div className="mt-5 border-t border-border pt-5">
         <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-2">
-          <label htmlFor="auth-video-url" className="block text-sm font-semibold">
-            {t("authBannerVideoUrlLabel")}
-          </label>
-          <input
-            id="auth-video-url"
-            value={url}
-            onChange={(event) => setUrl(event.target.value)}
-            placeholder="https://…/banner.mp4"
-            className={inputClass}
-          />
+          <div className="space-y-2">
+            <label htmlFor="auth-video-url" className="block text-sm font-semibold">
+              {t("authBannerVideoUrlLabel")}
+            </label>
+            <input
+              id="auth-video-url"
+              value={url}
+              onChange={(event) => setUrl(event.target.value)}
+              placeholder="https://…/banner.mp4"
+              className={inputClass}
+            />
+          </div>
+          <div className="space-y-2">
+            <p className="block text-sm font-semibold">{t("authBannerVideoFileLabel")}</p>
+            <UploadField
+              id="auth-video-file"
+              inputRef={fileRef}
+              kind="video"
+              accept="video/mp4,video/webm"
+              selectedName={file?.name ?? null}
+              onSelect={(files) => setFile(files?.[0] ?? null)}
+              onRemove={
+                file
+                  ? () => {
+                      setFile(null);
+                      if (fileRef.current) fileRef.current.value = "";
+                    }
+                  : undefined
+              }
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <p className="block text-sm font-semibold">{t("authBannerVideoFileLabel")}</p>
-          <UploadField
-            id="auth-video-file"
-            inputRef={fileRef}
-            kind="video"
-            accept="video/mp4,video/webm"
-            selectedName={file?.name ?? null}
-            onSelect={(files) => setFile(files?.[0] ?? null)}
-            onRemove={
-              file
-                ? () => {
-                    setFile(null);
-                    if (fileRef.current) fileRef.current.value = "";
-                  }
-                : undefined
-            }
-          />
-        </div>
-      </div>
 
-      <p className="mt-3 text-xs text-muted-foreground">{t("authBannerVideoNote")}</p>
+        <p className="mt-3 text-xs text-muted-foreground">{t("authBannerVideoNote")}</p>
 
-      {error ? (
-        <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-300">
-          {error}
-        </p>
-      ) : null}
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Button type="button" onClick={() => void save()} disabled={pending}>
-          {pending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Upload className="size-4" aria-hidden="true" />}
-          {t("authBannerVideoSave")}
-        </Button>
-        {video ? (
-          <Button type="button" variant="outline" onClick={() => void remove()} disabled={pending}>
-            {t("authBannerVideoRemove")}
-          </Button>
+        {error ? (
+          <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-300">
+            {error}
+          </p>
         ) : null}
-      </div>
-        </AdminFormDialog>
-      ) : (
-        <div className="mt-5 flex justify-end">
-          <Button type="button" onClick={() => setShowForm(true)}>
-            {t("authBannerVideoEdit")}
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button type="button" onClick={() => void save()} disabled={pending}>
+            {pending ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Upload className="size-4" aria-hidden="true" />
+            )}
+            {t("authBannerVideoSave")}
           </Button>
+          {video ? (
+            <Button type="button" variant="outline" onClick={() => void remove()} disabled={pending}>
+              {t("authBannerVideoRemove")}
+            </Button>
+          ) : null}
         </div>
-      )}
+      </div>
     </div>
   );
 }

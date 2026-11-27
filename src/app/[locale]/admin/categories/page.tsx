@@ -27,7 +27,6 @@ export default async function AdminCategoriesPage() {
       name: true,
       nameBn: true,
       slug: true,
-      description: true,
       image: true,
       sortOrder: true,
       isActive: true,

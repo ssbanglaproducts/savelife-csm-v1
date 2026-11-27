@@ -169,7 +169,6 @@ export function InvestmentCards({
     <div>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm text-muted-foreground">{t("investmentSearchHint")}</p>
           {audience === "admin" ? (
             <Link
               href={pendingProofOnly ? basePath : `${basePath}?proof=pending`}

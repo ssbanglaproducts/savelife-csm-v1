@@ -62,13 +62,7 @@ export function PanelChrome({
             </span>
           ) : null}
 
-          <div className="ml-auto flex items-center gap-1">
-            {avatar ? (
-              <div className="hidden items-center gap-2 md:flex">
-                <ProfileMenu viewer={avatar} showName />
-              </div>
-            ) : null}
-
+          <div className="ml-auto flex items-center gap-2">
             <div
               role="group"
               aria-label={t("preferences")}
@@ -80,6 +74,7 @@ export function PanelChrome({
             </div>
 
             <NotificationMenu />
+            {avatar ? <ProfileMenu viewer={avatar} header /> : null}
           </div>
         </div>
       </header>
