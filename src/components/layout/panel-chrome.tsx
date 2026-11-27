@@ -47,7 +47,7 @@ export function PanelChrome({
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent"
           aria-hidden="true"
         />
-        <div className="relative mx-auto flex h-16 w-full max-w-7xl items-center gap-3 px-4 sm:px-6">
+        <div className="relative flex h-16 w-full items-center gap-3 px-4 sm:px-6 xl:px-8">
           <Link
             href="/"
             aria-label={t("home")}
@@ -79,12 +79,12 @@ export function PanelChrome({
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-4 py-6 sm:px-6 sm:py-8">
+      <div className="flex w-full flex-1 gap-6 px-4 py-6 sm:px-6 sm:py-8 xl:px-8">
         {/* Fixed to the viewport so the desktop navigation never scrolls away
-            with page content. The inner wrapper mirrors the content column's
-            max width and padding, keeping the sidebar exactly aligned. */}
+            with page content. The inner wrapper uses the same gutters as the
+            content column, keeping the sidebar exactly aligned. */}
         <div className="pointer-events-none fixed inset-x-0 bottom-8 top-[calc(6rem+env(safe-area-inset-top))] z-30 hidden md:block">
-          <div className="mx-auto h-full w-full max-w-7xl px-4 sm:px-6">
+          <div className="h-full w-full px-4 sm:px-6 xl:px-8">
             <aside className="glass pointer-events-auto h-full w-64 overflow-y-auto overscroll-contain rounded-2xl">
               {desktopNav}
             </aside>
