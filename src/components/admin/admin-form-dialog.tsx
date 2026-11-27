@@ -28,11 +28,8 @@ export function AdminFormDialog({
       intro={intro}
       onClose={onClose}
       titleId={titleId}
-      shellClassName="p-0 sm:p-4"
-      panelClassName={cn(
-        "h-full max-h-none w-full max-w-none rounded-none sm:h-auto sm:max-h-[92vh] sm:rounded-3xl",
-        wide ? "sm:max-w-6xl" : "sm:max-w-3xl",
-      )}
+      fullViewMobile
+      panelClassName={cn(wide ? "sm:max-w-6xl" : "sm:max-w-3xl")}
     >
       {children}
     </DialogShell>

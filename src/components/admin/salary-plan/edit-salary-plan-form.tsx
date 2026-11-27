@@ -394,6 +394,7 @@ export function EditSalaryPlanForm({
           intro={ta("salaryPlanReviewIntro")}
           titleId="salary-plan-review-title"
           onClose={() => setReviewOpen(false)}
+          fullViewMobile
         >
           <div className="space-y-4">
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
@@ -487,6 +488,7 @@ export function EditSalaryPlanForm({
           intro={ta("salaryPlanFinalIntro")}
           titleId="salary-plan-final-title"
           onClose={() => setAuthOpen(false)}
+          fullViewMobile
         >
           <div className="space-y-4">
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3">

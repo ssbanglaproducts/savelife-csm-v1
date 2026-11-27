@@ -30,14 +30,22 @@ export default async function AdminCategoriesPage() {
       image: true,
       sortOrder: true,
       isActive: true,
-      _count: { select: { products: true } },
+      parentId: true,
+      _count: { select: { products: true, children: true } },
     },
   });
 
-  const categories: AdminCategoryView[] = rows.map(({ _count, ...category }) => ({
-    ...category,
-    productCount: _count.products,
-  }));
+  const parentNames = new Map(rows.map((row) => [row.id, { name: row.name, nameBn: row.nameBn }]));
+  const categories: AdminCategoryView[] = rows.map(({ _count, ...category }) => {
+    const parent = category.parentId ? parentNames.get(category.parentId) : undefined;
+    return {
+      ...category,
+      parentName: parent?.name ?? null,
+      parentNameBn: parent?.nameBn ?? null,
+      productCount: _count.products,
+      childCount: _count.children,
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -52,7 +60,7 @@ export default async function AdminCategoriesPage() {
         title={ta("categoriesTitle")}
         hideTitleOnDesktop
       >
-        <CategoryManager categories={categories} />
+        <CategoryManager categories={categories} locale={locale} />
       </AdminSection>
     </div>
   );

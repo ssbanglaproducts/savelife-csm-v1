@@ -40,7 +40,7 @@ export async function SalaryOverviewBody() {
   }
 
   await ensureDefaultRankPlan(prisma);
-  const [plan, activeVersion, rankDefinitions] = await Promise.all([
+  const [plan, activeVersion, rankDefinitions, rewards] = await Promise.all([
     getActiveSalaryPlan(prisma),
     prisma.salaryPlanVersion.findFirst({
       where: { isActive: true },
@@ -50,6 +50,14 @@ export async function SalaryOverviewBody() {
     prisma.rankDefinition.findMany({
       where: { planVersion: { isActive: true } },
       select: { rankKey: true, name: true, nameBn: true, badgeImageUrl: true },
+    }),
+    prisma.rankAchievement.aggregate({
+      where: {
+        rewardType: "SP",
+        rewardStatus: "ACHIEVED",
+        member: { role: "MEMBER" },
+      },
+      _sum: { rewardSpPaisa: true },
     }),
   ]);
 
@@ -88,6 +96,13 @@ export async function SalaryOverviewBody() {
   return (
     <div className="space-y-8">
       <SalaryPlanSuccessNotice />
+
+      <p className="text-sm text-muted-foreground">
+        {ta("salaryOverviewTotalRewards")}:{" "}
+        <span className="font-semibold tabular-nums text-foreground">
+          {formatSP(rewards._sum.rewardSpPaisa ?? 0n)}
+        </span>
+      </p>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

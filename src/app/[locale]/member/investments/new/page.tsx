@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/member/page-header";
 import { Link, redirect } from "@/i18n/navigation";
 import { prisma } from "@/lib/prisma";
 import { getActiveSettings } from "@/lib/settings";
-import { loadTopUpAccounts } from "@/lib/topup-accounts";
+import { loadTopUpAccountSettings } from "@/lib/topup-accounts";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ export default async function NewInvestmentPage({
     auth(),
     getTranslations("memberPanel"),
     getActiveSettings(),
-    loadTopUpAccounts(prisma),
+    loadTopUpAccountSettings(prisma),
   ]);
   if (!session?.user?.id) {
     redirect({ href: "/login", locale });
@@ -50,6 +50,7 @@ export default async function NewInvestmentPage({
         installmentDurationMonths={settings.installmentDurationMonths}
         profitOnlyLockInMonths={settings.profitOnlyLockInMonths}
         accounts={accounts}
+        entries={accounts.entries}
       />
     </div>
   );

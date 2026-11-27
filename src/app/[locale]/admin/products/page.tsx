@@ -50,7 +50,7 @@ export default async function AdminProductsPage() {
     }),
     prisma.category.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true, nameBn: true },
+      select: { id: true, name: true, nameBn: true, parentId: true },
     }),
   ]);
 

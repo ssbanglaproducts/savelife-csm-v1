@@ -3,6 +3,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 export const AUTH_BANNER_VIDEO_SETTING_KEY = "auth.bannerVideo";
 
 const UPLOAD_PATTERN = /^\/api\/uploads\/([a-f0-9-]+\.(mp4|webm))$/;
+const IMAGE_UPLOAD_PATTERN = /^\/api\/uploads\/([a-f0-9-]+\.(jpg|png|webp))$/;
 const YOUTUBE_HOSTS = new Set(["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"]);
 const VIMEO_HOSTS = new Set(["vimeo.com", "www.vimeo.com", "player.vimeo.com"]);
 
@@ -12,9 +13,16 @@ export type AuthBannerVideo =
   | { kind: "youtube"; videoId: string }
   | { kind: "vimeo"; videoId: string };
 
+export type AuthBannerImage =
+  | { kind: "imageUpload"; url: string; fileName: string; contentType: "image/jpeg" | "image/png" | "image/webp" }
+  | { kind: "imageDirect"; url: string };
+
+export type AuthBannerSetting = AuthBannerVideo | AuthBannerImage;
+
 export type AuthBannerMedia =
   | { kind: "video"; src: string; type: string }
-  | { kind: "iframe"; src: string };
+  | { kind: "iframe"; src: string }
+  | { kind: "image"; src: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -40,6 +48,21 @@ function parseUpload(value: Record<string, unknown>): AuthBannerVideo | null {
   if (!match) return null;
   const contentType = match[1].endsWith(".webm") ? "video/webm" : "video/mp4";
   return { kind: "upload", url: value.url, fileName: match[1], contentType };
+}
+
+function parseImageUpload(value: Record<string, unknown>): AuthBannerImage | null {
+  if (typeof value.url !== "string") return null;
+  const match = IMAGE_UPLOAD_PATTERN.exec(value.url);
+  if (!match) return null;
+  const extension = match[1].split(".").pop();
+  const contentType =
+    extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg";
+  return { kind: "imageUpload", url: value.url, fileName: match[1], contentType };
+}
+
+function parseImageDirect(url: URL): AuthBannerImage | null {
+  if (!/\.(jpe?g|png|webp)(?:[?#]|$)/i.test(url.pathname)) return null;
+  return { kind: "imageDirect", url: url.toString() };
 }
 
 function parseHostedVideo(url: URL): AuthBannerVideo | null {
@@ -90,6 +113,23 @@ export function parseAuthBannerVideo(value: unknown): AuthBannerVideo | null {
   }
 }
 
+/** Validate a stored image setting before it reaches the public auth pages. */
+export function parseAuthBannerImage(value: unknown): AuthBannerImage | null {
+  if (!isRecord(value) || typeof value.kind !== "string") return null;
+
+  if (value.kind === "imageUpload") return parseImageUpload(value);
+  if (value.kind === "imageDirect") {
+    if (typeof value.url !== "string") return null;
+    const url = isSafeHttpUrl(value.url);
+    return url ? parseImageDirect(url) : null;
+  }
+  return null;
+}
+
+export function parseAuthBannerSetting(value: unknown): AuthBannerSetting | null {
+  return parseAuthBannerVideo(value) ?? parseAuthBannerImage(value);
+}
+
 /** Convert an admin-entered URL into a validated, renderable setting value. */
 export function normalizeAuthBannerVideoInput(rawInput: string): AuthBannerVideo | null {
   const value = rawInput.trim();
@@ -111,8 +151,21 @@ export function normalizeAuthBannerVideoInput(rawInput: string): AuthBannerVideo
   return null;
 }
 
-export function toAuthBannerMedia(video: AuthBannerVideo): AuthBannerMedia | null {
-  const parsed = parseAuthBannerVideo(video);
+export function normalizeAuthBannerImageInput(rawInput: string): AuthBannerImage | null {
+  const value = rawInput.trim();
+  if (!value) return null;
+
+  if (value.startsWith("/")) return parseImageUpload({ kind: "imageUpload", url: value });
+
+  const url = isSafeHttpUrl(value);
+  return url ? parseImageDirect(url) : null;
+}
+
+export function toAuthBannerMedia(setting: AuthBannerSetting): AuthBannerMedia | null {
+  const image = parseAuthBannerImage(setting);
+  if (image) return { kind: "image", src: image.url };
+
+  const parsed = parseAuthBannerVideo(setting);
   if (!parsed) return null;
 
   if (parsed.kind === "upload") {
@@ -164,6 +217,20 @@ export async function loadAuthBannerVideo(
     return setting ? parseAuthBannerVideo(setting.value) : null;
   } catch (error) {
     console.error("Unable to load auth banner video setting", error);
+    return null;
+  }
+}
+
+export async function loadAuthBannerSetting(
+  client: PrismaClient,
+): Promise<AuthBannerSetting | null> {
+  try {
+    const setting = await client.systemSetting.findUnique({
+      where: { key: AUTH_BANNER_VIDEO_SETTING_KEY },
+    });
+    return setting ? parseAuthBannerSetting(setting.value) : null;
+  } catch (error) {
+    console.error("Unable to load auth banner setting", error);
     return null;
   }
 }

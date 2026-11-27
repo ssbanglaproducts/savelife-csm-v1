@@ -3,6 +3,7 @@ import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import {
   categoryAuditValues,
+  categoryParentId,
   categoryWriteSchema,
   normalizeCategoryImageUrl,
 } from "@/lib/category-admin";
@@ -27,7 +28,8 @@ export async function GET() {
       image: true,
       sortOrder: true,
       isActive: true,
-      _count: { select: { products: true } },
+      parentId: true,
+      _count: { select: { products: true, children: true } },
     },
   });
 
@@ -35,6 +37,7 @@ export async function GET() {
     categories: categories.map(({ _count, ...category }) => ({
       ...category,
       productCount: _count.products,
+      childCount: _count.children,
     })),
   });
 }
@@ -60,6 +63,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "INVALID_IMAGE" }, { status: 400 });
   }
 
+  const parentId = categoryParentId(input);
+  if (parentId) {
+    const parent = await prisma.category.findUnique({
+      where: { id: parentId },
+      select: { id: true, parentId: true },
+    });
+    if (!parent || parent.parentId) {
+      return NextResponse.json({ error: "INVALID_PARENT" }, { status: 400 });
+    }
+  }
+
   const slugExists = await prisma.category.findUnique({
     where: { slug: input.slug },
     select: { id: true },
@@ -70,8 +84,9 @@ export async function POST(request: Request) {
     data: {
       ...categoryAuditValues(input),
       image,
+      parentId,
     },
-    select: { id: true, name: true, slug: true },
+    select: { id: true, name: true, slug: true, parentId: true },
   });
 
   await writeAuditLog({

@@ -36,6 +36,7 @@ export type AdminProductCategory = {
   readonly id: string;
   readonly name: string;
   readonly nameBn: string | null;
+  readonly parentId?: string | null;
 };
 
 export type AdminProductImage = {
@@ -221,6 +222,11 @@ export function ProductManager({
   const [inStockOnly, setInStockOnly] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  const mainCategories = useMemo(
+    () => categories.filter((category) => !category.parentId),
+    [categories],
+  );
+
   const filteredProducts = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return products.filter((product) => {
@@ -365,7 +371,7 @@ export function ProductManager({
                     className={cn(adminInputClass, "mt-1 h-9 text-xs normal-case tracking-normal")}
                   >
                     <option value="ALL">{t("allCategories")}</option>
-                    {categories.map((category) => (
+                    {mainCategories.map((category) => (
                       <option key={category.id} value={category.id}>
                         {locale === "bn" ? (category.nameBn ?? category.name) : category.name}
                       </option>
@@ -524,9 +530,19 @@ function ProductEditorDialog({
   const [error, setError] = useState<string | null>(null);
 
   const videoMedia = toProductVideoMedia(normalizeProductVideoInput(draft.videoUrl));
+  const mainCategories = categories.filter((category) => !category.parentId);
+  const subcategories = categories.filter((category) => category.parentId);
 
   function update<K extends keyof Draft>(key: K, value: Draft[K]): void {
     setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function changeSubcategory(value: string): void {
+    update("subcategory", value);
+    const match = subcategories.find(
+      (category) => category.name === value || category.nameBn === value,
+    );
+    if (match?.parentId) update("categoryId", match.parentId);
   }
 
   function updateVariant(key: VariantKey, value: string): void {
@@ -728,8 +744,8 @@ function ProductEditorDialog({
     <DialogShell
       title={product ? t("editProduct") : t("addProduct")}
       intro={t("productEditorIntro")}
-      shellClassName="p-2 sm:p-4"
-      panelClassName="h-[calc(100dvh-1rem)] max-w-none rounded-2xl sm:h-auto sm:max-h-[92vh] sm:max-w-6xl sm:rounded-3xl"
+      fullViewMobile
+      panelClassName="sm:max-w-6xl"
       onClose={onClose}
       titleId={`${fieldId}-title`}
     >
@@ -805,7 +821,7 @@ function ProductEditorDialog({
               className={`${adminInputClass} mt-1`}
             >
               <option value="">{t("productNoCategory")}</option>
-              {categories.map((category) => (
+              {mainCategories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {locale === "bn" && category.nameBn ? category.nameBn : category.name}
                 </option>
@@ -1072,11 +1088,18 @@ function ProductEditorDialog({
               </label>
               <input
                 id={`${fieldId}-subcategory`}
+                list={`${fieldId}-subcategory-options`}
                 value={draft.subcategory}
-                onChange={(event) => update("subcategory", event.target.value)}
+                onChange={(event) => changeSubcategory(event.target.value)}
+                placeholder={t("productSubcategoryPlaceholder")}
                 maxLength={120}
                 className={`${adminInputClass} mt-1`}
               />
+              <datalist id={`${fieldId}-subcategory-options`}>
+                {subcategories.map((category) => (
+                  <option key={category.id} value={category.name} />
+                ))}
+              </datalist>
             </div>
           </div>
         </fieldset>

@@ -41,12 +41,14 @@ function MethodMark({ method }: { method: PaymentAccountMethod }) {
 export function PaymentAccountCard({
   method,
   account,
+  details,
   sendToLabel,
   missingLabel,
   className,
 }: {
   method: PaymentAccountMethod;
   account: string;
+  details?: readonly string[];
   sendToLabel: string;
   missingLabel: string;
   className?: string;
@@ -84,6 +86,15 @@ export function PaymentAccountCard({
         <p className="mt-1 break-words font-mono text-sm font-bold" translate="no">
           {account}
         </p>
+        {details && details.length > 0 ? (
+          <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+            {details.map((detail) => (
+              <li key={detail} className="break-words" translate="no">
+                {detail}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
       <span
         role="img"

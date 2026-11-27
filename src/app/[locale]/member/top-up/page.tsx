@@ -7,7 +7,7 @@ import type { TopUpMethod } from "@/components/member/top-up-form";
 import type { TopUpRequest } from "@/components/member/top-up-form";
 import { redirect } from "@/i18n/navigation";
 import { prisma } from "@/lib/prisma";
-import { loadTopUpAccounts } from "@/lib/topup-accounts";
+import { loadTopUpAccountSettings } from "@/lib/topup-accounts";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +29,8 @@ export default async function TopUpPage({
     return null;
   }
 
-  const [accounts, requests, wallet] = await Promise.all([
-    loadTopUpAccounts(prisma),
+  const [settings, requests, wallet] = await Promise.all([
+    loadTopUpAccountSettings(prisma),
     prisma.walletTopUp.findMany({
       where: { memberId: session.user.id },
       orderBy: { createdAt: "desc" },
@@ -72,7 +72,8 @@ export default async function TopUpPage({
         icon={<Plus className="size-3.5" aria-hidden="true" />}
       />
       <TopUpForm
-        accounts={accounts}
+        accounts={settings}
+        entries={settings.entries}
         initialRequests={initialRequests}
         locale={locale}
         availablePaisa={wallet?.availablePaisa ?? 0n}

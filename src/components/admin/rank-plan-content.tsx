@@ -6,6 +6,7 @@ import { RankConfigurationEditor } from "@/components/admin/rank-configuration/r
 import { buttonVariants } from "@/components/ui/button";
 import { Link, redirect } from "@/i18n/navigation";
 import { definitionToDto, type RankPlanFormData } from "@/lib/rank-plan-dto";
+import { formatSP, sumPaisa } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { ensureDefaultRankPlan } from "@/lib/services/rank-rewards";
 import { cn } from "@/lib/utils";
@@ -39,9 +40,20 @@ export async function RankPlanBody() {
     ranks: active.definitions.map(definitionToDto),
   };
   const nextVersion = Math.max(...versions.map((version) => version.version)) + 1;
+  const totalRewardPaisa = sumPaisa(
+    active.definitions
+      .filter((definition) => definition.rewardType === "SP")
+      .map((definition) => definition.rewardSpPaisa ?? 0n),
+  );
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        {ta("rankConfigTotalRewards")}:{" "}
+        <span className="font-semibold tabular-nums text-foreground">
+          {formatSP(totalRewardPaisa)}
+        </span>
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-[var(--glass)] px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge tone="success" label={`v${active.version}.0`} />

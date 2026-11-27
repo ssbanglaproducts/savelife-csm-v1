@@ -89,6 +89,7 @@ export function AdminConfigCommitDialog({
           titleId={reviewTitleId}
           onClose={onClose}
           busy={pending}
+          fullViewMobile
         >
           <div className="space-y-4">
             {hasPrevious ? (
@@ -190,6 +191,7 @@ export function AdminConfigCommitDialog({
           titleId={finalTitleId}
           onClose={onClose}
           busy={pending}
+          fullViewMobile
         >
           <div className="space-y-4">
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3">

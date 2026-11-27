@@ -15,6 +15,10 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
+const FULL_VIEW_MOBILE_SHELL_CLASS = "p-0 sm:p-4";
+const FULL_VIEW_MOBILE_PANEL_CLASS =
+  "h-full max-h-none w-full max-w-none rounded-none sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-3xl";
+
 /** Accessible modal shell shared by purchase and activation dialogs. */
 export function DialogShell({
   title,
@@ -22,6 +26,7 @@ export function DialogShell({
   onClose,
   titleId,
   busy = false,
+  fullViewMobile = false,
   shellClassName,
   panelClassName,
   children,
@@ -32,6 +37,8 @@ export function DialogShell({
   titleId?: string;
   /** While true, Escape, overlay and close-button dismissal are ignored. */
   busy?: boolean;
+  /** Full-view on phones; centered popup from `sm` upwards. */
+  fullViewMobile?: boolean;
   shellClassName?: string;
   panelClassName?: string;
   children: ReactNode;
@@ -116,6 +123,7 @@ export function DialogShell({
     <div
       className={cn(
         "fixed inset-0 z-[80] flex items-center justify-center p-4",
+        fullViewMobile && FULL_VIEW_MOBILE_SHELL_CLASS,
         shellClassName,
       )}
     >
@@ -135,6 +143,7 @@ export function DialogShell({
         tabIndex={-1}
         className={cn(
           "relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border bg-[var(--card-solid)] shadow-2xl",
+          fullViewMobile && FULL_VIEW_MOBILE_PANEL_CLASS,
           panelClassName,
         )}
       >

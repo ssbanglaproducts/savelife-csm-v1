@@ -3,6 +3,7 @@ import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import {
   categoryAuditValues,
+  categoryParentId,
   categoryWriteSchema,
   normalizeCategoryImageUrl,
 } from "@/lib/category-admin";
@@ -19,7 +20,21 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
-  const existing = await prisma.category.findUnique({ where: { id } });
+  const existing = await prisma.category.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      nameBn: true,
+      slug: true,
+      description: true,
+      image: true,
+      sortOrder: true,
+      isActive: true,
+      parentId: true,
+      _count: { select: { children: true } },
+    },
+  });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
   let body: unknown;
@@ -37,6 +52,23 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "INVALID_IMAGE" }, { status: 400 });
   }
 
+  const parentId = categoryParentId(input);
+  if (parentId === id) {
+    return NextResponse.json({ error: "INVALID_PARENT" }, { status: 400 });
+  }
+  if (parentId && existing._count.children > 0) {
+    return NextResponse.json({ error: "CATEGORY_HAS_CHILDREN" }, { status: 409 });
+  }
+  if (parentId) {
+    const parent = await prisma.category.findUnique({
+      where: { id: parentId },
+      select: { id: true, parentId: true },
+    });
+    if (!parent || parent.parentId) {
+      return NextResponse.json({ error: "INVALID_PARENT" }, { status: 400 });
+    }
+  }
+
   const slugTaken = await prisma.category.findFirst({
     where: { slug: input.slug, id: { not: id } },
     select: { id: true },
@@ -52,12 +84,13 @@ export async function PATCH(request: Request, context: RouteContext) {
     image: existing.image,
     sortOrder: existing.sortOrder,
     isActive: existing.isActive,
+    parentId: existing.parentId,
   };
 
   const category = await prisma.category.update({
     where: { id },
-    data: { ...next, image },
-    select: { id: true, name: true, slug: true },
+    data: { ...next, image, parentId },
+    select: { id: true, name: true, slug: true, parentId: true },
   });
 
   const changedBefore = Object.fromEntries(
@@ -102,12 +135,16 @@ export async function DELETE(_request: Request, context: RouteContext) {
       image: true,
       sortOrder: true,
       isActive: true,
-      _count: { select: { products: true } },
+      parentId: true,
+      _count: { select: { products: true, children: true } },
     },
   });
   if (!existing) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   if (existing._count.products > 0) {
     return NextResponse.json({ error: "CATEGORY_HAS_PRODUCTS" }, { status: 409 });
+  }
+  if (existing._count.children > 0) {
+    return NextResponse.json({ error: "CATEGORY_HAS_CHILDREN" }, { status: 409 });
   }
 
   await prisma.category.delete({ where: { id } });
@@ -119,6 +156,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     image: existing.image,
     sortOrder: existing.sortOrder,
     isActive: existing.isActive,
+    parentId: existing.parentId,
   };
   await writeAuditLog({
     actorId: admin.user.id,

@@ -98,7 +98,7 @@ export function AuditTable({ rows }: { rows: AuditRow[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="glass rounded-2xl p-3">
+      <div className="glass relative z-30 rounded-2xl p-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <label className="relative min-w-0 flex-1">
             <span className="sr-only">{t("auditSearchPlaceholder")}</span>

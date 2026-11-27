@@ -10,6 +10,11 @@ import { UploadField } from "@/components/ui/upload-field";
 import { statusLabelKey } from "@/components/member/status-labels";
 import { formatMemberDate } from "@/components/member/format-date";
 import { formatSP } from "@/lib/money";
+import {
+  formatTopUpAccount,
+  topUpAccountDetails,
+  type TopUpAccountEntry,
+} from "@/lib/topup-accounts";
 import { uploadImage } from "@/lib/upload-client";
 import { AvailableBalanceCard } from "./available-balance-card";
 import { PaymentAccountCard } from "./payment-account-card";
@@ -31,11 +36,13 @@ export type TopUpRequest = {
 
 export function TopUpForm({
   accounts,
+  entries = [],
   initialRequests,
   locale,
   availablePaisa,
 }: {
   accounts: Record<Method, string>;
+  entries?: readonly TopUpAccountEntry[];
   initialRequests: TopUpRequest[];
   locale: string;
   availablePaisa: bigint;
@@ -44,6 +51,7 @@ export function TopUpForm({
   const tCommon = useTranslations("common");
   const router = useRouter();
   const [method, setMethod] = useState<Method>("BKASH");
+  const [selectedEntryId, setSelectedEntryId] = useState("");
   const [pending, setPending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [proofImageUrl, setProofImageUrl] = useState("");
@@ -116,7 +124,26 @@ export function TopUpForm({
     }
   }
 
-  const activeAccount = accounts[method];
+  const methodLabel = (value: Method) =>
+    value === "BKASH"
+      ? "bKash"
+      : value === "NAGAD"
+        ? "Nagad"
+        : tPanel("bank");
+  const methodEntries = entries.filter((entry) => entry.method === method);
+  const activeEntry =
+    methodEntries.find((entry) => entry.id === selectedEntryId) ?? methodEntries[0] ?? null;
+  const activeAccount = activeEntry ? formatTopUpAccount(activeEntry) : accounts[method];
+  const activeDetails = activeEntry
+    ? [
+        activeEntry.kind === "PERSONAL"
+          ? tPanel("topUpAccountPersonal")
+          : activeEntry.kind === "AGENT"
+            ? tPanel("topUpAccountAgent")
+            : "",
+        ...topUpAccountDetails(activeEntry),
+      ].filter(Boolean)
+    : [];
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -157,6 +184,20 @@ export function TopUpForm({
               <option value="NAGAD">Nagad</option>
               <option value="BANK">{tPanel("bank")}</option>
             </select>
+            {methodEntries.length > 1 ? (
+              <select
+                aria-label={tPanel("topUpAccountOption")}
+                value={activeEntry?.id ?? ""}
+                onChange={(event) => setSelectedEntryId(event.target.value)}
+                className={`${memberInputClass} mt-2`}
+              >
+                {methodEntries.map((entry, index) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.label.trim() || `${methodLabel(entry.method)} ${index + 1}`}
+                  </option>
+                ))}
+              </select>
+            ) : null}
           </div>
         </div>
 
@@ -164,6 +205,7 @@ export function TopUpForm({
           className="mt-4"
           method={method}
           account={activeAccount}
+          details={activeDetails}
           sendToLabel={tPanel("topUpSendTo")}
           missingLabel={tPanel("topUpAccountMissing")}
         />

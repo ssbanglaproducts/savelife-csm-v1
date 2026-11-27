@@ -198,10 +198,24 @@ export default async function AdminRoiCommissionPage({
 
 async function ROIOverview({ locale }: { locale: string }) {
   const ta = await getTranslations("adminPanel");
-  const rows = await loadRoiOverview(prisma);
-  if (rows.length === 0) return <EmptyState message={ta("roiNoDistributions")} />;
+  const [rows, total] = await Promise.all([
+    loadRoiOverview(prisma),
+    prisma.roiCommissionDistribution.aggregate({
+      _sum: { totalCommissionPaisa: true },
+    }),
+  ]);
 
   return (
+    <div className="space-y-3">
+    <p className="text-sm text-muted-foreground">
+      {ta("roiCommissionsTotal")}:{" "}
+      <span className="font-semibold tabular-nums text-foreground">
+        {formatSP(total._sum.totalCommissionPaisa ?? 0n)}
+      </span>
+    </p>
+    {rows.length === 0 ? (
+      <EmptyState message={ta("roiNoDistributions")} />
+    ) : (
     <AdminTable
       caption={ta("roiTabOverview")}
       headers={[
@@ -241,6 +255,8 @@ async function ROIOverview({ locale }: { locale: string }) {
         </tr>
       ))}
     </AdminTable>
+    )}
+    </div>
   );
 }
 

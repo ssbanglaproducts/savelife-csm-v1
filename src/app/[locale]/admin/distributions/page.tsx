@@ -28,10 +28,16 @@ export default async function AdminDistributionsPage() {
   ]);
   if (!session || !hasAdminPermission(session, "distributions.view")) redirect({ href: "/admin-login", locale });
 
-  const distributions = await prisma.profitDistribution.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { _count: { select: { lines: true } } },
-  });
+  const [distributions, total] = await Promise.all([
+    prisma.profitDistribution.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { _count: { select: { lines: true } } },
+    }),
+    prisma.profitDistribution.aggregate({
+      where: { status: "POSTED" },
+      _sum: { distributablePaisa: true },
+    }),
+  ]);
 
   return (
     <div className="space-y-8 animate-rise">
@@ -47,6 +53,12 @@ export default async function AdminDistributionsPage() {
       </AdminSection>
 
       <AdminSection id="distributions" title={ta("overview")}>
+        <p className="mb-3 text-sm text-muted-foreground">
+          {ta("distributionsTotalTransactionAmount")}:{" "}
+          <span className="font-semibold tabular-nums text-foreground">
+            {formatSP(total._sum.distributablePaisa ?? 0n)}
+          </span>
+        </p>
         {distributions.length === 0 ? (
           <EmptyState message={ta("noDistributions")} />
         ) : (

@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import {
-  parseAuthBannerVideo,
+  parseAuthBannerSetting,
   toAuthBannerMedia,
-  type AuthBannerVideo,
+  type AuthBannerSetting,
 } from "@/lib/auth-banner-video";
 
-/** Renders the admin-configured looping video over the shared auth banner. */
+/** Renders the admin-configured video or image over the shared auth banner. */
 export function AuthBannerVideo() {
-  const [video, setVideo] = useState<AuthBannerVideo | null>(null);
+  const [setting, setSetting] = useState<AuthBannerSetting | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -17,7 +18,7 @@ export function AuthBannerVideo() {
       .then((response) => (response.ok ? response.json() : null))
       .then((data: { video?: unknown } | null) => {
         if (!active) return;
-        setVideo(parseAuthBannerVideo(data?.video));
+        setSetting(parseAuthBannerSetting(data?.video));
       })
       .catch(() => {
         // The wellness image underneath is the fallback.
@@ -27,8 +28,23 @@ export function AuthBannerVideo() {
     };
   }, []);
 
-  const media = video ? toAuthBannerMedia(video) : null;
+  const media = setting ? toAuthBannerMedia(setting) : null;
   if (!media) return null;
+
+  if (media.kind === "image") {
+    return (
+      <Image
+        src={media.src}
+        alt=""
+        aria-hidden="true"
+        fill
+        unoptimized
+        priority
+        sizes="(max-width: 767px) 100vw, 52vw"
+        className="pointer-events-none absolute inset-0 z-0 size-full object-cover"
+      />
+    );
+  }
 
   if (media.kind === "video") {
     return (

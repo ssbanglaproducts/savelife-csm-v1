@@ -41,7 +41,8 @@ export function AdminSignupChart({
   const rangeTotal = points.reduce((sum, point) => sum + point.count, 0);
   const rangeLabel = range === "all" ? t("allTimeSignUps") : t("newMembersThisMonth");
   const chartLabel = range === "all" ? t("allTimeSignUps") : t("signupChartLabel");
-  const max = Math.max(1, ...points.map((point) => point.count));
+  // A small fixed floor keeps a single sign-up from filling the whole chart.
+  const max = Math.max(10, ...points.map((point) => point.count));
 
   const formatLabel = (date: string, index: number) => {
     if (range === "all") return t("rangeAllTime");
@@ -112,8 +113,14 @@ export function AdminSignupChart({
             <div className="flex min-h-0 flex-1 items-end">
               <div
                 title={`${point.date}: ${point.count}`}
-                className="w-full rounded-t-md bg-primary/70 ring-1 ring-inset ring-primary/20 transition-all"
-                style={{ height: `${Math.max(3, (point.count / max) * 100)}%` }}
+                className={cn(
+                  "w-full rounded-t-md transition-all",
+                  point.count > 0 && "bg-primary/70 ring-1 ring-inset ring-primary/20",
+                )}
+                style={{
+                  height:
+                    point.count === 0 ? "0%" : `${Math.max(3, (point.count / max) * 100)}%`,
+                }}
               />
             </div>
             <span className="mt-2 h-4 truncate text-center text-[10px] text-muted-foreground">

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  normalizeAuthBannerImageInput,
   normalizeAuthBannerVideoInput,
+  parseAuthBannerImage,
+  parseAuthBannerSetting,
   parseAuthBannerVideo,
   toAuthBannerMedia,
 } from "./auth-banner-video";
@@ -52,5 +55,33 @@ describe("auth banner video", () => {
   it("rejects malformed stored settings", () => {
     expect(parseAuthBannerVideo({ kind: "youtube", videoId: "short" })).toBeNull();
     expect(parseAuthBannerVideo({ kind: "direct", url: "file:///tmp/video.mp4" })).toBeNull();
+  });
+});
+
+describe("auth banner image", () => {
+  it("accepts local and direct image URLs", () => {
+    expect(normalizeAuthBannerImageInput("/api/uploads/abc-123.webp")).toEqual({
+      kind: "imageUpload",
+      url: "/api/uploads/abc-123.webp",
+      fileName: "abc-123.webp",
+      contentType: "image/webp",
+    });
+    expect(normalizeAuthBannerImageInput("https://cdn.example.test/banner.jpg?v=2")).toEqual({
+      kind: "imageDirect",
+      url: "https://cdn.example.test/banner.jpg?v=2",
+    });
+  });
+
+  it("rejects unsupported image URLs", () => {
+    expect(normalizeAuthBannerImageInput("javascript:alert(1)")).toBeNull();
+    expect(normalizeAuthBannerImageInput("https://cdn.example.test/banner.svg")).toBeNull();
+    expect(parseAuthBannerImage({ kind: "imageDirect", url: "http://cdn.example.test/a.png" })).toBeNull();
+  });
+
+  it("renders image settings as image media", () => {
+    const setting = { kind: "imageUpload" as const, url: "/api/uploads/a.png", fileName: "a.png", contentType: "image/png" as const };
+    expect(parseAuthBannerSetting(setting)).toEqual(setting);
+    expect(toAuthBannerMedia(setting)).toEqual({ kind: "image", src: "/api/uploads/a.png" });
+    expect(normalizeAuthBannerVideoInput("https://cdn.example.test/a.png")).toBeNull();
   });
 });

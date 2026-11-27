@@ -115,22 +115,34 @@ export async function SalaryDistributionsSection() {
     getTranslations("common"),
   ]);
 
-  const distributions = await prisma.salaryDistribution.findMany({
-    orderBy: { weekEndAt: "desc" },
-    take: 50,
-    select: {
-      id: true,
-      weekEndAt: true,
-      status: true,
-      totalPaidPaisa: true,
-      recipientCount: true,
-      postedAt: true,
-      payments: { select: { status: true } },
-    },
-  });
+  const [distributions, total] = await Promise.all([
+    prisma.salaryDistribution.findMany({
+      orderBy: { weekEndAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        weekEndAt: true,
+        status: true,
+        totalPaidPaisa: true,
+        recipientCount: true,
+        postedAt: true,
+        payments: { select: { status: true } },
+      },
+    }),
+    prisma.salaryDistribution.aggregate({
+      where: { status: "POSTED" },
+      _sum: { totalPaidPaisa: true },
+    }),
+  ]);
 
   return (
     <AdminSection id="salary-distributions" title={ta("salaryDistributions")}>
+      <p className="mb-3 text-sm text-muted-foreground">
+        {ta("salaryTotalTransactionAmount")}:{" "}
+        <span className="font-semibold tabular-nums text-foreground">
+          {formatSP(total._sum.totalPaidPaisa ?? 0n)}
+        </span>
+      </p>
       {distributions.length === 0 ? (
         <EmptyState message={ta("salaryNoDistributions")} />
       ) : (

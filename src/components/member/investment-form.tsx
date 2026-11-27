@@ -7,7 +7,12 @@ import { ArrowRight, Check, Info, Loader2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UploadField } from "@/components/ui/upload-field";
 import { formatSP, paisaToSP, spToPaisa, type Paisa } from "@/lib/money";
-import type { TopUpAccounts } from "@/lib/topup-accounts";
+import {
+  formatTopUpAccount,
+  topUpAccountDetails,
+  type TopUpAccountEntry,
+  type TopUpAccounts,
+} from "@/lib/topup-accounts";
 import { uploadImage } from "@/lib/upload-client";
 import { PaymentAccountCard } from "./payment-account-card";
 import { memberFieldClass, memberInputClass, memberLabelClass } from "./form-styles";
@@ -34,10 +39,12 @@ export function InvestmentForm({
   installmentDurationMonths,
   profitOnlyLockInMonths,
   accounts,
+  entries = [],
 }: {
   installmentDurationMonths: number;
   profitOnlyLockInMonths: number;
   accounts: TopUpAccounts;
+  entries?: readonly TopUpAccountEntry[];
 }) {
   const tPanel = useTranslations("memberPanel");
   const [plan, setPlan] = useState<PlanType | null>(null);
@@ -57,6 +64,7 @@ export function InvestmentForm({
           installmentDurationMonths={installmentDurationMonths}
           profitOnlyLockInMonths={profitOnlyLockInMonths}
           accounts={accounts}
+          entries={entries}
           onChangePlan={() => setPlan(null)}
         />
       )}
@@ -183,12 +191,14 @@ function PlanApplicationForm({
   installmentDurationMonths,
   profitOnlyLockInMonths,
   accounts,
+  entries = [],
   onChangePlan,
 }: {
   plan: PlanType;
   installmentDurationMonths: number;
   profitOnlyLockInMonths: number;
   accounts: TopUpAccounts;
+  entries?: readonly TopUpAccountEntry[];
   onChangePlan: () => void;
 }) {
   const tPanel = useTranslations("memberPanel");
@@ -198,6 +208,7 @@ function PlanApplicationForm({
   const fieldId = useId();
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("BKASH");
+  const [selectedEntryId, setSelectedEntryId] = useState("");
   const [pending, setPending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [paymentImageUrl, setPaymentImageUrl] = useState("");
@@ -208,8 +219,33 @@ function PlanApplicationForm({
   const amountPaisa = parseAmount(amount);
   const planTitle = plan === "INSTALLMENT" ? tPanel("installment") : tPanel("profitOnly");
   const months = plan === "INSTALLMENT" ? installmentDurationMonths : profitOnlyLockInMonths;
-  const activeAccount =
-    paymentMethod === "OTHER" ? "" : accounts[paymentMethod as keyof TopUpAccounts] || "";
+  const entryMethodLabel = (method: "BKASH" | "NAGAD" | "BANK") =>
+    method === "BKASH"
+      ? tCheckout("bkash")
+      : method === "NAGAD"
+        ? tCheckout("nagad")
+        : tCheckout("bank");
+  const methodEntries =
+    paymentMethod === "OTHER"
+      ? []
+      : entries.filter((entry) => entry.method === paymentMethod);
+  const activeEntry =
+    methodEntries.find((entry) => entry.id === selectedEntryId) ?? methodEntries[0] ?? null;
+  const activeAccount = activeEntry
+    ? formatTopUpAccount(activeEntry)
+    : paymentMethod === "OTHER"
+      ? ""
+      : accounts[paymentMethod as keyof TopUpAccounts] || "";
+  const activeDetails = activeEntry
+    ? [
+        activeEntry.kind === "PERSONAL"
+          ? tPanel("topUpAccountPersonal")
+          : activeEntry.kind === "AGENT"
+            ? tPanel("topUpAccountAgent")
+            : "",
+        ...topUpAccountDetails(activeEntry),
+      ].filter(Boolean)
+    : [];
 
   async function handleFile(files: FileList | null) {
     const file = files?.[0];
@@ -350,6 +386,20 @@ function PlanApplicationForm({
                 <option value="BANK">{tCheckout("bank")}</option>
                 <option value="OTHER">{tCheckout("other")}</option>
               </select>
+              {methodEntries.length > 1 ? (
+                <select
+                  aria-label={tPanel("topUpAccountOption")}
+                  value={activeEntry?.id ?? ""}
+                  onChange={(event) => setSelectedEntryId(event.target.value)}
+                  className={`${memberInputClass} mt-2`}
+                >
+                  {methodEntries.map((entry, index) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.label.trim() || `${entryMethodLabel(entry.method)} ${index + 1}`}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
             </div>
             <div className={memberFieldClass}>
               <label htmlFor={`${fieldId}-ref`} className={memberLabelClass}>
@@ -369,6 +419,7 @@ function PlanApplicationForm({
           <PaymentAccountCard
             method={paymentMethod}
             account={activeAccount}
+            details={activeDetails}
             sendToLabel={tPanel("topUpSendTo")}
             missingLabel={tPanel("topUpAccountMissing")}
           />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { KeyRound, Pencil, Plus, Search, ShieldCheck } from "lucide-react";
+import { Info, KeyRound, Pencil, Plus, Search, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AdminFormDialog } from "@/components/admin/admin-form-dialog";
 import {
@@ -480,6 +480,7 @@ export function StaffManager({
                     {group.permissions.map((entry) => {
                       const checked =
                         entry.alwaysOn || draft.permissions.includes(entry.value);
+                      const help = t(`${entry.labelKey}Help`);
                       return (
                         <label
                           key={entry.value}
@@ -492,7 +493,17 @@ export function StaffManager({
                             onChange={(event) => togglePermission(entry.value, event.target.checked)}
                             className="size-4 shrink-0 accent-primary"
                           />
-                          <span className="min-w-0 break-words">{t(entry.labelKey)}</span>
+                          <span className="inline-flex min-w-0 items-center gap-1.5">
+                            <span className="min-w-0 break-words">{t(entry.labelKey)}</span>
+                            <span
+                              role="img"
+                              aria-label={help}
+                              title={help}
+                              className="inline-flex shrink-0 cursor-help text-muted-foreground"
+                            >
+                              <Info className="size-3.5" aria-hidden="true" />
+                            </span>
+                          </span>
                         </label>
                       );
                     })}

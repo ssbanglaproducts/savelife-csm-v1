@@ -15,9 +15,14 @@ export const categoryWriteSchema = z.strictObject({
   image: z.string().trim().max(2000).nullable().optional(),
   sortOrder: z.number().int().min(0).max(100_000).optional(),
   isActive: z.boolean().optional(),
+  parentId: z.string().trim().min(1).max(64).nullable().optional(),
 });
 
 export type CategoryWriteInput = z.infer<typeof categoryWriteSchema>;
+
+export function categoryParentId(input: CategoryWriteInput): string | null {
+  return input.parentId?.trim() || null;
+}
 
 /** Build the same URL-friendly slug convention used by the product manager. */
 export function slugifyCategoryName(value: string): string {
@@ -59,5 +64,6 @@ export function categoryAuditValues(input: CategoryWriteInput) {
     image: input.image ?? null,
     sortOrder: input.sortOrder ?? 0,
     isActive: input.isActive ?? true,
+    parentId: categoryParentId(input),
   };
 }

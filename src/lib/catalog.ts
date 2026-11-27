@@ -183,7 +183,7 @@ async function loadCatalogProducts(): Promise<StoreProduct[]> {
 export async function getCategories(): Promise<StoreCategory[]> {
   try {
     const categories = await prisma.category.findMany({
-      where: { isActive: true },
+      where: { isActive: true, parentId: null },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: {
         id: true,
