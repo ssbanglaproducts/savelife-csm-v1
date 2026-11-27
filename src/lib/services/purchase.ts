@@ -143,7 +143,7 @@ export async function createPaidOrder(
       }
 
       const member = await tx.member.findUnique({
-        where: { id: input.memberId },
+        where: { id: input.memberId, role: "MEMBER" },
         select: { status: true },
       });
       if (!member) throw purchaseError("MEMBER_NOT_FOUND");

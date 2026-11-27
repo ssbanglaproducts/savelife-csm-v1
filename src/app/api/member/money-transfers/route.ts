@@ -27,6 +27,7 @@ function errorResponse(code: string, status: number) {
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) return errorResponse("LOGIN_REQUIRED", 401);
+  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   const access = await checkMemberCanTransact(session.user.id);
   if (!access.ok) return errorResponse(access.code, access.status);

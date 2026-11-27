@@ -1,6 +1,6 @@
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { Trophy } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
-import { auth } from "@/auth";
 import { AdminPageIntro, StatusBadge } from "@/components/admin/admin-ui";
 import { RankConfigurationEditor } from "@/components/admin/rank-configuration/rank-configuration-editor";
 import { buttonVariants } from "@/components/ui/button";
@@ -15,11 +15,11 @@ const historyLinkClass = cn(buttonVariants({ variant: "outline", size: "sm" }), 
 /** Main rank configuration content, shared by the tabbed page and the legacy route. */
 export async function RankPlanBody() {
   const [session, locale, ta] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("adminPanel"),
   ]);
-  if (!session?.user?.id || session.user.role !== "ADMIN") {
+  if (!session || !hasAdminPermission(session, "ranks.view")) {
     redirect({ href: "/admin-login", locale });
     return null;
   }

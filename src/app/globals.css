@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+/* Tailwind's space-y utilities only skip [hidden] attributes, not CSS-hidden
+   elements. AdminPageIntro is hidden below `sm`, so remove the otherwise
+   orphaned top margin on the following sibling at that width. */
+@media (width < 40rem) {
+  :is(
+      [class~="space-y-3"],
+      [class~="space-y-4"],
+      [class~="space-y-5"],
+      [class~="space-y-6"],
+      [class~="space-y-8"],
+      [class~="space-y-10"]
+    )
+    > .hidden
+    + * {
+    margin-top: 0 !important;
+  }
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {

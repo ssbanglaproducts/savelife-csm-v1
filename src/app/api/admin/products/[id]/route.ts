@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -42,8 +42,8 @@ function setIfChanged(
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN" || !admin.user.id) {
+  const admin = await requireAdminApiSession("products.manage");
+  if (!admin) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -222,7 +222,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   await writeAuditLog({
     actorId: admin.user.id,
-    actorRole: "ADMIN",
+    actorRole: admin.user.role,
     action: "PRODUCT_UPDATED",
     entityType: "Product",
     entityId: id,

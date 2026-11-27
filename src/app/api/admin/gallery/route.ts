@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
@@ -19,16 +19,16 @@ function error(code: string, status: number) {
 }
 
 export async function GET(request: Request) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") return error("FORBIDDEN", 403);
+  const session = await requireAdminApiSession("content.view");
+  if (!session) return error("FORBIDDEN", 403);
 
   const locale = new URL(request.url).searchParams.get("locale") === "bn" ? "bn" : "en";
   return NextResponse.json({ posts: await getAdminGalleryPosts(locale) });
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN" || !session.user.id) {
+  const session = await requireAdminApiSession("content.manage");
+  if (!session) {
     return error("FORBIDDEN", 403);
   }
 
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
   await writeAuditLog({
     actorId: session.user.id,
-    actorRole: "ADMIN",
+    actorRole: session.user.role,
     action: "GALLERY_POST_CREATED",
     entityType: "GalleryPost",
     entityId: post.id,

@@ -5,7 +5,7 @@ export type Viewer = {
   name: string;
   image: string | null;
   memberId: string;
-  role: "MEMBER" | "ADMIN";
+  role: "MEMBER" | "ADMIN" | "STAFF";
   status?: MemberStatus;
   phone?: string | null;
 };

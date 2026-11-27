@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import {
   categoryAuditValues,
@@ -13,8 +13,8 @@ export const dynamic = "force-dynamic";
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN" || !admin.user.id) {
+  const admin = await requireAdminApiSession("categories.manage");
+  if (!admin) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -73,7 +73,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   await writeAuditLog({
     actorId: admin.user.id,
-    actorRole: "ADMIN",
+    actorRole: admin.user.role,
     action: "CATEGORY_UPDATED",
     entityType: "Category",
     entityId: id,
@@ -85,8 +85,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN" || !admin.user.id) {
+  const admin = await requireAdminApiSession("categories.manage");
+  if (!admin) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -122,7 +122,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
   };
   await writeAuditLog({
     actorId: admin.user.id,
-    actorRole: "ADMIN",
+    actorRole: admin.user.role,
     action: "CATEGORY_DELETED",
     entityType: "Category",
     entityId: id,

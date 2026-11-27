@@ -1,6 +1,6 @@
 import type { DefaultSession } from "next-auth";
 
-type Role = "MEMBER" | "ADMIN";
+type Role = "MEMBER" | "ADMIN" | "STAFF";
 type MemberStatus = "INACTIVE" | "ACTIVE" | "SUSPENDED";
 
 declare module "next-auth" {

@@ -47,7 +47,7 @@ export async function SalaryTreasuriesBody() {
       where: {
         isActive: true,
         rankKey: { in: [...SALARY_RANK_KEYS] },
-        member: { status: "ACTIVE" },
+        member: { status: "ACTIVE", role: "MEMBER" },
       },
       select: {
         id: true,

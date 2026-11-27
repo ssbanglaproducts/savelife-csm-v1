@@ -24,6 +24,7 @@ export async function POST(request: Request) {
   if (!session?.user?.id) {
     return error("LOGIN_REQUIRED", 401);
   }
+  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   let body: unknown;
   try {

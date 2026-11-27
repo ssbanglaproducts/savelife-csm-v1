@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { isTPin } from "@/lib/tpin";
@@ -21,8 +21,8 @@ function error(code: string, status: number) {
 
 /** Administrator-assisted T-PIN reset. The new PIN is never returned. */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
+  const session = await requireAdminApiSession("members.manage");
+  if (!session) {
     return error("FORBIDDEN", 403);
   }
 
@@ -48,8 +48,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return error("TPIN_MISMATCH", 400);
   }
 
-  const member = await prisma.member.findUnique({
-    where: { id },
+  const member = await prisma.member.findFirst({
+    where: { id, role: "MEMBER" },
     select: { memberId: true, tPinHash: true },
   });
   if (!member) return error("MEMBER_NOT_FOUND", 404);
@@ -67,7 +67,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   await writeAuditLog({
     actorId: session.user.id,
-    actorRole: "ADMIN",
+    actorRole: session.user.role,
     action: "MEMBER_TPIN_RESET_BY_ADMIN",
     entityType: "Member",
     entityId: id,

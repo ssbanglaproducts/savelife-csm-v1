@@ -1,6 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { Megaphone } from "lucide-react";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { redirect } from "@/i18n/navigation";
 import {
   AdminPageIntro,
@@ -19,12 +19,12 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminAnnouncementsPage() {
   const [session, locale, tn, t] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("notifications"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "content.view")) redirect({ href: "/admin-login", locale });
 
   const broadcasts = await getBroadcasts();
 

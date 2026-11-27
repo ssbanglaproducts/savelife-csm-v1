@@ -10,6 +10,7 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
   }
+  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   const data = await getMemberSalaryData(prisma, session.user.id);
   return NextResponse.json(data);

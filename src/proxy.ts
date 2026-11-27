@@ -22,23 +22,27 @@ export default auth((request) => {
   const isAdminArea = pathname === `/${locale}/admin` || pathname.startsWith(`/${locale}/admin/`);
   const isMemberArea = pathname === `/${locale}/member` || pathname.startsWith(`/${locale}/member/`);
 
+  const isAdminSession = user?.role === "ADMIN" || user?.role === "STAFF";
+  const dashboard = isAdminSession ? "admin/dashboard" : "member/dashboard";
+
   if ((isLoginPage || isRegisterPage) && user?.id) {
-    const dashboard = user.role === "ADMIN" ? "admin/dashboard" : "member/dashboard";
     return NextResponse.redirect(new URL(`/${locale}/${dashboard}`, request.url));
   }
 
-  // A member may open the administrator login to switch accounts, but an
-  // administrator has no reason to see it again.
-  if (isAdminLoginPage && user?.role === "ADMIN") {
+  // The two login pages are role-specific. A member may still visit the admin
+  // login to switch accounts; an admin/staff session may not revisit either.
+  if ((isAdminLoginPage && isAdminSession) || (isLoginPage && user?.id && isAdminSession)) {
     return NextResponse.redirect(new URL(`/${locale}/admin/dashboard`, request.url));
   }
 
-  if (isAdminArea && user?.role !== "ADMIN") {
+  if (isAdminArea && !isAdminSession) {
     return NextResponse.redirect(new URL(`/${locale}/admin-login`, request.url));
   }
 
-  if (isMemberArea && !user) {
-    return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
+  if (isMemberArea && user?.role !== "MEMBER") {
+    return NextResponse.redirect(
+      new URL(`/${locale}/${isAdminSession ? "admin-login" : "login"}`, request.url),
+    );
   }
 
   return response;

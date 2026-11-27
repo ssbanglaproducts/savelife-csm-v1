@@ -22,6 +22,7 @@ type MemberRecord = {
   fullName: string;
   phone: string;
   status: MemberStatus;
+  role: string;
   activationDate?: Date | null;
 };
 
@@ -197,6 +198,7 @@ class FakePrisma {
       fullName: "Test Member",
       phone: "01700000000",
       status,
+      role: "MEMBER",
       ...overrides,
     };
     this.members.push(member);
@@ -259,10 +261,12 @@ class FakePrisma {
       where,
       select,
     }: {
-      where: { id: string };
+      where: { id: string; role?: string };
       select?: Data;
     }): Promise<Partial<MemberRecord> | null> => {
-      const found = this.members.find((item) => item.id === where.id);
+      const found = this.members.find(
+        (item) => item.id === where.id && (where.role ?? "MEMBER") === item.role,
+      );
       return found ? selectFields(found, select) : null;
     },
     update: async ({ where, data }: { where: { id: string }; data: Data }) => {
@@ -554,6 +558,20 @@ describe("createPaidOrder", () => {
         fulfillment: "HOME_DELIVERY",
       }),
     ).rejects.toThrow("MEMBER_NOT_ACTIVE");
+  });
+
+  it("rejects staff member accounts before placing an order", async () => {
+    const db = new FakePrisma();
+    db.addMember(memberId, "INACTIVE", { role: "STAFF" });
+    db.addWallet(memberId, 100_000n);
+    db.addProduct(activationProductId, 5);
+
+    await expect(createPaidOrder(db.asClient(), activationInput("staff-checkout"))).rejects.toThrow(
+      "MEMBER_NOT_FOUND",
+    );
+    expect(db.orders).toHaveLength(0);
+    expect(db.ledgerEntries).toHaveLength(0);
+    expect(db.wallets[0].availablePaisa).toBe(100_000n);
   });
 
   it("stores a permanent address snapshot that survives changes to the saved address", async () => {

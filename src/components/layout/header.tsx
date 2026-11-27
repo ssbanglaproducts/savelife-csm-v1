@@ -429,7 +429,11 @@ export function Header() {
                           </div>
                         </div>
                         <Link
-                          href={viewer.role === "ADMIN" ? "/admin/dashboard" : "/member/dashboard"}
+                          href={
+                            viewer.role === "ADMIN" || viewer.role === "STAFF"
+                              ? "/admin/dashboard"
+                              : "/member/dashboard"
+                          }
                           onClick={() => setMenuUrl(false)}
                           className={cn(
                             buttonVariants({ variant: "outline", size: "sm" }),

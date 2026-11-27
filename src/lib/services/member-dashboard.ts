@@ -296,7 +296,7 @@ export async function getMemberDashboardData(
   const [member, rankByMember, wallet, team, directReferrals, investedAggregate, activeInvestments, recentEntries, installmentInvestments, profitLines, ownInvestments] =
     await Promise.all([
       prisma.member.findUnique({
-        where: { id: memberId },
+        where: { id: memberId, role: "MEMBER" },
         select: { fullName: true, memberId: true, status: true, profileImage: true },
       }),
       getMemberRankSummaries(prisma, [memberId]),
@@ -310,7 +310,7 @@ export async function getMemberDashboardData(
         },
       }),
       getTeamOverview(prisma, memberId),
-      prisma.member.count({ where: { sponsorId: memberId } }),
+      prisma.member.count({ where: { sponsorId: memberId, role: "MEMBER" } }),
       prisma.investment.aggregate({
         where: { memberId, status: { in: [...TEAM_INVESTMENT_STATUSES] } },
         _sum: { amountPaisa: true },

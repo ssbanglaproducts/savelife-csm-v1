@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import { NotificationKind } from "@/generated/prisma/enums";
 import {
@@ -37,8 +37,8 @@ function error(code: string, status: number) {
 }
 
 export async function GET(request: Request) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") return error("FORBIDDEN", 403);
+  const session = await requireAdminApiSession("content.view");
+  if (!session) return error("FORBIDDEN", 403);
 
   const locale = new URL(request.url).searchParams.get("locale") === "bn" ? "bn" : "en";
   const broadcasts = await getBroadcasts();
@@ -56,8 +56,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") return error("FORBIDDEN", 403);
+  const session = await requireAdminApiSession("content.manage");
+  if (!session) return error("FORBIDDEN", 403);
 
   let body: unknown;
   try {
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
 
   await writeAuditLog({
     actorId: session.user.id,
-    actorRole: "ADMIN",
+    actorRole: session.user.role,
     action: "NOTIFICATION_BROADCAST_CREATED",
     entityType: "Notification",
     after: { kind: data.kind, title: data.title.en },

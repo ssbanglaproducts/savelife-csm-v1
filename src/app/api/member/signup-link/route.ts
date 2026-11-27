@@ -20,6 +20,7 @@ export async function POST(request: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
   }
+  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   let body: unknown;
   try {
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
       select: { id: true, memberId: true, fullName: true, status: true, role: true },
     }),
     prisma.member.findUnique({
-      where: { memberId: placementMemberId },
+      where: { memberId: placementMemberId, role: "MEMBER" },
       select: { id: true, memberId: true, fullName: true },
     }),
   ]);

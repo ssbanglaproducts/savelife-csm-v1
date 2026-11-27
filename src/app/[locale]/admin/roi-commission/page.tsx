@@ -1,6 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { ReceiptText } from "lucide-react";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import {
   AdminPageIntro,
   AdminSection,
@@ -64,12 +64,12 @@ export default async function AdminRoiCommissionPage({
 }) {
   const [query, session, locale, tn, ta] = await Promise.all([
     searchParams,
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "roiCommission.view")) redirect({ href: "/admin-login", locale });
 
   const requestedTab = first(query.tab);
   const tab: RoiTab =

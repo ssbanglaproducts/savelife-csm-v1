@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import {
   runSalaryAutomation,
   serializeSalaryAutomationResult,
@@ -12,8 +12,8 @@ function errorResponse(code: string, status: number) {
 }
 
 export async function POST() {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN" || !admin.user.id) {
+  const admin = await requireAdminApiSession("salary.manage");
+  if (!admin) {
     return errorResponse("FORBIDDEN", 403);
   }
 

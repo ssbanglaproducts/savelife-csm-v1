@@ -273,13 +273,17 @@ class FakePrisma {
     memberId: string;
     fullName: string;
     sponsorId: string | null;
+    role?: string;
     placementParentId?: string | null;
   }> = [];
   roiDistributions: Array<Data & { id: string }> = [];
   roiLines: Array<Data & { id: string }> = [];
 
   member = {
-    findMany: async () => this.members.map((member) => ({ ...member })),
+    findMany: async ({ where }: { where?: { role?: string } } = {}) =>
+      this.members
+        .filter((member) => (where?.role ?? "MEMBER") === (member.role ?? "MEMBER"))
+        .map((member) => ({ ...member })),
   };
 
   roiCommissionDistribution = {

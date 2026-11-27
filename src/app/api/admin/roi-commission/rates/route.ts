@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { verifyAdminPassword } from "@/lib/admin-password";
 import { writeAuditLog } from "@/lib/audit";
 import { ServiceError } from "@/lib/services/errors";
@@ -23,8 +23,8 @@ function errorResponse(code: string, status: number) {
 }
 
 export async function GET() {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN") return errorResponse("FORBIDDEN", 403);
+  const admin = await requireAdminApiSession("roiCommission.view");
+  if (!admin) return errorResponse("FORBIDDEN", 403);
 
   const config = await loadRoiRateConfig(prisma);
   return NextResponse.json({
@@ -34,8 +34,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN" || !admin.user.id) {
+  const admin = await requireAdminApiSession("roiCommission.manage");
+  if (!admin) {
     return errorResponse("FORBIDDEN", 403);
   }
 
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     const ratesBps = await saveRoiRateConfig(prisma, parsed.data.ratesBps);
     await writeAuditLog({
       actorId: admin.user.id,
-      actorRole: "ADMIN",
+      actorRole: admin.user.role,
       action: "ROI_COMMISSION_RATES_UPDATED",
       entityType: "RoiCommissionSettings",
       entityId: "roiCommission.ratesBps",

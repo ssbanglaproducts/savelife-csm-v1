@@ -2,7 +2,7 @@ import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { verifyAdminPassword } from "@/lib/admin-password";
 import { Prisma } from "@/generated/prisma/client";
 import {
@@ -24,9 +24,9 @@ const urlSchema = z.object({
 });
 const deleteSchema = z.object({ adminPassword: z.string().min(1).max(200) });
 
-async function requireAdmin() {
-  const session = await auth();
-  return session?.user?.role === "ADMIN" ? session.user : null;
+async function requireAdmin(permission: "content.view" | "content.manage") {
+  const session = await requireAdminApiSession(permission);
+  return session?.user ?? null;
 }
 
 async function removeStoredFile(video: AuthBannerVideo | null) {
@@ -43,14 +43,14 @@ function asJson(value: AuthBannerVideo): Prisma.InputJsonValue {
 }
 
 export async function GET() {
-  if (!(await requireAdmin())) {
+  if (!(await requireAdmin("content.view"))) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
   return NextResponse.json({ video: await loadAuthBannerVideo(prisma) });
 }
 
 export async function POST(request: Request) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin("content.manage");
   if (!admin) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   const contentType = request.headers.get("content-type") ?? "";
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
 
   await writeAuditLog({
     actorId: admin.id,
-    actorRole: "ADMIN",
+    actorRole: admin.role,
     action: "AUTH_BANNER_VIDEO_UPDATED",
     entityType: "SystemSetting",
     entityId: AUTH_BANNER_VIDEO_SETTING_KEY,
@@ -115,7 +115,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin("content.manage");
   if (!admin) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   let body: unknown;
@@ -136,7 +136,7 @@ export async function DELETE(request: Request) {
 
   await writeAuditLog({
     actorId: admin.id,
-    actorRole: "ADMIN",
+    actorRole: admin.role,
     action: "AUTH_BANNER_VIDEO_REMOVED",
     entityType: "SystemSetting",
     entityId: AUTH_BANNER_VIDEO_SETTING_KEY,

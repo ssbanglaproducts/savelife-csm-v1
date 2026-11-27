@@ -14,7 +14,9 @@ export function getSponsorRegistrationError(
   sponsor: SponsorForRegistration | null | undefined,
 ): SponsorRegistrationError {
   if (!sponsor) return "SPONSOR_NOT_FOUND";
-  if (sponsor.role === "ADMIN") return "SPONSOR_NOT_ELIGIBLE";
+  if (sponsor.role === "ADMIN" || sponsor.role === "STAFF") {
+    return "SPONSOR_NOT_ELIGIBLE";
+  }
   if (sponsor.status !== "ACTIVE") return "SPONSOR_INACTIVE";
   return null;
 }

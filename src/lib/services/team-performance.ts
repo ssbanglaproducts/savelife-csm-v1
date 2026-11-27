@@ -233,7 +233,7 @@ export async function getGenealogyView(
   if (!allowed) return null;
 
   const member = await client.member.findUnique({
-    where: { id: targetId },
+    where: { id: targetId, role: "MEMBER" },
     select: {
       id: true,
       memberId: true,
@@ -319,7 +319,7 @@ export async function getIndividualPerformance(
   if (!allowed) return null;
 
   const member = await client.member.findUnique({
-    where: { id: targetId },
+    where: { id: targetId, role: "MEMBER" },
     select: {
       id: true,
       memberId: true,
@@ -347,7 +347,7 @@ export async function getIndividualPerformance(
   ]);
 
   const teamMembers = await client.member.findMany({
-    where: { id: { in: descendantIds } },
+    where: { id: { in: descendantIds }, role: "MEMBER" },
     select: { status: true, activationDate: true, createdAt: true },
   });
 
@@ -383,7 +383,7 @@ export async function getTeamPerformance(
 ): Promise<TeamPerformance> {
   const descendantIds = await getPlacementDescendantIds(client, viewerId);
   const directChildren = await client.member.findMany({
-    where: { placementParentId: viewerId },
+    where: { placementParentId: viewerId, role: "MEMBER" },
     orderBy: { placementSlot: "asc" },
     select: {
       id: true,
@@ -401,7 +401,7 @@ export async function getTeamPerformance(
 
   const [members, orders, refundOrders, ledger] = await Promise.all([
     client.member.findMany({
-      where: { id: { in: descendantIds } },
+      where: { id: { in: descendantIds }, role: "MEMBER" },
       select: {
         id: true,
         memberId: true,

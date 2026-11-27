@@ -43,6 +43,7 @@ export async function getInvestmentCardRows(
 
   const investments = await prisma.investment.findMany({
     where: {
+      member: { role: "MEMBER" },
       ...(id ? { id } : {}),
       ...(memberId ? { memberId } : {}),
     },

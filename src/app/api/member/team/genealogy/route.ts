@@ -10,11 +10,18 @@ export async function GET(request: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
   }
+  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   const memberId = new URL(request.url).searchParams.get("memberId")?.trim().toUpperCase();
   const target = memberId
-    ? await prisma.member.findUnique({ where: { memberId }, select: { id: true } })
-    : await prisma.member.findUnique({ where: { id: session.user.id }, select: { id: true } });
+    ? await prisma.member.findUnique({
+        where: { memberId, role: "MEMBER" },
+        select: { id: true },
+      })
+    : await prisma.member.findUnique({
+        where: { id: session.user.id, role: "MEMBER" },
+        select: { id: true },
+      });
   if (!target) {
     return NextResponse.json({ error: "MEMBER_NOT_FOUND" }, { status: 404 });
   }

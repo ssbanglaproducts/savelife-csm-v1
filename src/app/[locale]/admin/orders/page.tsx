@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { Search, ShoppingBag, SlidersHorizontal, X } from "lucide-react";
 import type { Prisma } from "@/generated/prisma/client";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { Link, redirect } from "@/i18n/navigation";
 import {
   AdminPageIntro,
@@ -60,7 +60,7 @@ export default async function AdminOrdersPage({
   searchParams: Promise<OrderQuery>;
 }) {
   const [session, locale, tn, ta, tc, tpu, query] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
@@ -68,7 +68,7 @@ export default async function AdminOrdersPage({
     getTranslations("purchase"),
     searchParams,
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "orders.view")) redirect({ href: "/admin-login", locale });
 
   const search = (firstValue(query.q) ?? "").trim().slice(0, 120);
   const pendingProofOnly = firstValue(query.proof) === "pending";

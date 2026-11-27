@@ -107,7 +107,7 @@ export function ProfileMenu({
     memberId: string;
     name: string;
     image: string | null;
-    role: "MEMBER" | "ADMIN";
+    role: "MEMBER" | "ADMIN" | "STAFF";
     status: "INACTIVE" | "ACTIVE" | "SUSPENDED";
     current: boolean;
   };
@@ -263,7 +263,11 @@ export function ProfileMenu({
                 </div>
 
                 <Link
-                  href={viewer.role === "ADMIN" ? "/admin/dashboard" : "/member/dashboard"}
+                  href={
+                    viewer.role === "ADMIN" || viewer.role === "STAFF"
+                      ? "/admin/dashboard"
+                      : "/member/dashboard"
+                  }
                   onClick={() => close(false)}
                   className="mt-1 flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 >
@@ -271,7 +275,7 @@ export function ProfileMenu({
                   {t("goToDashboard")}
                 </Link>
 
-                {viewer.role !== "ADMIN" ? (
+                {viewer.role === "MEMBER" ? (
                   <button
                     type="button"
                     onClick={() => {

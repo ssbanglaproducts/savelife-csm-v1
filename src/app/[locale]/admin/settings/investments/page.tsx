@@ -1,5 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import {
   AdminSection,
   AdminTable,
@@ -17,13 +17,13 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminInvestmentSettingsPage() {
   const [session, locale, ta, tc, tm] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("adminPanel"),
     getTranslations("common"),
     getTranslations("memberPanel"),
   ]);
-  if (!session?.user?.id || session.user.role !== "ADMIN") {
+  if (!session || !hasAdminPermission(session, "settings.manage")) {
     redirect({ href: "/admin-login", locale });
     return null;
   }

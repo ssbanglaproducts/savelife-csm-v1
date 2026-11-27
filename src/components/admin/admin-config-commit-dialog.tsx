@@ -30,6 +30,7 @@ export function AdminConfigCommitDialog({
   onCommit,
   versioned = false,
   nextVersion,
+  copy = "config",
 }: {
   onClose: () => void;
   changes: readonly AdminConfigChange[];
@@ -39,9 +40,11 @@ export function AdminConfigCommitDialog({
   onCommit: (password: string) => Promise<boolean>;
   versioned?: boolean;
   nextVersion?: number;
+  copy?: "config" | "staff";
 }) {
   const t = useTranslations("adminPanel");
   const tc = useTranslations("common");
+  const staffCopy = copy === "staff";
   const reviewTitleId = useId();
   const finalTitleId = useId();
   const passwordId = useId();
@@ -81,8 +84,8 @@ export function AdminConfigCommitDialog({
     <>
       {stage === "review" ? (
         <DialogShell
-          title={t("configReviewTitle")}
-          intro={t("configReviewIntro")}
+          title={staffCopy ? t("staffReviewTitle") : t("configReviewTitle")}
+          intro={staffCopy ? t("staffReviewIntro") : t("configReviewIntro")}
           titleId={reviewTitleId}
           onClose={onClose}
           busy={pending}
@@ -150,9 +153,11 @@ export function AdminConfigCommitDialog({
                 : t("configReviewReady")}
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              {versioned
-                ? t("configVersionReviewNote", { version: nextVersion ?? 0 })
-                : t("configReviewNote")}
+              {staffCopy
+                ? t("staffReviewNote")
+                : versioned
+                  ? t("configVersionReviewNote", { version: nextVersion ?? 0 })
+                  : t("configReviewNote")}
             </p>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
@@ -168,11 +173,19 @@ export function AdminConfigCommitDialog({
 
       {stage === "final" ? (
         <DialogShell
-          title={versioned ? t("configVersionFinalTitle") : t("configFinalTitle")}
+          title={
+            staffCopy
+              ? t("staffFinalTitle")
+              : versioned
+                ? t("configVersionFinalTitle")
+                : t("configFinalTitle")
+          }
           intro={
-            versioned
-              ? t("configVersionFinalIntro", { version: nextVersion ?? 0 })
-              : t("configFinalIntro")
+            staffCopy
+              ? t("staffFinalIntro")
+              : versioned
+                ? t("configVersionFinalIntro", { version: nextVersion ?? 0 })
+                : t("configFinalIntro")
           }
           titleId={finalTitleId}
           onClose={onClose}
@@ -182,12 +195,34 @@ export function AdminConfigCommitDialog({
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3">
               <div className="flex items-center gap-2 text-sm font-bold text-red-700">
                 <ShieldCheck className="size-4" aria-hidden="true" />
-                {versioned ? t("configVersionFinalWarningTitle") : t("configFinalWarningTitle")}
+                {staffCopy
+                  ? t("staffFinalWarningTitle")
+                  : versioned
+                    ? t("configVersionFinalWarningTitle")
+                    : t("configFinalWarningTitle")}
               </div>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-relaxed text-red-700">
-                <li>{versioned ? t("configVersionFinalWarning1") : t("configFinalWarning1")}</li>
-                <li>{versioned ? t("configVersionFinalWarning2") : t("configFinalWarning2")}</li>
-                <li>{versioned ? t("configVersionFinalWarning3") : t("configFinalWarning3")}</li>
+                <li>
+                  {staffCopy
+                    ? t("staffFinalWarning1")
+                    : versioned
+                      ? t("configVersionFinalWarning1")
+                      : t("configFinalWarning1")}
+                </li>
+                <li>
+                  {staffCopy
+                    ? t("staffFinalWarning2")
+                    : versioned
+                      ? t("configVersionFinalWarning2")
+                      : t("configFinalWarning2")}
+                </li>
+                <li>
+                  {staffCopy
+                    ? t("staffFinalWarning3")
+                    : versioned
+                      ? t("configVersionFinalWarning3")
+                      : t("configFinalWarning3")}
+                </li>
               </ul>
             </div>
 

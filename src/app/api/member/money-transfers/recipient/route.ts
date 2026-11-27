@@ -12,13 +12,14 @@ function errorResponse(code: string, status: number) {
 export async function GET(request: Request) {
   const session = await auth();
   if (!session?.user?.id) return errorResponse("LOGIN_REQUIRED", 401);
+  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   const { searchParams } = new URL(request.url);
   const memberId = normalizeMemberId(searchParams.get("memberId") ?? "");
   if (!memberId) return errorResponse("MEMBER_ID_REQUIRED", 400);
 
   const recipient = await prisma.member.findUnique({
-    where: { memberId },
+    where: { memberId, role: "MEMBER" },
     select: {
       id: true,
       memberId: true,

@@ -1,5 +1,5 @@
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { getLocale, getTranslations } from "next-intl/server";
-import { auth } from "@/auth";
 import { AdminSection, type StatusTone } from "@/components/admin/admin-ui";
 import { redirect } from "@/i18n/navigation";
 import { formatSP } from "@/lib/money";
@@ -15,15 +15,16 @@ import {
 /** Main records content, shared by the tabbed page and the legacy route. */
 export async function SalaryPaymentRecordsBody() {
   const [session, locale, ta] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "salary.view")) redirect({ href: "/admin-login", locale });
 
   await ensureDefaultRankPlan(prisma);
   const [payments, definitions] = await Promise.all([
     prisma.salaryPayment.findMany({
+      where: { member: { role: "MEMBER" } },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       select: {
         id: true,

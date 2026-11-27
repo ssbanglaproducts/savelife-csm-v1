@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { prisma } from "@/lib/prisma";
 import { markPhysicalRewardCollected } from "@/lib/services/rank-rewards";
 
@@ -15,8 +15,8 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
+  const session = await requireAdminApiSession("ranks.manage");
+  if (!session) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 

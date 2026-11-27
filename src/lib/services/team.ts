@@ -128,15 +128,16 @@ export async function getPlacementPath(
     WITH RECURSIVE path("id", "parentId", "depth") AS (
       SELECT "id", "placementParentId", 0
       FROM "Member"
-      WHERE "id" = ${rootId}
+      WHERE "id" = ${rootId} AND "role" = 'MEMBER'
       UNION
       SELECT m."id", m."placementParentId", p."depth" + 1
       FROM "Member" m
       INNER JOIN path p ON m."id" = p."parentId"
+      WHERE m."role" = 'MEMBER'
     )
     SELECT m."id", m."memberId", m."fullName", m."profileImage", m."status", p."depth"
     FROM path p
-    INNER JOIN "Member" m ON m."id" = p."id"
+    INNER JOIN "Member" m ON m."id" = p."id" AND m."role" = 'MEMBER'
     WHERE EXISTS (SELECT 1 FROM path p2 WHERE p2."id" = ${viewerId})
     ORDER BY p."depth" DESC
   `;
@@ -156,11 +157,12 @@ export async function getPlacementDescendantIds(client: Client, rootId: string):
     WITH RECURSIVE tree("id", "depth") AS (
       SELECT "id", 0
       FROM "Member"
-      WHERE "id" = ${rootId}
+      WHERE "id" = ${rootId} AND "role" = 'MEMBER'
       UNION
       SELECT m."id", t."depth" + 1
       FROM "Member" m
       INNER JOIN tree t ON m."placementParentId" = t."id"
+      WHERE m."role" = 'MEMBER'
     )
     SELECT "id" FROM tree WHERE "depth" > 0
   `;
@@ -182,7 +184,7 @@ async function getTeamSourceData(client: Client, rootId: string): Promise<TeamSo
 
   const [members, investments, returns, rewards] = await Promise.all([
     client.member.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, role: "MEMBER" },
       select: { id: true, status: true, createdAt: true },
     }),
     client.investment.findMany({
@@ -307,7 +309,10 @@ export async function getTeamOverview(
   options: { rootMemberId?: string | null; now?: Date } = {},
 ): Promise<TeamOverview | null> {
   const now = options.now ?? new Date();
-  const viewer = await client.member.findUnique({ where: { id: viewerId }, select: personSelect });
+  const viewer = await client.member.findUnique({
+    where: { id: viewerId, role: "MEMBER" },
+    select: personSelect,
+  });
   if (!viewer) return null;
 
   let scope = viewer;
@@ -315,7 +320,7 @@ export async function getTeamOverview(
   const requested = options.rootMemberId?.trim();
   if (requested && requested !== viewer.memberId) {
     const candidate = await client.member.findUnique({
-      where: { memberId: requested },
+      where: { memberId: requested, role: "MEMBER" },
       select: personSelect,
     });
     if (!candidate) return null;
@@ -329,12 +334,12 @@ export async function getTeamOverview(
   const { stats, series, dailyMembers } = summarizeTeam(source, now);
 
   const children = await client.member.findMany({
-    where: { placementParentId: scope.id },
+    where: { placementParentId: scope.id, role: "MEMBER" },
     orderBy: [{ placementSlot: "asc" }, { createdAt: "asc" }],
     select: {
       ...personSelect,
       placementSlot: true,
-      _count: { select: { placementChildren: true } },
+      _count: { select: { placementChildren: { where: { role: "MEMBER" } } } },
     },
   });
 
@@ -368,7 +373,7 @@ export async function getTeamMemberDetails(
   now: Date = new Date(),
 ): Promise<TeamMemberDetails | null> {
   const member = await client.member.findUnique({
-    where: { memberId: memberPublicId },
+    where: { memberId: memberPublicId, role: "MEMBER" },
     select: personSelect,
   });
   if (!member) return null;

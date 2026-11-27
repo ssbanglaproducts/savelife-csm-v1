@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { formatSP, spToPaisa } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { buildDistributionPreview } from "@/lib/services/distribution";
@@ -18,8 +18,8 @@ function errorResponse(code: string, status: number) {
 
 /** Returns the exact recipients and amounts a distribution would credit. */
 export async function POST(request: Request) {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN") {
+  const admin = await requireAdminApiSession("distributions.view");
+  if (!admin) {
     return errorResponse("FORBIDDEN", 403);
   }
 

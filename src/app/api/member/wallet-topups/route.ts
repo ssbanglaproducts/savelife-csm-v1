@@ -29,6 +29,7 @@ function errorResponse(code: string, status: number) {
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) return errorResponse("LOGIN_REQUIRED", 401);
+  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   const requests = await prisma.walletTopUp.findMany({
     where: { memberId: session.user.id },
@@ -59,6 +60,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) return errorResponse("LOGIN_REQUIRED", 401);
+  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   let body: unknown;
   try {

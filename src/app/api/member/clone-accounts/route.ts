@@ -49,6 +49,7 @@ export async function POST(request: Request) {
   if (!user?.id) {
     return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
   }
+  if (user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   let body: unknown;
   try {
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
   try {
     const clone = await prisma.$transaction(async (tx) => {
       const original = await tx.member.findUnique({
-        where: { id: user.id },
+        where: { id: user.id, role: "MEMBER" },
         select: {
           id: true,
           fullName: true,

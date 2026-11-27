@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { UploadError, saveUploadedVideo } from "@/lib/upload-server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
+  const session = await requireAdminApiSession("content.manage");
+  if (!session) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { verifyAdminPassword } from "@/lib/admin-password";
 import { writeAuditLog } from "@/lib/audit";
 import { spToPaisa } from "@/lib/money";
@@ -26,8 +26,8 @@ const schema = z.object({
 class StaleVersionError extends Error {}
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN" || !session.user.id) {
+  const session = await requireAdminApiSession("settings.manage");
+  if (!session) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
 
     await writeAuditLog({
       actorId: session.user.id,
-      actorRole: "ADMIN",
+      actorRole: session.user.role,
       action: "SETTINGS_VERSION_CREATED",
       entityType: "InvestmentSettings",
       entityId: created.id,

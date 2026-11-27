@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { notifyWithdrawalResolved } from "@/lib/services/notification-events";
@@ -21,8 +21,8 @@ const allowedCurrentStatuses = {
 } as const;
 
 export async function PATCH(request: Request) {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN" || !admin.user.id) {
+  const admin = await requireAdminApiSession("withdrawals.manage");
+  if (!admin) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -72,7 +72,7 @@ export async function PATCH(request: Request) {
         }
         await writeAuditLog({
           actorId: admin.user.id,
-          actorRole: "ADMIN",
+          actorRole: admin.user.role,
           action: "PRINCIPAL_WITHDRAWAL_PAID",
           entityType: "Withdrawal",
           entityId: withdrawalId,
@@ -98,7 +98,7 @@ export async function PATCH(request: Request) {
 
     await writeAuditLog({
       actorId: admin.user.id,
-      actorRole: "ADMIN",
+      actorRole: admin.user.role,
       action: "WITHDRAWAL_REVIEWED",
       entityType: "Withdrawal",
       entityId: withdrawalId,

@@ -6,7 +6,7 @@ type FakeMember = {
   memberId: string;
   fullName: string;
   status: string;
-  role?: string;
+  role: string;
   placementParentId: string | null;
   placementSlot: number | null;
   sponsorParentId: string | null;
@@ -16,17 +16,30 @@ type PlacementClient = Parameters<typeof validatePlacementSelection>[0];
 
 function fakeClient(members: FakeMember[]): PlacementClient {
   const byId = new Map(members.map((member) => [member.id, member]));
+  const isMember = (id: string) => byId.get(id)?.role === "MEMBER";
 
   return {
     member: {
-      findUnique: async ({ where }: { where: { id: string } }) => byId.get(where.id) ?? null,
+      findUnique: async ({ where }: { where: { id: string; role?: string } }) => {
+        const member = byId.get(where.id) ?? null;
+        if (!member || (where.role && where.role !== member.role)) return null;
+        return member;
+      },
       findMany: async ({
         where,
       }: {
-        where: { placementParentId?: string | null; sponsorId?: string | null };
+        where: {
+          placementParentId?: string | null;
+          sponsorId?: string | null;
+          role?: string;
+        };
       }) =>
         members
-          .filter((member) => member.placementParentId === where.placementParentId)
+          .filter(
+            (member) =>
+              member.placementParentId === where.placementParentId &&
+              (!where.role || where.role === member.role),
+          )
           .map((member) => ({ ...member })),
     },
     $queryRaw: async (_sql: TemplateStringsArray, ...values: unknown[]) => {
@@ -34,17 +47,23 @@ function fakeClient(members: FakeMember[]): PlacementClient {
       const rootId = String(values[0]);
       const candidateId = String(values[1]);
       const field = sql.includes('"sponsorId"') ? "sponsorParentId" : "placementParentId";
+      if (!isMember(rootId)) return [{ found: false }];
       const queue = [rootId];
       const seen = new Set<string>();
 
       while (queue.length > 0) {
         const current = queue.shift()!;
-        if (current === candidateId) return [{ found: true }];
+        if (current === candidateId) return [{ found: isMember(current) }];
         if (seen.has(current)) continue;
         seen.add(current);
 
         for (const member of members) {
-          if (member[field] === current) queue.push(member.id);
+          if (
+            member[field] === current &&
+            member.role === "MEMBER"
+          ) {
+            queue.push(member.id);
+          }
         }
       }
 
@@ -59,6 +78,7 @@ const members: FakeMember[] = [
     memberId: "SL000010",
     fullName: "Sponsor",
     status: "ACTIVE",
+    role: "MEMBER",
     placementParentId: null,
     placementSlot: null,
     sponsorParentId: null,
@@ -68,6 +88,7 @@ const members: FakeMember[] = [
     memberId: "SL000016",
     fullName: "Placement Parent",
     status: "ACTIVE",
+    role: "MEMBER",
     placementParentId: "s",
     placementSlot: 1,
     sponsorParentId: null,
@@ -77,6 +98,7 @@ const members: FakeMember[] = [
     memberId: "SL000017",
     fullName: "Occupant",
     status: "ACTIVE",
+    role: "MEMBER",
     placementParentId: "f",
     placementSlot: 2,
     sponsorParentId: "s",
@@ -86,6 +108,7 @@ const members: FakeMember[] = [
     memberId: "SL000099",
     fullName: "Unrelated",
     status: "ACTIVE",
+    role: "MEMBER",
     placementParentId: null,
     placementSlot: null,
     sponsorParentId: null,
@@ -146,6 +169,19 @@ describe("placement slots", () => {
       member.id === "f" ? { ...member, role: "ADMIN" } : member,
     );
     const result = await validatePlacementSelection(fakeClient(admin), {
+      sponsorId: "s",
+      placementMemberId: "f",
+      placementSlot: 1,
+    });
+
+    expect(result).toEqual({ ok: false, error: "PLACEMENT_NOT_ELIGIBLE" });
+  });
+
+  it("rejects staff accounts as placement parents", async () => {
+    const staff = members.map((member) =>
+      member.id === "f" ? { ...member, role: "STAFF" } : member,
+    );
+    const result = await validatePlacementSelection(fakeClient(staff), {
       sponsorId: "s",
       placementMemberId: "f",
       placementSlot: 1,

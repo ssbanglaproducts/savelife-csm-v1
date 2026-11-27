@@ -5,7 +5,7 @@ import { queueAuditOutbox } from "@/lib/services/audit-outbox";
 export type AuditInput = {
   /** Null for system-authored actions such as scheduled investment credits. */
   actorId?: string | null;
-  actorRole?: "MEMBER" | "ADMIN" | null;
+  actorRole?: "MEMBER" | "ADMIN" | "STAFF" | null;
   action: string;
   entityType: string;
   entityId?: string;

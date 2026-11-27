@@ -1,6 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { LayoutGrid } from "lucide-react";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { redirect } from "@/i18n/navigation";
 import { AdminPageIntro, AdminSection } from "@/components/admin/admin-ui";
 import {
@@ -13,12 +13,12 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminCategoriesPage() {
   const [session, locale, tn, ta] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "categories.view")) redirect({ href: "/admin-login", locale });
 
   const rows = await prisma.category.findMany({
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],

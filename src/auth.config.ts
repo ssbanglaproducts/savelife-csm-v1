@@ -3,7 +3,7 @@ import type { NextAuthConfig } from "next-auth";
 type Identity = {
   id: string;
   principalId: string;
-  role: "MEMBER" | "ADMIN";
+  role: "MEMBER" | "ADMIN" | "STAFF";
   memberId: string;
   status: "INACTIVE" | "ACTIVE" | "SUSPENDED";
   name?: string | null;

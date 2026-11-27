@@ -56,7 +56,12 @@ const nodeSelect = {
   profileImage: true,
   status: true,
   placementSlot: true,
-  _count: { select: { placementChildren: true, sponsored: true } },
+  _count: {
+    select: {
+      placementChildren: { where: { role: "MEMBER" } },
+      sponsored: { where: { role: "MEMBER" } },
+    },
+  },
 } as const;
 
 /** True when candidateId is rootId or a direct-referral descendant of rootId. */
@@ -68,11 +73,12 @@ export async function isInSponsorSubtree(
   if (rootId === candidateId) return true;
   const rows = await client.$queryRaw<Array<{ found: boolean }>>`
     WITH RECURSIVE tree(id) AS (
-      SELECT "id" FROM "Member" WHERE "id" = ${rootId}
+      SELECT "id" FROM "Member" WHERE "id" = ${rootId} AND "role" = 'MEMBER'
       UNION ALL
       SELECT m."id"
       FROM "Member" m
       INNER JOIN tree t ON m."sponsorId" = t."id"
+      WHERE m."role" = 'MEMBER'
     )
     SELECT EXISTS(SELECT 1 FROM tree WHERE "id" = ${candidateId}) AS found
   `;
@@ -98,7 +104,7 @@ export async function getNetworkChildren(
 ): Promise<NetworkChildren> {
   if (view === "sponsor") {
     const children = await client.member.findMany({
-      where: { sponsorId: nodeId },
+      where: { sponsorId: nodeId, role: "MEMBER" },
       orderBy: { createdAt: "asc" },
       select: nodeSelect,
     });
@@ -106,7 +112,7 @@ export async function getNetworkChildren(
   }
 
   const children = await client.member.findMany({
-    where: { placementParentId: nodeId },
+    where: { placementParentId: nodeId, role: "MEMBER" },
     orderBy: { placementSlot: "asc" },
     select: nodeSelect,
   });
@@ -122,7 +128,7 @@ export async function getNetworkChildren(
 
 export async function getNetworkDetails(client: Client, memberId: string) {
   const member = await client.member.findUnique({
-    where: { id: memberId },
+    where: { id: memberId, role: "MEMBER" },
     select: {
       id: true,
       memberId: true,
@@ -133,9 +139,14 @@ export async function getNetworkDetails(client: Client, memberId: string) {
       placementSlot: true,
       sponsor: { select: { memberId: true, fullName: true } },
       placementParent: { select: { memberId: true, fullName: true } },
-      _count: { select: { sponsored: true, placementChildren: true } },
+      _count: {
+        select: {
+          sponsored: { where: { role: "MEMBER" } },
+          placementChildren: { where: { role: "MEMBER" } },
+        },
+      },
       placementChildren: {
-        where: { placementSlot: { not: null } },
+        where: { placementSlot: { not: null }, role: "MEMBER" },
         select: { placementSlot: true },
       },
     },
@@ -178,7 +189,7 @@ export async function searchNetwork(
   };
 
   const candidates = await client.member.findMany({
-    where: baseWhere,
+    where: { ...baseWhere, role: "MEMBER" },
     take: limit * 4,
     select: nodeSelect,
   });

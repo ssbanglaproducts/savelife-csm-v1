@@ -19,7 +19,7 @@ export function AdminPageIntro({
   actions?: ReactNode;
 }) {
   return (
-    <section className="mesh glass relative overflow-hidden rounded-2xl p-4 sm:rounded-3xl sm:p-8">
+    <section className="mesh glass relative hidden overflow-hidden rounded-2xl p-4 sm:block sm:rounded-3xl sm:p-8">
       <div
         className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-primary/10 blur-3xl"
         aria-hidden="true"

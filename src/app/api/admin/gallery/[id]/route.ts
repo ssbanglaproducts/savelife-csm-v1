@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
@@ -53,8 +53,8 @@ function auditValues(post: ExistingPost): AuditValues {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN" || !session.user.id) {
+  const session = await requireAdminApiSession("content.manage");
+  if (!session) {
     return error("FORBIDDEN", 403);
   }
 
@@ -115,7 +115,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   await writeAuditLog({
     actorId: session.user.id,
-    actorRole: "ADMIN",
+    actorRole: session.user.role,
     action: "GALLERY_POST_UPDATED",
     entityType: "GalleryPost",
     entityId: id,
@@ -127,8 +127,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN" || !session.user.id) {
+  const session = await requireAdminApiSession("content.manage");
+  if (!session) {
     return error("FORBIDDEN", 403);
   }
 
@@ -143,7 +143,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   await writeAuditLog({
     actorId: session.user.id,
-    actorRole: "ADMIN",
+    actorRole: session.user.role,
     action: "GALLERY_POST_DELETED",
     entityType: "GalleryPost",
     entityId: id,

@@ -1,6 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { ReceiptText } from "lucide-react";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { redirect } from "@/i18n/navigation";
 import {
   AdminPageIntro,
@@ -20,13 +20,13 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminDistributionsPage() {
   const [session, locale, tn, ta, tc] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
     getTranslations("common"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "distributions.view")) redirect({ href: "/admin-login", locale });
 
   const distributions = await prisma.profitDistribution.findMany({
     orderBy: { createdAt: "desc" },

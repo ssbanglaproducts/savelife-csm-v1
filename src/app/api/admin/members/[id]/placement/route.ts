@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import {
@@ -18,8 +18,8 @@ const schema = z.object({
 });
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
+  const session = await requireAdminApiSession("members.manage");
+  if (!session) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -41,8 +41,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const member = await tx.member.findUnique({
-        where: { id },
+      const member = await tx.member.findFirst({
+        where: { id, role: "MEMBER" },
         select: {
           id: true,
           memberId: true,
@@ -58,7 +58,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         where: { memberId: placementMemberId.trim().toUpperCase() },
         select: { id: true, memberId: true, status: true, role: true },
       });
-      if (!parent || parent.role === "ADMIN" || parent.status !== "ACTIVE") {
+      if (!parent || parent.role !== "MEMBER" || parent.status !== "ACTIVE") {
         throw new Error("INVALID_PLACEMENT_MOVE");
       }
 
@@ -91,7 +91,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!result.unchanged) {
       await writeAuditLog({
         actorId: session.user.id,
-        actorRole: "ADMIN",
+        actorRole: session.user.role,
         action: "MEMBER_PLACEMENT_MOVED",
         entityType: "Member",
         entityId: id,

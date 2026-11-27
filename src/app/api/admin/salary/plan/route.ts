@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import type { Prisma } from "@/generated/prisma/client";
 import { verifyAdminPassword } from "@/lib/admin-password";
 import { writeAuditLog } from "@/lib/audit";
@@ -84,8 +84,8 @@ function forbidden() {
 }
 
 export async function GET() {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") return forbidden();
+  const session = await requireAdminApiSession("salary.view");
+  if (!session) return forbidden();
 
   const [plan, versions] = await Promise.all([
     getActiveSalaryPlan(prisma),
@@ -111,8 +111,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN" || !session.user.id) return forbidden();
+  const session = await requireAdminApiSession("salary.manage");
+  if (!session) return forbidden();
 
   let body: unknown;
   try {
@@ -252,7 +252,7 @@ export async function POST(request: Request) {
 
     await writeAuditLog({
       actorId: session.user.id,
-      actorRole: "ADMIN",
+      actorRole: session.user.role,
       action: "SALARY_PLAN_VERSION_CREATED",
       entityType: "SalaryPlanVersion",
       entityId: plan.versionId ?? undefined,

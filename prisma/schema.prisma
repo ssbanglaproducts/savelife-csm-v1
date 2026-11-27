@@ -14,6 +14,7 @@ datasource db {
 enum Role {
   MEMBER
   ADMIN
+  STAFF
 }
 
 enum MemberStatus {
@@ -245,6 +246,10 @@ model Member {
   receivedTransfers MemberTransfer[]         @relation("ReceivedMoneyTransfers")
   walletTopUps      WalletTopUp[]
   auditLogs         AuditLog[]
+  staffPermissions  StaffPermissionGrant[]   @relation("StaffPermissionMember")
+  staffGrantsMade   StaffPermissionGrant[]   @relation("StaffPermissionGrantedBy")
+  staffMutations    StaffMutation[]          @relation("StaffMutationActor")
+  staffTargets      StaffMutation[]          @relation("StaffMutationTarget")
   notifications     Notification[]           @relation("MemberNotifications")
   notificationReads NotificationRead[]       @relation("MemberNotificationReads")
 
@@ -1092,6 +1097,38 @@ model SalaryPayment {
 // ---------------------------------------------------------------------------
 // Administration
 // ---------------------------------------------------------------------------
+
+/// Explicit page/action grants for STAFF accounts. ADMIN accounts always have
+/// every permission and therefore have no grant rows.
+model StaffPermissionGrant {
+  id         String   @id @default(cuid())
+  member     Member   @relation("StaffPermissionMember", fields: [memberId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  memberId   String
+  permission String
+  grantedBy  Member?  @relation("StaffPermissionGrantedBy", fields: [grantedById], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  grantedById String?
+  createdAt  DateTime @default(now())
+
+  @@unique([memberId, permission])
+  @@index([grantedById])
+}
+
+/// Request ledger for staff-management mutations. A repeated idempotency key
+/// with the same request hash returns the original success; a different payload
+/// is rejected so a key can never be reused for another change.
+model StaffMutation {
+  id             String   @id @default(cuid())
+  idempotencyKey String   @unique
+  action         String
+  requestHash    String
+  actor          Member   @relation("StaffMutationActor", fields: [actorId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  actorId        String
+  target         Member?  @relation("StaffMutationTarget", fields: [targetId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  targetId       String?
+  createdAt      DateTime @default(now())
+
+  @@index([actorId, createdAt])
+}
 
 model AuditLog {
   id         String   @id @default(cuid())

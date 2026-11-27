@@ -95,7 +95,7 @@ export async function runSalaryDistribution(
           where: {
             isActive: true,
             rankKey: { in: [...enabledRankKeys] },
-            member: { status: "ACTIVE" },
+            member: { status: "ACTIVE", role: "MEMBER" },
           },
           select: {
             id: true,

@@ -1,6 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { ScrollText } from "lucide-react";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { redirect } from "@/i18n/navigation";
 import { AdminPageIntro, formatDate, prettyJson } from "@/components/admin/admin-ui";
 import { AuditTable, type AuditRow } from "@/components/admin/audit-table";
@@ -10,12 +10,12 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminAuditPage() {
   const [session, locale, tn, ta] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "audit.view")) redirect({ href: "/admin-login", locale });
 
   const logs = await prisma.auditLog.findMany({
     orderBy: { createdAt: "desc" },

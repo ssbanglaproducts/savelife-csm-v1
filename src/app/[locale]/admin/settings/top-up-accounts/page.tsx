@@ -1,5 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { AdminSection } from "@/components/admin/admin-ui";
 import { TopUpAccountsForm } from "@/components/admin/top-up-accounts-form";
 import { redirect } from "@/i18n/navigation";
@@ -10,11 +10,11 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminTopUpAccountsSettingsPage() {
   const [session, locale, ta] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("adminPanel"),
   ]);
-  if (!session?.user?.id || session.user.role !== "ADMIN") {
+  if (!session || !hasAdminPermission(session, "topUps.manage")) {
     redirect({ href: "/admin-login", locale });
     return null;
   }

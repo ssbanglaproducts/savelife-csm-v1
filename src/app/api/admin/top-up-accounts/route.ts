@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { verifyAdminPassword } from "@/lib/admin-password";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
@@ -20,14 +20,14 @@ function errorResponse(code: string, status: number) {
 }
 
 export async function GET() {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") return errorResponse("FORBIDDEN", 403);
+  const session = await requireAdminApiSession("topUps.view");
+  if (!session) return errorResponse("FORBIDDEN", 403);
   return NextResponse.json({ accounts: await loadTopUpAccounts(prisma) });
 }
 
 export async function PATCH(request: Request) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN" || !session.user.id) {
+  const session = await requireAdminApiSession("topUps.manage");
+  if (!session) {
     return errorResponse("FORBIDDEN", 403);
   }
 
@@ -58,7 +58,7 @@ export async function PATCH(request: Request) {
 
   await writeAuditLog({
     actorId: session.user.id,
-    actorRole: "ADMIN",
+    actorRole: session.user.role,
     action: "TOP_UP_ACCOUNTS_UPDATED",
     entityType: "SystemSetting",
     entityId: TOP_UP_ACCOUNTS_SETTING_KEY,

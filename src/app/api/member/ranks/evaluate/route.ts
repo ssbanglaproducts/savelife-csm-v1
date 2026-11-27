@@ -11,6 +11,7 @@ export async function POST() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
   }
+  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   try {
     const created = await evaluateMemberRanks(prisma, session.user.id);

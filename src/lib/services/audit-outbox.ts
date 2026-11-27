@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from "../../generated/prisma/client";
 
 export interface AuditOutboxPayload {
   actorId?: string | null;
-  actorRole?: "MEMBER" | "ADMIN" | null;
+  actorRole?: "MEMBER" | "ADMIN" | "STAFF" | null;
   action: string;
   entityType: string;
   entityId?: string;

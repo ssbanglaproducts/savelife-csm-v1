@@ -4,6 +4,7 @@ import {
   createRankPlanVersion,
   DEFAULT_RANK_PLAN,
   RANK_KEYS,
+  evaluateMemberRanks,
   evaluateRankQualification,
   evaluateTeamSales,
   findQualifyingDirectInvestment,
@@ -329,6 +330,19 @@ describe("Independent rank checks and method priority", () => {
     expect(
       selectPrimaryMethod(new Date(at), new Date(at)),
     ).toEqual({ primaryMethod: "DIRECT_SALES", secondaryMethod: "TEAM_SALES" });
+  });
+});
+
+describe("member-only rank evaluation", () => {
+  it("does not evaluate staff accounts", async () => {
+    const client = {
+      member: {
+        findFirst: async ({ where }: { where: { id: string; role?: string } }) =>
+          where.role === "MEMBER" && where.id === "real-member" ? { id: "real-member" } : null,
+      },
+    } as unknown as PrismaClient;
+
+    expect(await evaluateMemberRanks(client, "staff-member")).toEqual([]);
   });
 });
 

@@ -16,7 +16,7 @@ export default function AdminLoginPage() {
   const errorId = `${fieldId}-error`;
   const queryClient = useQueryClient();
 
-  const [memberId, setMemberId] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export default function AdminLoginPage() {
     setError(null);
 
     const result = await signIn("credentials", {
-      memberId: memberId.trim(),
+      email: email.trim(),
       password,
       expectedRole: "ADMIN",
       redirect: false,
@@ -66,20 +66,19 @@ export default function AdminLoginPage() {
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate={false}>
           <div className="space-y-2">
-            <label htmlFor={`${fieldId}-member-id`} className="block text-sm font-semibold">
-              {t("memberId")}
+            <label htmlFor={`${fieldId}-email`} className="block text-sm font-semibold">
+              {t("email")}
             </label>
             <input
-              id={`${fieldId}-member-id`}
-              type="text"
-              name="memberId"
+              id={`${fieldId}-email`}
+              type="email"
+              name="email"
               required
-              value={memberId}
-              onChange={(event) => setMemberId(event.target.value)}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
               autoComplete="username"
-              autoCapitalize="characters"
               spellCheck={false}
-              placeholder={t("memberIdPlaceholder")}
+              placeholder={t("adminEmailPlaceholder")}
               aria-invalid={error ? true : undefined}
               aria-describedby={error ? errorId : undefined}
               className={inputClass}

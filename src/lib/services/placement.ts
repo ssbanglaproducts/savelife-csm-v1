@@ -44,7 +44,7 @@ export async function getPlacementSlots(
   parentId: string,
 ): Promise<PlacementSlotInfo[]> {
   const children = await client.member.findMany({
-    where: { placementParentId: parentId },
+    where: { placementParentId: parentId, role: "MEMBER" },
     orderBy: { placementSlot: "asc" },
     select: {
       id: true,
@@ -84,11 +84,12 @@ export async function isInPlacementSubtree(
 
   const rows = await client.$queryRaw<Array<{ found: boolean }>>`
     WITH RECURSIVE tree(id) AS (
-      SELECT "id" FROM "Member" WHERE "id" = ${rootId}
+      SELECT "id" FROM "Member" WHERE "id" = ${rootId} AND "role" = 'MEMBER'
       UNION ALL
       SELECT m."id"
       FROM "Member" m
       INNER JOIN tree t ON m."placementParentId" = t."id"
+      WHERE m."role" = 'MEMBER'
     )
     SELECT EXISTS(SELECT 1 FROM tree WHERE "id" = ${candidateId}) AS found
   `;
@@ -132,7 +133,7 @@ export async function validatePlacementSelection(
   });
 
   if (!parent) return { ok: false, error: "PLACEMENT_NOT_FOUND" };
-  if (parent.role === "ADMIN") return { ok: false, error: "PLACEMENT_NOT_ELIGIBLE" };
+  if (parent.role !== "MEMBER") return { ok: false, error: "PLACEMENT_NOT_ELIGIBLE" };
   if (parent.status !== "ACTIVE") return { ok: false, error: "PLACEMENT_INACTIVE" };
 
   const inSponsorNetwork = await isInPlacementSubtree(client, sponsorId, parent.id);

@@ -31,6 +31,7 @@ type MemberRecord = {
   memberId: string;
   fullName: string;
   status: MemberStatus;
+  role: string;
 };
 
 type LedgerRecord = {
@@ -127,12 +128,13 @@ class FakePrisma {
     return wallet;
   }
 
-  addMember(id: string, status: MemberStatus): MemberRecord {
+  addMember(id: string, status: MemberStatus, role = "MEMBER"): MemberRecord {
     const member: MemberRecord = {
       id,
       memberId: id.toUpperCase(),
       fullName: `Member ${id}`,
       status,
+      role,
     };
     this.members.push(member);
     return member;
@@ -162,10 +164,12 @@ class FakePrisma {
       where,
       select,
     }: {
-      where: { id: string };
+      where: { id: string; role?: string };
       select?: Data;
     }): Promise<Partial<MemberRecord> | null> => {
-      const found = this.members.find((item) => item.id === where.id);
+      const found = this.members.find(
+        (item) => item.id === where.id && (where.role ?? "MEMBER") === item.role,
+      );
       return found ? selectFields(found, select) : null;
     },
   };
@@ -336,6 +340,26 @@ describe("transferMoneyBetweenMembers", () => {
     expect(
       await transferMoneyBetweenMembers(inactiveSender.db.asClient(), baseInput),
     ).toMatchObject({ applied: false, reason: "INELIGIBLE" });
+  });
+
+  it("does not transfer money to or from staff accounts", async () => {
+    const staffRecipient = new FakePrisma();
+    staffRecipient.addMember("SL1", "ACTIVE");
+    staffRecipient.addMember("SL2", "ACTIVE", "STAFF");
+    staffRecipient.addWallet("SL1", { availablePaisa: spToPaisa("1000") });
+    staffRecipient.addWallet("SL2", { availablePaisa: 0n });
+    expect(
+      await transferMoneyBetweenMembers(staffRecipient.asClient(), baseInput),
+    ).toMatchObject({ applied: false, reason: "NOT_FOUND" });
+
+    const staffSender = new FakePrisma();
+    staffSender.addMember("SL1", "ACTIVE", "STAFF");
+    staffSender.addMember("SL2", "ACTIVE");
+    staffSender.addWallet("SL1", { availablePaisa: spToPaisa("1000") });
+    staffSender.addWallet("SL2", { availablePaisa: 0n });
+    expect(
+      await transferMoneyBetweenMembers(staffSender.asClient(), baseInput),
+    ).toMatchObject({ applied: false, reason: "NOT_FOUND" });
   });
 
   it("rejects insufficient available balance", async () => {

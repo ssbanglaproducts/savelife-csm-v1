@@ -4,7 +4,7 @@ import type { MemberStatus } from "@/lib/viewer";
 /** Live member status; never trust the JWT snapshot for store access rules. */
 export async function getMemberStatus(memberId: string): Promise<MemberStatus | null> {
   const member = await prisma.member.findUnique({
-    where: { id: memberId },
+    where: { id: memberId, role: "MEMBER" },
     select: { status: true },
   });
   return member?.status ?? null;
@@ -21,7 +21,7 @@ export type MemberAccessResult =
  */
 export async function checkMemberCanTransact(memberId: string): Promise<MemberAccessResult> {
   const member = await prisma.member.findUnique({
-    where: { id: memberId },
+    where: { id: memberId, role: "MEMBER" },
     select: { status: true },
   });
 
@@ -38,7 +38,7 @@ export async function checkMemberCanTransact(memberId: string): Promise<MemberAc
  */
 export async function checkMemberCanCheckout(memberId: string): Promise<MemberAccessResult> {
   const member = await prisma.member.findUnique({
-    where: { id: memberId },
+    where: { id: memberId, role: "MEMBER" },
     select: { status: true },
   });
 

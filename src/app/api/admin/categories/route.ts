@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import {
   categoryAuditValues,
@@ -11,8 +11,8 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN") {
+  const admin = await requireAdminApiSession("categories.view");
+  if (!admin) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -40,8 +40,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN" || !admin.user.id) {
+  const admin = await requireAdminApiSession("categories.manage");
+  if (!admin) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
   await writeAuditLog({
     actorId: admin.user.id,
-    actorRole: "ADMIN",
+    actorRole: admin.user.role,
     action: "CATEGORY_CREATED",
     entityType: "Category",
     entityId: category.id,

@@ -422,7 +422,7 @@ async function loadQualificationSource(
   memberId: string,
 ): Promise<RankQualificationSource> {
   const sponsored = await client.member.findMany({
-    where: { sponsorId: memberId },
+    where: { sponsorId: memberId, role: "MEMBER" },
     select: {
       id: true,
       memberId: true,
@@ -456,7 +456,11 @@ async function loadQualificationSource(
   );
 
   const children = await client.member.findMany({
-    where: { placementParentId: memberId, placementSlot: { in: [1, 2, 3] } },
+    where: {
+      placementParentId: memberId,
+      placementSlot: { in: [1, 2, 3] },
+      role: "MEMBER",
+    },
     select: { id: true, placementSlot: true },
   });
 
@@ -474,7 +478,7 @@ async function loadQualificationSource(
     const slot = child.placementSlot as RankSlot;
     const descendantIds = await getPlacementDescendantIds(client, child.id);
     const memberRows = await client.member.findMany({
-      where: { id: { in: [child.id, ...descendantIds] } },
+      where: { id: { in: [child.id, ...descendantIds] }, role: "MEMBER" },
       select: { id: true, memberId: true, fullName: true, profileImage: true },
     });
     for (const row of memberRows) {
@@ -685,6 +689,14 @@ export async function evaluateMemberRanks(
   client: PrismaClient,
   memberId: string,
 ): Promise<AchievementWithPlan[]> {
+  // Rank achievements and their rewards are member-only. A staff or admin
+  // account must never be evaluated even when called from an admin job.
+  const eligible = await client.member.findFirst({
+    where: { id: memberId, role: "MEMBER" },
+    select: { id: true },
+  });
+  if (!eligible) return [];
+
   const salaryPlan = await getActiveSalaryPlan(client);
 
   // Reconcile existing data before evaluating new ranks, including members who
@@ -856,22 +868,31 @@ export async function getRankEvaluationMemberIdsForInvestment(
   });
   if (!investment) return [];
 
-  const ids = new Set<string>([investment.memberId]);
   const member = await client.member.findUnique({
-    where: { id: investment.memberId },
+    where: { id: investment.memberId, role: "MEMBER" },
     select: { sponsorId: true, placementParentId: true },
   });
-  if (member?.sponsorId) ids.add(member.sponsorId);
+  if (!member) return [];
 
-  let parentId = member?.placementParentId ?? null;
+  const ids = new Set<string>([investment.memberId]);
+  if (member.sponsorId) {
+    const sponsor = await client.member.findUnique({
+      where: { id: member.sponsorId, role: "MEMBER" },
+      select: { id: true },
+    });
+    if (sponsor) ids.add(member.sponsorId);
+  }
+
+  let parentId = member.placementParentId;
   let depth = 0;
   while (parentId && depth < 100) {
-    ids.add(parentId);
     const parent = await client.member.findUnique({
-      where: { id: parentId },
+      where: { id: parentId, role: "MEMBER" },
       select: { placementParentId: true },
     });
-    parentId = parent?.placementParentId ?? null;
+    if (!parent) break;
+    ids.add(parentId);
+    parentId = parent.placementParentId;
     depth += 1;
   }
   return [...ids];
@@ -891,7 +912,10 @@ export async function evaluateRanksForInvestment(
 }
 
 export async function evaluateAllMembers(client: PrismaClient): Promise<number> {
-  const members = await client.member.findMany({ select: { id: true } });
+  const members = await client.member.findMany({
+    where: { role: "MEMBER" },
+    select: { id: true },
+  });
   let count = 0;
   for (const member of members) {
     count += (await evaluateMemberRanks(client, member.id)).length;

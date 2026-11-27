@@ -14,6 +14,7 @@ type FakeMember = {
   fullName: string;
   profileImage: string | null;
   status: string;
+  role?: string;
   placementParentId: string | null;
   placementSlot: number | null;
   sponsorId: string | null;
@@ -163,8 +164,12 @@ const rankAchievements: FakeRankAchievement[] = [
   },
 ];
 
-function byId(id: string): FakeMember | undefined {
-  return members.find((member) => member.id === id);
+function byId(id: string, rows: FakeMember[] = members): FakeMember | undefined {
+  return rows.find((member) => member.id === id);
+}
+
+function isMember(member: FakeMember | undefined): boolean {
+  return (member?.role ?? "MEMBER") === "MEMBER";
 }
 
 function person(member: FakeMember) {
@@ -177,13 +182,13 @@ function person(member: FakeMember) {
   };
 }
 
-function descendants(rootId: string): string[] {
+function descendants(rootId: string, rows: FakeMember[] = members): string[] {
   const result: string[] = [];
   const queue = [rootId];
   while (queue.length > 0) {
     const current = queue.shift()!;
-    for (const member of members) {
-      if (member.placementParentId === current) {
+    for (const member of rows) {
+      if (member.placementParentId === current && isMember(member)) {
         result.push(member.id);
         queue.push(member.id);
       }
@@ -192,16 +197,20 @@ function descendants(rootId: string): string[] {
   return result;
 }
 
-function fakeClient() {
+function fakeClient(rows: FakeMember[] = members) {
   const client = {
     member: {
-      findUnique: async ({ where }: { where: { id?: string; memberId?: string } }) => {
+      findUnique: async ({
+        where,
+      }: {
+        where: { id?: string; memberId?: string; role?: string };
+      }) => {
         const member =
-          (where.id ? byId(where.id) : undefined) ??
-          members.find((item) => item.memberId === where.memberId);
-        if (!member) return null;
-        const sponsor = member.sponsorId ? byId(member.sponsorId) : undefined;
-        const parent = member.placementParentId ? byId(member.placementParentId) : undefined;
+          (where.id ? byId(where.id, rows) : undefined) ??
+          rows.find((item) => item.memberId === where.memberId);
+        if (!member || !isMember(member)) return null;
+        const sponsor = member.sponsorId ? byId(member.sponsorId, rows) : undefined;
+        const parent = member.placementParentId ? byId(member.placementParentId, rows) : undefined;
         return {
           ...person(member),
           createdAt: member.createdAt,
@@ -211,34 +220,42 @@ function fakeClient() {
             ? { memberId: parent.memberId, fullName: parent.fullName }
             : null,
           _count: {
-            sponsored: members.filter((item) => item.sponsorId === member.id).length,
-            placementChildren: members.filter((item) => item.placementParentId === member.id).length,
+            sponsored: rows.filter(
+              (item) => item.sponsorId === member.id && isMember(item),
+            ).length,
+            placementChildren: rows.filter(
+              (item) => item.placementParentId === member.id && isMember(item),
+            ).length,
           },
-          placementChildren: members
-            .filter((item) => item.placementParentId === member.id)
+          placementChildren: rows
+            .filter((item) => item.placementParentId === member.id && isMember(item))
             .map((item) => ({ placementSlot: item.placementSlot })),
         };
       },
       findMany: async ({
         where,
       }: {
-        where?: { id?: { in?: string[] }; placementParentId?: string };
+        where?: { id?: { in?: string[] }; placementParentId?: string; role?: string };
       }) => {
+        if (where?.role && where.role !== "MEMBER") return [];
         const ids = where?.id?.in;
         if (ids) {
-          return members
-            .filter((member) => ids.includes(member.id))
+          return rows
+            .filter((member) => ids.includes(member.id) && isMember(member))
             .map((member) => ({ ...person(member), createdAt: member.createdAt }));
         }
         if (where?.placementParentId) {
-          return members
-            .filter((member) => member.placementParentId === where.placementParentId)
+          return rows
+            .filter(
+              (member) =>
+                member.placementParentId === where.placementParentId && isMember(member),
+            )
             .map((member) => ({
               ...person(member),
               placementSlot: member.placementSlot,
               _count: {
-                placementChildren: members.filter(
-                  (item) => item.placementParentId === member.id,
+                placementChildren: rows.filter(
+                  (item) => item.placementParentId === member.id && isMember(item),
                 ).length,
               },
             }));
@@ -283,27 +300,34 @@ function fakeClient() {
       if (sql.includes('ORDER BY p."depth" DESC')) {
         const rootId = String(values[0]);
         const viewerId = String(values[1]);
-        const rows: Array<ReturnType<typeof person> & { depth: number }> = [];
-        let current = byId(rootId);
+        if (!isMember(byId(rootId, rows))) return [];
+        const path: Array<ReturnType<typeof person> & { depth: number }> = [];
+        let current = byId(rootId, rows);
         let depth = 0;
         const seen = new Set<string>();
-        while (current && !seen.has(current.id)) {
+        while (current && isMember(current) && !seen.has(current.id)) {
           seen.add(current.id);
-          rows.push({ ...person(current), depth });
+          path.push({ ...person(current), depth });
           if (current.id === viewerId) {
-            return rows.sort((left, right) => right.depth - left.depth);
+            return path.sort((left, right) => right.depth - left.depth);
           }
-          current = current.placementParentId ? byId(current.placementParentId) : undefined;
+          current = current.placementParentId
+            ? byId(current.placementParentId, rows)
+            : undefined;
           depth += 1;
         }
         return [];
       }
       if (sql.includes('WHERE "depth" > 0')) {
-        return descendants(String(values[0])).map((id) => ({ id }));
+        return descendants(String(values[0]), rows).map((id) => ({ id }));
       }
       const rootId = String(values[0]);
       const candidateId = String(values[1]);
-      return [{ found: descendants(rootId).includes(candidateId) || rootId === candidateId }];
+      return [{
+        found:
+          isMember(byId(rootId, rows)) &&
+          (descendants(rootId, rows).includes(candidateId) || rootId === candidateId),
+      }];
     },
   };
   return client as unknown as Parameters<typeof getTeamOverview>[0];
@@ -333,6 +357,20 @@ describe("team dashboard service", () => {
       occupiedSlots: 2,
       availableSlots: 1,
     });
+  });
+
+  it("excludes staff accounts from team aggregates", async () => {
+    const withStaff = members.map((member) =>
+      member.id === "a1" ? { ...member, role: "STAFF" } : member,
+    );
+    const overview = await getTeamOverview(fakeClient(withStaff), "v", { now });
+
+    expect(overview).not.toBeNull();
+    if (!overview) return;
+    expect(overview.stats.totalMembers).toBe(3);
+    expect(overview.stats.activeMembers).toBe(1);
+    expect(overview.stats.totalInvestmentPaisa).toBe(150_000n);
+    expect(overview.directory.map((row) => row.memberId)).toEqual(["SL000010", "SL000011"]);
   });
 
   it("derives breadcrumbs and scoped stats when drilling into another member", async () => {

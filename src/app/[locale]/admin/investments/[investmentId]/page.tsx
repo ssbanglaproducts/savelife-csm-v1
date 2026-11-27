@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowLeft, Landmark } from "lucide-react";
 import { notFound } from "next/navigation";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { AdminPageIntro, AdminSection } from "@/components/admin/admin-ui";
 import { InvestmentDetail } from "@/components/admin/investment-detail";
 import { buttonVariants } from "@/components/ui/button";
@@ -17,12 +17,12 @@ export default async function AdminInvestmentDetailPage({
   params: Promise<{ investmentId: string }>;
 }) {
   const [session, locale, tn, ta] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "investments.view")) redirect({ href: "/admin-login", locale });
 
   const { investmentId } = await params;
   const rows = await getInvestmentCardRows({ id: investmentId });

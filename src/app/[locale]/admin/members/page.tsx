@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { Users } from "lucide-react";
 import { LedgerEntryType, WalletCategory } from "@/generated/prisma/client";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { redirect } from "@/i18n/navigation";
 import { AdminPageIntro, AdminSection, formatDate } from "@/components/admin/admin-ui";
 import { MemberTable, type MemberRow } from "@/components/admin/member-table";
@@ -35,15 +35,16 @@ const REWARD_CREDIT_TYPES = [
 
 export default async function AdminMembersPage() {
   const [session, locale, tn, ta, tm] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
     getTranslations("memberPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "members.view")) redirect({ href: "/admin-login", locale });
 
   const members = await prisma.member.findMany({
+    where: { role: "MEMBER" },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -62,7 +63,11 @@ export default async function AdminMembersPage() {
   const [uplineRows, rewardRows, rankSummaries, investedRows, earnedRows, walletRows] =
     await Promise.all([
       prisma.upline.findMany({
-        where: { uplineId: { in: memberIds }, level: { in: [1, 2, 3] } },
+        where: {
+          uplineId: { in: memberIds },
+          level: { in: [1, 2, 3] },
+          member: { role: "MEMBER" },
+        },
         select: {
           uplineId: true,
           level: true,

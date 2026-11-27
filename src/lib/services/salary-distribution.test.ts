@@ -9,6 +9,7 @@ type MemberRow = {
   id: string;
   fullName: string;
   status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+  role: string;
 };
 
 type EntitlementRow = {
@@ -110,11 +111,13 @@ class FakeSalaryClient {
     rankSortOrder: number,
     weeksPaid: number,
     status: MemberRow["status"],
+    role = "MEMBER",
   ): void {
     const member: MemberRow = {
       id: memberId,
       fullName: `Member ${memberId}`,
       status,
+      role,
     };
     this.members.push(member);
     this.entitlements.push({
@@ -181,12 +184,17 @@ class FakeSalaryClient {
   };
 
   salaryEntitlement = {
-    findMany: async ({ where }: { where: { rankKey: { in: string[] }; member: { status: string } } }) =>
+    findMany: async ({
+      where,
+    }: {
+      where: { rankKey: { in: string[] }; member: { status: string; role?: string } };
+    }) =>
       this.entitlements
         .filter(
           (row) =>
             where.rankKey.in.includes(row.rankKey) &&
-            row.member.status === where.member.status,
+            row.member.status === where.member.status &&
+            (where.member.role ?? "MEMBER") === row.member.role,
         )
         .map((row) => ({
           id: row.id,
@@ -252,6 +260,7 @@ function seedEligibleMembers(db: FakeSalaryClient): void {
   db.addEntitlement("ent-r2-a", "active-a", "R2", 2, 0, "ACTIVE");
   db.addEntitlement("ent-r2-b", "active-b", "R2", 2, 0, "ACTIVE");
   db.addEntitlement("ent-r2-inactive", "inactive", "R2", 2, 0, "INACTIVE");
+  db.addEntitlement("ent-r2-staff", "staff", "R2", 2, 0, "ACTIVE", "STAFF");
   db.addEntitlement("ent-r2-complete", "completed", "R2", 2, 12, "ACTIVE");
   db.addEntitlement("ent-r9-a", "active-r9", "R9", 9, 0, "ACTIVE");
 }
@@ -285,6 +294,7 @@ describe("weekly salary distribution", () => {
       spToPaisa("5000"),
     );
     expect(db.wallets.find((row) => row.memberId === "inactive")).toBeUndefined();
+    expect(db.wallets.find((row) => row.memberId === "staff")).toBeUndefined();
     expect(db.wallets.find((row) => row.memberId === "completed")).toBeUndefined();
 
     expect(db.ledgers).toHaveLength(3);

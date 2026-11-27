@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { verifyAdminPassword } from "@/lib/admin-password";
 import type { Prisma } from "@/generated/prisma/client";
 import { buildRankPlanDiff } from "@/lib/rank-plan-diff";
@@ -62,8 +62,8 @@ const planInclude = {
 } satisfies Prisma.RankPlanVersionInclude;
 
 export async function GET() {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
+  const session = await requireAdminApiSession("ranks.view");
+  if (!session) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -75,6 +75,7 @@ export async function GET() {
       include: planInclude,
     }),
     prisma.rankAchievement.findMany({
+      where: { member: { role: "MEMBER" } },
       orderBy: { achievedAt: "desc" },
       include: {
         member: { select: { memberId: true, fullName: true } },
@@ -103,8 +104,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN" || !session.user.id) {
+  const session = await requireAdminApiSession("ranks.manage");
+  if (!session) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 

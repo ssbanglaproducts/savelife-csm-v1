@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { prisma } from "@/lib/prisma";
 import {
   loadRoiOverview,
@@ -20,8 +20,8 @@ function integerParam(value: string | undefined): number | undefined {
 }
 
 export async function GET(request: Request) {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN") {
+  const admin = await requireAdminApiSession("roiCommission.view");
+  if (!admin) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 

@@ -32,6 +32,7 @@ export async function POST(request: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "LOGIN_REQUIRED" }, { status: 401 });
   }
+  if (session.user.role !== "MEMBER") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
   let body: unknown;
   try {
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
   const errors: string[] = [];
   const sponsorError = getSponsorRegistrationError(sponsor);
   if (sponsorError) errors.push(sponsorError);
-  if (placement.role === "ADMIN") errors.push("PLACEMENT_NOT_ELIGIBLE");
+  if (placement.role !== "MEMBER") errors.push("PLACEMENT_NOT_ELIGIBLE");
   else if (placement.status !== "ACTIVE") errors.push("PLACEMENT_INACTIVE");
   if (!(await isInPlacementSubtree(prisma, sponsor.id, placement.id))) {
     errors.push("PLACEMENT_OUTSIDE_SPONSOR_NETWORK");

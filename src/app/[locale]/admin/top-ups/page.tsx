@@ -1,6 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { Wallet } from "lucide-react";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import {
   AdminPageIntro,
   AdminSection,
@@ -16,14 +16,15 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminTopUpsPage() {
   const [session, locale, tn, ta] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "topUps.view")) redirect({ href: "/admin-login", locale });
 
   const requests = await prisma.walletTopUp.findMany({
+    where: { member: { role: "MEMBER" } },
     orderBy: { createdAt: "desc" },
     take: 200,
     include: {

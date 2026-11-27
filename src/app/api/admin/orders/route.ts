@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { notifyOrderStatus } from "@/lib/services/notification-events";
@@ -40,8 +40,7 @@ const schema = z.object({
 });
 
 async function isAdmin() {
-  const session = await auth();
-  return session?.user?.role === "ADMIN" ? session : null;
+  return requireAdminApiSession("orders.manage");
 }
 
 export async function PATCH(request: Request) {
@@ -193,7 +192,7 @@ export async function PATCH(request: Request) {
 
     await writeAuditLog({
       actorId: admin.user.id,
-      actorRole: "ADMIN",
+      actorRole: admin.user.role,
       action: status === "PICKED_UP" ? "ORDER_PICKED_UP" : "ORDER_STATUS_UPDATED",
       entityType: "Order",
       entityId: result.order.id,

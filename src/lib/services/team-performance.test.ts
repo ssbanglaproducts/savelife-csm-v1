@@ -39,25 +39,39 @@ describe("genealogy tree", () => {
     fullName: string;
     profileImage: string | null;
     status: string;
+    role?: string;
     placementSlot: number | null;
     placementParentId: string | null;
   };
 
-  function fakeGenealogyClient(): PrismaClient {
+  function fakeGenealogyClient(staffIds: readonly string[] = []): PrismaClient {
     const rows = new Map<string, MemberRow>([
       ["root", { id: "root", memberId: "SLROOT", fullName: "Root", profileImage: null, status: "ACTIVE", placementSlot: null, placementParentId: null }],
       ["a", { id: "a", memberId: "SLA", fullName: "Leg A", profileImage: null, status: "ACTIVE", placementSlot: 1, placementParentId: "root" }],
       ["a1", { id: "a1", memberId: "SLA1", fullName: "A1", profileImage: null, status: "ACTIVE", placementSlot: 1, placementParentId: "a" }],
       ["a2", { id: "a2", memberId: "SLA2", fullName: "A2", profileImage: null, status: "INACTIVE", placementSlot: 2, placementParentId: "a" }],
     ]);
+    for (const id of staffIds) {
+      const row = rows.get(id);
+      if (row) row.role = "STAFF";
+    }
 
     return {
       $queryRaw: async () => [{ found: true }],
       member: {
-        findUnique: async ({ where }: { where: { id: string } }) => rows.get(where.id) ?? null,
-        findMany: async ({ where }: { where: { placementParentId: string } }) =>
+        findUnique: async ({ where }: { where: { id: string; role?: string } }) => {
+          const row = rows.get(where.id);
+          if (!row) return null;
+          if ((where.role ?? "MEMBER") !== (row.role ?? "MEMBER")) return null;
+          return row;
+        },
+        findMany: async ({ where }: { where: { placementParentId: string; role?: string } }) =>
           [...rows.values()]
-            .filter((row) => row.placementParentId === where.placementParentId)
+            .filter(
+              (row) =>
+                row.placementParentId === where.placementParentId &&
+                (where.role ?? "MEMBER") === (row.role ?? "MEMBER"),
+            )
             .sort((left, right) => (left.placementSlot ?? 0) - (right.placementSlot ?? 0)),
       },
       rankAchievement: { findMany: async () => [] },
@@ -82,5 +96,11 @@ describe("genealogy tree", () => {
     const view = await getGenealogyView(fakeGenealogyClient(), "viewer", "root", 1);
 
     expect(view?.slots[0]?.member?.slots).toHaveLength(0);
+  });
+
+  it("hides staff-only genealogy targets", async () => {
+    const view = await getGenealogyView(fakeGenealogyClient(["root"]), "viewer", "root");
+
+    expect(view).toBeNull();
   });
 });

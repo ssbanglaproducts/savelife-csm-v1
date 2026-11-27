@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/services/errors";
@@ -20,8 +20,8 @@ function errorResponse(code: string, status: number) {
 }
 
 export async function POST(request: Request) {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN" || !admin.user.id) {
+  const admin = await requireAdminApiSession("investments.review");
+  if (!admin) {
     return errorResponse("FORBIDDEN", 403);
   }
 
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
 
     await writeAuditLog({
       actorId: admin.user.id,
-      actorRole: "ADMIN",
+      actorRole: admin.user.role,
       action: `INVESTMENT_${action}`,
       entityType: action === "REVERSE_INSTALLMENT" ? "InvestmentInstallment" : "Investment",
       entityId: entityId ?? undefined,

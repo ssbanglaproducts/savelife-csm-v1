@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import { LedgerEntryType as LedgerType, WalletCategory as Category } from "@/generated/prisma/enums";
 import { formatSP, spToPaisa } from "@/lib/money";
@@ -24,8 +24,8 @@ const schema = z.object({
 });
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
+  const session = await requireAdminApiSession("members.manage");
+  if (!session) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -50,8 +50,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Please check the amount" }, { status: 400 });
   }
 
-  const existing = await prisma.member.findUnique({
-    where: { id },
+  const existing = await prisma.member.findFirst({
+    where: { id, role: "MEMBER" },
     select: { memberId: true },
   });
   if (!existing) {
@@ -103,7 +103,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   await writeAuditLog({
     actorId: session.user.id,
-    actorRole: "ADMIN",
+    actorRole: session.user.role,
     action: "MEMBER_TOP_UP",
     entityType: "Member",
     entityId: id,

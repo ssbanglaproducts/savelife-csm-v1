@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { notifyStatusChanged } from "@/lib/services/notification-events";
@@ -13,8 +13,8 @@ const schema = z.object({
 });
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
+  const session = await requireAdminApiSession("members.manage");
+  if (!session) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
@@ -38,8 +38,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "NOTE_REQUIRED" }, { status: 400 });
   }
 
-  const existing = await prisma.member.findUnique({
-    where: { id },
+  const existing = await prisma.member.findFirst({
+    where: { id, role: "MEMBER" },
     select: { status: true, deactivationNote: true },
   });
   if (!existing) {
@@ -59,7 +59,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   await writeAuditLog({
     actorId: session.user.id,
-    actorRole: "ADMIN",
+    actorRole: session.user.role,
     action:
       action === "DEACTIVATE"
         ? "MEMBER_DEACTIVATED"

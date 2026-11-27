@@ -1,7 +1,7 @@
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
-import { auth } from "@/auth";
 import { AdminSection, type StatusTone } from "@/components/admin/admin-ui";
 import {
   SalaryTreasuryMemberList,
@@ -35,12 +35,12 @@ function memberStateTone(state: SalaryTreasuryMemberState): StatusTone {
 
 export async function AdminTreasuryMembersContent({ rankKey }: { rankKey: string }) {
   const [session, locale, tn, ta] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "ranks.view")) redirect({ href: "/admin-login", locale });
 
   if (!isSalaryRankKey(rankKey)) notFound();
 
@@ -60,7 +60,7 @@ export async function AdminTreasuryMembersContent({ rankKey }: { rankKey: string
       select: { badgeImageUrl: true },
     }),
     prisma.salaryEntitlement.findMany({
-      where: { rankKey },
+      where: { rankKey, member: { role: "MEMBER" } },
       select: {
         id: true,
         memberId: true,

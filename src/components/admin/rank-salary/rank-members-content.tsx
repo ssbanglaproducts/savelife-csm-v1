@@ -1,5 +1,5 @@
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { getLocale } from "next-intl/server";
-import { auth } from "@/auth";
 import { redirect } from "@/i18n/navigation";
 import { prisma } from "@/lib/prisma";
 import { resolveRankBadgeImageUrl } from "@/lib/rank-art";
@@ -37,13 +37,14 @@ function isHigher(candidate: Achievement, current: Achievement | null): boolean 
 }
 
 export async function RankMembersContent({ rankKey }: { rankKey?: SalaryRankKey } = {}) {
-  const [session, locale] = await Promise.all([auth(), getLocale()]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  const [session, locale] = await Promise.all([getAdminAccess(), getLocale()]);
+  if (!session || !hasAdminPermission(session, "ranks.view")) redirect({ href: "/admin-login", locale });
 
   await ensureDefaultRankPlan(prisma);
   const salaryPlan = await getActiveSalaryPlan(prisma);
   const [members, definitions] = await Promise.all([
     prisma.member.findMany({
+      where: { role: "MEMBER" },
       orderBy: { memberId: "asc" },
       select: {
         id: true,

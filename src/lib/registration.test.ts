@@ -17,6 +17,12 @@ describe("registration sponsor validation", () => {
     );
   });
 
+  it("rejects staff accounts as sponsors", () => {
+    expect(getSponsorRegistrationError({ status: "ACTIVE", role: "STAFF" })).toBe(
+      "SPONSOR_NOT_ELIGIBLE",
+    );
+  });
+
   it("rejects inactive and suspended sponsors", () => {
     expect(getSponsorRegistrationError({ status: "INACTIVE" })).toBe("SPONSOR_INACTIVE");
     expect(getSponsorRegistrationError({ status: "SUSPENDED" })).toBe("SPONSOR_INACTIVE");

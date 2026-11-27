@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { History, Trophy, Users, Wallet } from "lucide-react";
 import { AdminPageIntro } from "@/components/admin/admin-ui";
 import { RankPlanBody } from "@/components/admin/rank-plan-content";
 import { RankMembersContent } from "@/components/admin/rank-salary/rank-members-content";
 import { SalaryTreasuriesBody } from "@/components/admin/rank-salary/salary-sections";
 import { RankPlanHistoryBody } from "@/components/admin/rank-plan-history-content";
-import { Link } from "@/i18n/navigation";
+import { Link, redirect } from "@/i18n/navigation";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -28,11 +29,16 @@ export default async function AdminRanksPage({
 }: {
   searchParams: Promise<{ [key: string]: QueryValue }>;
 }) {
-  const [query, tn, ta] = await Promise.all([
+  const [query, access, locale, tn, ta] = await Promise.all([
     searchParams,
+    getAdminAccess(),
+    getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
+  if (!access || !hasAdminPermission(access, "ranks.view")) {
+    redirect({ href: "/admin-login", locale });
+  }
 
   const requested = first(query.tab);
   const tab: RankTab =

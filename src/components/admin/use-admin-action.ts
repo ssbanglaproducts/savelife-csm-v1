@@ -24,6 +24,14 @@ const ADMIN_ERROR_KEYS = {
   TPIN_MISMATCH: "resetTpinMismatch",
   INVALID_TPIN: "resetTpinMismatch",
   TPIN_UNCHANGED: "resetTpinUnchanged",
+  DUPLICATE_EMAIL: "staffDuplicateEmail",
+  SELF_LOCKOUT: "staffSelfLockout",
+  LAST_SUPER_ADMIN: "staffLastAdmin",
+  ADMIN_PROTECTED: "staffAdminProtected",
+  PERMISSION_ESCALATION: "staffPermissionEscalation",
+  STAFF_MUTATION_FAILED: "staffMutationFailed",
+  TARGET_NOT_FOUND: "adminErrorInvalidRequest",
+  INVALID_EMAIL: "staffInvalidEmail",
   "Please check the amount": "amountRequired",
 } as const;
 

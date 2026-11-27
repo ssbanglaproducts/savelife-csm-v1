@@ -1,7 +1,7 @@
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import Image from "next/image";
 import { ArrowLeft, History } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
-import { auth } from "@/auth";
 import {
   AdminPageIntro,
   AdminSection,
@@ -32,12 +32,12 @@ const backLinkClass = cn(buttonVariants({ variant: "outline", size: "sm" }), "h-
 /** Main rank history content, shared by the tabbed page and the legacy route. */
 export async function RankPlanHistoryBody() {
   const [session, locale, ta, tm] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("adminPanel"),
     getTranslations("memberPanel"),
   ]);
-  if (!session?.user?.id || session.user.role !== "ADMIN") {
+  if (!session || !hasAdminPermission(session, "ranks.view")) {
     redirect({ href: "/admin-login", locale });
     return null;
   }
@@ -52,6 +52,7 @@ export async function RankPlanHistoryBody() {
       },
     }),
     prisma.rankAchievement.findMany({
+      where: { member: { role: "MEMBER" } },
       orderBy: { achievedAt: "desc" },
       include: {
         member: { select: { memberId: true, fullName: true } },

@@ -1,6 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { Wallet } from "lucide-react";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { redirect } from "@/i18n/navigation";
 import {
   AdminPageIntro,
@@ -23,15 +23,16 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminWithdrawalsPage() {
   const [session, locale, tn, ta, tc] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
     getTranslations("common"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "withdrawals.view")) redirect({ href: "/admin-login", locale });
 
   const withdrawals = await prisma.withdrawal.findMany({
+    where: { member: { role: "MEMBER" } },
     orderBy: { requestedAt: "desc" },
     include: {
       member: { select: { fullName: true, email: true } },

@@ -42,6 +42,7 @@ function errorResponse(code: string, status: number) {
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) return errorResponse("LOGIN_REQUIRED", 401);
+  if (session.user.role !== "MEMBER") return errorResponse("FORBIDDEN", 403);
 
   const blocked = await rejectInactiveCartAccess();
   if (blocked) return blocked;
@@ -120,8 +121,8 @@ export async function POST(request: Request) {
         if (claimed.count === 0) throw new Error("INSUFFICIENT_STOCK");
       }
 
-      const member = await tx.member.findUnique({
-        where: { id: session.user.id },
+      const member = await tx.member.findFirst({
+        where: { id: session.user.id, role: "MEMBER" },
         select: { status: true },
       });
       if (!member) throw new Error("MEMBER_NOT_FOUND");

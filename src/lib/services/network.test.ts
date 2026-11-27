@@ -4,6 +4,7 @@ import { isInSponsorSubtree } from "./network";
 
 type FakeMember = {
   id: string;
+  role?: string;
   placementParentId: string | null;
   sponsorParentId: string | null;
 };
@@ -11,23 +12,29 @@ type FakeMember = {
 type SubtreeClient = Parameters<typeof isInPlacementSubtree>[0];
 
 function fakeClient(members: FakeMember[]): SubtreeClient {
+  const byId = new Map(members.map((member) => [member.id, member]));
+  const isMember = (id: string) => (byId.get(id)?.role ?? "MEMBER") === "MEMBER";
+
   return {
     $queryRaw: async (_sql: TemplateStringsArray, ...values: unknown[]) => {
       const sql = _sql.join("");
       const rootId = String(values[0]);
       const candidateId = String(values[1]);
       const field = sql.includes('"sponsorId"') ? "sponsorParentId" : "placementParentId";
+      if (!isMember(rootId)) return [{ found: false }];
       const queue = [rootId];
       const seen = new Set<string>();
 
       while (queue.length > 0) {
         const current = queue.shift()!;
-        if (current === candidateId) return [{ found: true }];
+        if (current === candidateId) return [{ found: isMember(current) }];
         if (seen.has(current)) continue;
         seen.add(current);
 
         for (const member of members) {
-          if (member[field] === current) queue.push(member.id);
+          if (member[field] === current && (member.role ?? "MEMBER") === "MEMBER") {
+            queue.push(member.id);
+          }
         }
       }
 
@@ -62,5 +69,15 @@ describe("separate sponsor and placement trees", () => {
     const client = fakeClient(deep);
 
     expect(await isInPlacementSubtree(client, "a", "d3")).toBe(true);
+  });
+
+  it("excludes staff accounts from both trees", async () => {
+    const withStaff = members.map((member) =>
+      member.id === "h" ? { ...member, role: "STAFF" } : member,
+    );
+    const client = fakeClient(withStaff);
+
+    expect(await isInSponsorSubtree(client, "c", "h")).toBe(false);
+    expect(await isInPlacementSubtree(client, "f", "h")).toBe(false);
   });
 });

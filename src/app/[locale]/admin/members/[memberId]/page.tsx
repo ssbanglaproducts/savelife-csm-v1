@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowLeft, Users } from "lucide-react";
 import { notFound } from "next/navigation";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import {
   AdminPageIntro,
   AdminSection,
@@ -41,23 +41,24 @@ export default async function AdminMemberDetailPage({
   params: Promise<{ memberId: string }>;
 }) {
   const [session, locale, tn, ta, tc, tm] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
     getTranslations("common"),
     getTranslations("memberPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "members.view")) redirect({ href: "/admin-login", locale });
 
   const { memberId } = await params;
-  const member = await prisma.member.findUnique({
-    where: { memberId },
+  const member = await prisma.member.findFirst({
+    where: { memberId, role: "MEMBER" },
     include: {
       wallet: true,
-      sponsor: { select: { id: true, memberId: true, fullName: true } },
-      placementParent: { select: { id: true, memberId: true, fullName: true } },
+      sponsor: { select: { id: true, memberId: true, fullName: true, role: true } },
+      placementParent: { select: { id: true, memberId: true, fullName: true, role: true } },
       uplines: {
+        where: { level: { in: [1, 2, 3] }, upline: { role: "MEMBER" } },
         orderBy: { level: "asc" },
         include: { upline: { select: { id: true, memberId: true, fullName: true } } },
       },
@@ -111,10 +112,18 @@ export default async function AdminMemberDetailPage({
   });
   if (!member) notFound();
 
+  const sponsor = member.sponsor?.role === "MEMBER" ? member.sponsor : null;
+  const placementParent =
+    member.placementParent?.role === "MEMBER" ? member.placementParent : null;
+
   const [rankSummary, uplineRows, rewardRows] = await Promise.all([
     getMemberRankSummaries(prisma, [member.id]),
     prisma.upline.findMany({
-      where: { uplineId: member.id, level: { in: [1, 2, 3] } },
+      where: {
+        uplineId: member.id,
+        level: { in: [1, 2, 3] },
+        member: { role: "MEMBER" },
+      },
       select: {
         level: true,
         member: { select: { investments: { select: { amountPaisa: true } } } },
@@ -260,14 +269,18 @@ export default async function AdminMemberDetailPage({
             />
             <DetailField
               label={ta("role")}
-              value={member.role === "ADMIN" ? ta("roleAdmin") : ta("roleMember")}
+              value={
+                member.role === "ADMIN"
+                  ? ta("roleAdmin")
+                  : member.role === "STAFF"
+                    ? ta("roleStaff")
+                    : ta("roleMember")
+              }
             />
             <DetailField
               label={ta("sponsor")}
               value={
-                member.sponsor
-                  ? `${member.sponsor.fullName} (${member.sponsor.memberId})`
-                  : "—"
+                sponsor ? `${sponsor.fullName} (${sponsor.memberId})` : "—"
               }
             />
             <DetailField
@@ -308,7 +321,7 @@ export default async function AdminMemberDetailPage({
         actions={
           <PlacementMoveForm
             memberId={member.id}
-            currentParentId={member.placementParent?.memberId ?? null}
+            currentParentId={placementParent?.memberId ?? null}
             currentSlot={member.placementSlot}
           />
         }
@@ -318,8 +331,8 @@ export default async function AdminMemberDetailPage({
             <DetailField
               label={ta("placementParent")}
               value={
-                member.placementParent
-                  ? `${member.placementParent.fullName} (${member.placementParent.memberId})`
+                placementParent
+                  ? `${placementParent.fullName} (${placementParent.memberId})`
                   : "—"
               }
             />

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { notifyTopUpRejected } from "@/lib/services/notification-events";
@@ -19,15 +19,18 @@ function errorResponse(code: string, status: number) {
 }
 
 export async function GET(request: Request) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN" || !session.user.id) {
+  const session = await requireAdminApiSession("topUps.view");
+  if (!session) {
     return errorResponse("FORBIDDEN", 403);
   }
 
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
   const requests = await prisma.walletTopUp.findMany({
-    where: status === "PENDING" ? { status: "PENDING" } : {},
+    where: {
+      member: { role: "MEMBER" },
+      ...(status === "PENDING" ? { status: "PENDING" } : {}),
+    },
     orderBy: { createdAt: "desc" },
     take: 100,
     include: {
@@ -48,8 +51,8 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN" || !session.user.id) {
+  const session = await requireAdminApiSession("topUps.manage");
+  if (!session) {
     return errorResponse("FORBIDDEN", 403);
   }
 
@@ -74,7 +77,7 @@ export async function PATCH(request: Request) {
 
     await writeAuditLog({
       actorId: session.user.id,
-      actorRole: "ADMIN",
+      actorRole: session.user.role,
       action: "WALLET_TOP_UP_APPROVED",
       entityType: "WalletTopUp",
       entityId: parsed.data.requestId,
@@ -108,7 +111,7 @@ export async function PATCH(request: Request) {
 
   await writeAuditLog({
     actorId: session.user.id,
-    actorRole: "ADMIN",
+    actorRole: session.user.role,
     action: "WALLET_TOP_UP_REJECTED",
     entityType: "WalletTopUp",
     entityId: parsed.data.requestId,

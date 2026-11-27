@@ -3,6 +3,7 @@ import { spToPaisa } from "../money";
 import {
   DEFAULT_ROI_RATE_CONFIG,
   calculateRoiCommissions,
+  loadRoiSponsorIndex,
   normalizeRoiRatesBps,
   parseRoiRatesSetting,
   resolveSponsorChain,
@@ -97,6 +98,20 @@ describe("ROI sponsor chain", () => {
       { beneficiaryId: "a", level: 1 },
       { beneficiaryId: "b", level: 2 },
     ]);
+  });
+
+  it("loads only member accounts into the sponsor index", async () => {
+    const rows = [node("m1", null), node("staff", null, { role: "STAFF" })];
+    const client = {
+      member: {
+        findMany: async ({ where }: { where?: { role?: string } }) =>
+          rows.filter((row) => (where?.role ?? "MEMBER") === ((row as { role?: string }).role ?? "MEMBER")),
+      },
+    } as unknown as Parameters<typeof loadRoiSponsorIndex>[0];
+
+    const index = await loadRoiSponsorIndex(client);
+
+    expect([...index.keys()]).toEqual(["m1"]);
   });
 });
 

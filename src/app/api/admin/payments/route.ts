@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireAdminApiSession } from "@/lib/admin-access";
 import { writeAuditLog } from "@/lib/audit";
 import {
   LedgerEntryType as LedgerType,
@@ -35,8 +35,8 @@ function errorResponse(code: string, status: number) {
 }
 
 export async function PATCH(request: Request) {
-  const admin = await auth();
-  if (admin?.user?.role !== "ADMIN" || !admin.user.id) {
+  const admin = await requireAdminApiSession("investments.review");
+  if (!admin) {
     return errorResponse("FORBIDDEN", 403);
   }
 
@@ -203,7 +203,11 @@ export async function PATCH(request: Request) {
           salaryFundingPaisa.value = salaryFunding.totalPaisa;
 
           const uplineRows = await tx.upline.findMany({
-            where: { memberId: investment.memberId, level: { in: [1, 2, 3] } },
+            where: {
+              memberId: investment.memberId,
+              level: { in: [1, 2, 3] },
+              upline: { role: "MEMBER" },
+            },
             orderBy: { level: "asc" },
             select: { uplineId: true, level: true },
           });
@@ -276,7 +280,7 @@ export async function PATCH(request: Request) {
         console.error("Affiliate reward crediting failed", error);
         await writeAuditLog({
           actorId: admin.user.id,
-          actorRole: "ADMIN",
+          actorRole: admin.user.role,
           action: "AFFILIATE_REWARD_CREDIT_FAILED",
           entityType: "Investment",
           entityId: result.activatedInvestmentId,
@@ -320,7 +324,7 @@ export async function PATCH(request: Request) {
         console.error("Rank evaluation failed after investment approval", error);
         await writeAuditLog({
           actorId: admin.user.id,
-          actorRole: "ADMIN",
+          actorRole: admin.user.role,
           action: "RANK_EVALUATION_FAILED",
           entityType: "Investment",
           entityId: result.activatedInvestmentId,
@@ -353,7 +357,7 @@ export async function PATCH(request: Request) {
 
     await writeAuditLog({
       actorId: admin.user.id,
-      actorRole: "ADMIN",
+      actorRole: admin.user.role,
       action: "PAYMENT_PROOF_REVIEWED",
       entityType: "PaymentProof",
       entityId: result.proof.id,

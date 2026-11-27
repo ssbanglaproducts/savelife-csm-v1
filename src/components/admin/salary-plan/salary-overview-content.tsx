@@ -1,6 +1,6 @@
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { CalendarDays } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
-import { auth } from "@/auth";
 import {
   AdminPageIntro,
   AdminSection,
@@ -28,12 +28,12 @@ const planPageLink = cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9
 /** Main salary overview content, shared by the tabbed page and the legacy route. */
 export async function SalaryOverviewBody() {
   const [session, locale, ta, tc] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("adminPanel"),
     getTranslations("common"),
   ]);
-  if (!session?.user?.id || session.user.role !== "ADMIN") {
+  if (!session || !hasAdminPermission(session, "salary.view")) {
     redirect({ href: "/admin-login", locale });
     return null;
   }

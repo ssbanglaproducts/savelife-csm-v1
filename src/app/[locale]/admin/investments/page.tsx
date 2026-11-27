@@ -1,6 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { Landmark } from "lucide-react";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { redirect } from "@/i18n/navigation";
 import { AdminPageIntro, AdminSection } from "@/components/admin/admin-ui";
 import { InvestmentCards } from "@/components/admin/investment-cards";
@@ -14,13 +14,13 @@ export default async function AdminInvestmentsPage({
   searchParams: Promise<{ proof?: string | string[] | undefined }>;
 }) {
   const [session, locale, tn, ta, query] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
     searchParams,
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "investments.view")) redirect({ href: "/admin-login", locale });
 
   const rows = await getInvestmentCardRows();
   const pendingProofOnly = query.proof === "pending";

@@ -10,7 +10,7 @@ import {
   ShoppingBag,
   Users,
 } from "lucide-react";
-import { auth } from "@/auth";
+import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { Link, redirect } from "@/i18n/navigation";
 import { AdminPageIntro, AdminSection } from "@/components/admin/admin-ui";
 import { StatCard } from "@/components/ui/stat-card";
@@ -21,12 +21,12 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
   const [session, locale, tn, ta] = await Promise.all([
-    auth(),
+    getAdminAccess(),
     getLocale(),
     getTranslations("nav"),
     getTranslations("adminPanel"),
   ]);
-  if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
+  if (!session || !hasAdminPermission(session, "dashboard.view")) redirect({ href: "/admin-login", locale });
 
   const [
     members,
@@ -38,18 +38,28 @@ export default async function AdminDashboardPage() {
     investedAggregate,
     withdrawnAggregate,
   ] = await Promise.all([
-    prisma.member.count(),
-    prisma.paymentProof.count({ where: { status: "PENDING" } }),
-    prisma.withdrawal.count({ where: { status: "PENDING" } }),
-    prisma.walletTopUp.count({ where: { status: "PENDING" } }),
-    prisma.investment.count({ where: { status: "ACTIVE" } }),
-    prisma.profitDistribution.count(),
+    prisma.member.count({ where: { role: "MEMBER" } }),
+    prisma.paymentProof.count({
+      where: { status: "PENDING", member: { role: "MEMBER" } },
+    }),
+    prisma.withdrawal.count({
+      where: { status: "PENDING", member: { role: "MEMBER" } },
+    }),
+    prisma.walletTopUp.count({
+      where: { status: "PENDING", member: { role: "MEMBER" } },
+    }),
+    prisma.investment.count({
+      where: { status: "ACTIVE", member: { role: "MEMBER" } },
+    }),
+    prisma.profitDistribution.count({
+      where: { lines: { some: { member: { role: "MEMBER" } } } },
+    }),
     prisma.investment.aggregate({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", member: { role: "MEMBER" } },
       _sum: { amountPaisa: true },
     }),
     prisma.withdrawal.aggregate({
-      where: { status: "PAID" },
+      where: { status: "PAID", member: { role: "MEMBER" } },
       _sum: { netPaisa: true },
     }),
   ]);

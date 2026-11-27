@@ -6,13 +6,18 @@ import { prisma } from "@/lib/prisma";
 import { normalizeMemberId } from "@/lib/member-id";
 import { canAccessAccount } from "@/lib/account-ownership";
 import { authConfig } from "@/auth.config";
+import {
+  credentialRoleAllowed,
+  normalizeAdminEmail,
+  type LoginRole,
+} from "@/lib/admin-login";
 
 const MEMBER_ID_PATTERN = /^SL\d{6}$/;
 
 type Identity = {
   id: string;
   principalId: string;
-  role: "MEMBER" | "ADMIN";
+  role: "MEMBER" | "ADMIN" | "STAFF";
   memberId: string;
   status: "INACTIVE" | "ACTIVE" | "SUSPENDED";
   name?: string | null;
@@ -21,7 +26,8 @@ type Identity = {
 };
 
 const loginSchema = z.object({
-  memberId: z.string().min(1),
+  memberId: z.string().optional(),
+  email: z.string().optional(),
   password: z.string().min(1),
   expectedRole: z.enum(["ADMIN", "MEMBER"]).optional(),
 });
@@ -38,6 +44,7 @@ export const {
     Credentials({
       credentials: {
         memberId: { label: "Member ID", type: "text" },
+        email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
         expectedRole: { label: "Expected role", type: "text" },
       },
@@ -45,27 +52,44 @@ export const {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const memberId = normalizeMemberId(parsed.data.memberId);
-        if (!MEMBER_ID_PATTERN.test(memberId)) return null;
+        const expectedRole: LoginRole = parsed.data.expectedRole ?? "MEMBER";
+        const adminLogin = expectedRole === "ADMIN";
+        const identityFields = {
+          id: true,
+          email: true,
+          fullName: true,
+          profileImage: true,
+          role: true,
+          memberId: true,
+          status: true,
+          passwordHash: true,
+          accountLink: { select: { ownerId: true } },
+        } as const;
 
-        const member = await prisma.member.findUnique({
-          where: { memberId },
-          select: {
-            id: true,
-            email: true,
-            fullName: true,
-            profileImage: true,
-            role: true,
-            memberId: true,
-            status: true,
-            passwordHash: true,
-            accountLink: { select: { ownerId: true } },
-          },
-        });
-        if (!member) return null;
-
-        if (parsed.data.expectedRole === "ADMIN" && member.role !== "ADMIN") return null;
-        if (parsed.data.expectedRole === "MEMBER" && member.role === "ADMIN") return null;
+        let member;
+        if (adminLogin) {
+          // The admin form has one identifier only. A Member ID is rejected so
+          // internal IDs such as SL000000 can never become login names.
+          const email = normalizeAdminEmail(parsed.data.email);
+          if (!email || parsed.data.memberId) return null;
+          member = await prisma.member.findFirst({
+            where: {
+              email: { equals: email, mode: "insensitive" },
+              role: { in: ["ADMIN", "STAFF"] },
+            },
+            select: identityFields,
+          });
+        } else {
+          if (parsed.data.email) return null;
+          const memberId = normalizeMemberId(parsed.data.memberId ?? "");
+          if (!MEMBER_ID_PATTERN.test(memberId)) return null;
+          member = await prisma.member.findUnique({
+            where: { memberId },
+            select: identityFields,
+          });
+        }
+        if (!member || !credentialRoleAllowed(member.role, expectedRole)) return null;
+        if (adminLogin && member.status !== "ACTIVE") return null;
 
         const valid = await bcrypt.compare(parsed.data.password, member.passwordHash);
         if (!valid) return null;
@@ -125,7 +149,14 @@ export const {
               status: true,
             },
           });
-          if (target && (await canAccessAccount(prisma, ownerId, target.id))) {
+          // Account switching is a member-only multi-account feature. Admin and
+          // staff sessions can never swap into a different identity this way.
+          if (
+            target &&
+            token.role === "MEMBER" &&
+            target.role === "MEMBER" &&
+            (await canAccessAccount(prisma, ownerId, target.id))
+          ) {
             token.id = target.id;
             token.email = target.email;
             token.name = target.fullName;

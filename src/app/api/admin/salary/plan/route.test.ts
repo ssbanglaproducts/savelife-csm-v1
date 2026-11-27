@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
+  requireAdminApiSession: vi.fn(),
   adminFindUnique: vi.fn(),
   memberFindMany: vi.fn(),
   versionFindUnique: vi.fn(),
@@ -15,6 +16,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/auth", () => ({ auth: mocks.auth }));
+vi.mock("@/lib/admin-access", () => ({
+  requireAdminApiSession: mocks.requireAdminApiSession,
+}));
 vi.mock("@/lib/audit", () => ({ writeAuditLog: mocks.writeAuditLog }));
 vi.mock("@/lib/prisma", () => {
   const prisma = {
@@ -148,6 +152,9 @@ describe("POST /api/admin/salary/plan", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mocks.auth.mockResolvedValue({ user: { id: ADMIN_ID, role: "ADMIN" } });
+    mocks.requireAdminApiSession.mockResolvedValue({
+      user: { id: ADMIN_ID, role: "ADMIN" },
+    });
     mocks.adminFindUnique.mockResolvedValue({
       passwordHash: await bcrypt.hash(PASSWORD, 4),
     });

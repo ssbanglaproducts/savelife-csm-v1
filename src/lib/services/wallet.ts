@@ -222,11 +222,11 @@ export async function transferMoneyBetweenMembers(
   const post = async (tx: Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0]) => {
     const [sender, recipient, senderWallet, recipientWallet] = await Promise.all([
       tx.member.findUnique({
-        where: { id: input.senderId },
+        where: { id: input.senderId, role: "MEMBER" },
         select: { status: true, fullName: true, memberId: true },
       }),
       tx.member.findUnique({
-        where: { id: input.recipientId },
+        where: { id: input.recipientId, role: "MEMBER" },
         select: { status: true, fullName: true, memberId: true },
       }),
       tx.wallet.findUnique({

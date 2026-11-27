@@ -104,6 +104,7 @@ export async function loadRoiSponsorIndex(
   client: PrismaClient | Prisma.TransactionClient,
 ): Promise<Map<string, RoiSponsorNode>> {
   const members = await client.member.findMany({
+    where: { role: "MEMBER" },
     select: { id: true, memberId: true, fullName: true, sponsorId: true },
   });
   return new Map(members.map((member) => [member.id, member] as const));
