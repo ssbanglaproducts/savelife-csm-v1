@@ -239,6 +239,9 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
                   >
                     {row.memberId}
                   </Link>
+                  <span className="mt-1 block">
+                    <StatusBadge tone={statusTone(row.status)} label={statusLabel(row)} />
+                  </span>
                 </td>
 
                 <td className="min-w-[150px] px-4 py-3">
@@ -251,9 +254,6 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
                       >
                         {row.name}
                       </Link>
-                      <span className="mt-1 block">
-                        <StatusBadge tone={statusTone(row.status)} label={statusLabel(row)} />
-                      </span>
                     </div>
                   </div>
                 </td>
