@@ -1,5 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createSignupInvite, verifySignupInvite } from "./signup-invite";
+
+const originalSecret = process.env.AUTH_SECRET;
+
+beforeAll(() => {
+  process.env.AUTH_SECRET = "test-signup-invite-secret";
+});
+
+afterAll(() => {
+  if (originalSecret === undefined) delete process.env.AUTH_SECRET;
+  else process.env.AUTH_SECRET = originalSecret;
+});
 
 const payload = {
   sponsorMemberId: "SL000001",
@@ -33,5 +44,20 @@ describe("signup invite tokens", () => {
     ).toString("base64url");
     expect(verifySignupInvite(`${prefix}.${malformed}.${signature}`)).toBeNull();
     expect(body).toBeTruthy();
+  });
+
+  it("refuses to sign without a configured secret", () => {
+    const auth = process.env.AUTH_SECRET;
+    const nextAuth = process.env.NEXTAUTH_SECRET;
+    const invite = process.env.SIGNUP_INVITE_SECRET;
+    delete process.env.AUTH_SECRET;
+    delete process.env.NEXTAUTH_SECRET;
+    delete process.env.SIGNUP_INVITE_SECRET;
+
+    expect(() => createSignupInvite(payload)).toThrow(/signing secret/i);
+
+    if (auth !== undefined) process.env.AUTH_SECRET = auth;
+    if (nextAuth !== undefined) process.env.NEXTAUTH_SECRET = nextAuth;
+    if (invite !== undefined) process.env.SIGNUP_INVITE_SECRET = invite;
   });
 });

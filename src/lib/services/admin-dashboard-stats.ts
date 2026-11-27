@@ -25,6 +25,19 @@ export function monthWindow(now: Date, offsetMonths = 0): MonthWindow {
 export type SignupPoint = {
   readonly date: string;
   readonly count: number;
+  /** Present on the all-time monthly series so a hover can show growth to date. */
+  readonly cumulative?: number;
+};
+
+export type MoneyTrendPoint = {
+  readonly date: string;
+  /** Serialized bigint paisa; money stays exact until the client formats it. */
+  readonly amountPaisa: string;
+};
+
+type DatedMoneyRow = {
+  readonly createdAt: Date;
+  readonly amountPaisa: bigint | null;
 };
 
 /** Thirty UTC calendar days ending today, oldest first. */
@@ -41,6 +54,60 @@ export function buildSignupSeries(createdAt: readonly Date[], now: Date): Signup
   return Array.from({ length: 30 }, (_, index) => {
     const date = new Date(firstDayStart + index * DAY_MS).toISOString().slice(0, 10);
     return { date, count: counts.get(date) ?? 0 };
+  });
+}
+
+/** UTC monthly buckets from the first member through the current month. */
+export function buildAllTimeSignupSeries(createdAt: readonly Date[], now: Date): SignupPoint[] {
+  const monthKey = (date: Date) =>
+    `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+  const countByMonth = new Map<string, number>();
+  for (const value of createdAt) {
+    const key = monthKey(value);
+    countByMonth.set(key, (countByMonth.get(key) ?? 0) + 1);
+  }
+
+  const firstKey = createdAt.length
+    ? createdAt.map(monthKey).reduce((first, key) => (key < first ? key : first))
+    : monthKey(now);
+  const lastKey = monthKey(now);
+  const [firstYear, firstMonth] = firstKey.split("-").map(Number) as [number, number];
+  const [lastYear, lastMonth] = lastKey.split("-").map(Number) as [number, number];
+
+  const points: SignupPoint[] = [];
+  let cumulative = 0;
+  let year = firstYear;
+  let month = firstMonth;
+  while (year < lastYear || (year === lastYear && month <= lastMonth)) {
+    const key = `${year}-${String(month).padStart(2, "0")}`;
+    const count = countByMonth.get(key) ?? 0;
+    cumulative += count;
+    points.push({ date: `${key}-01`, count, cumulative });
+    month += 1;
+    if (month > 12) {
+      year += 1;
+      month = 1;
+    }
+  }
+  return points;
+}
+
+/** Thirty UTC calendar days with exact paisa totals, oldest first. */
+export function buildMoneySeries(
+  rows: readonly DatedMoneyRow[],
+  now: Date,
+): MoneyTrendPoint[] {
+  const todayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const firstDayStart = todayStart - 29 * DAY_MS;
+  const totals = new Map<string, bigint>();
+  for (const row of rows) {
+    const key = row.createdAt.toISOString().slice(0, 10);
+    totals.set(key, (totals.get(key) ?? 0n) + (row.amountPaisa ?? 0n));
+  }
+
+  return Array.from({ length: 30 }, (_, index) => {
+    const date = new Date(firstDayStart + index * DAY_MS).toISOString().slice(0, 10);
+    return { date, amountPaisa: (totals.get(date) ?? 0n).toString() };
   });
 }
 
@@ -61,6 +128,10 @@ export interface AdminDashboardStats {
   readonly totalTopUpPaisa: bigint;
   readonly salaryTreasuryPaisa: bigint;
   readonly signups: readonly SignupPoint[];
+  readonly signupHistory: readonly SignupPoint[];
+  readonly topUpTrend: readonly MoneyTrendPoint[];
+  readonly investedTrend: readonly MoneyTrendPoint[];
+  readonly withdrawnTrend: readonly MoneyTrendPoint[];
 }
 
 export async function loadAdminDashboardStats(
@@ -90,6 +161,10 @@ export async function loadAdminDashboardStats(
     topUpAggregate,
     treasuryAggregate,
     signupRows,
+    allTimeSignupRows,
+    topUpTrendRows,
+    investedTrendRows,
+    withdrawalTrendRows,
   ] = await Promise.all([
     client.member.count({ where: { role: "MEMBER" } }),
     client.member.count({
@@ -151,6 +226,38 @@ export async function loadAdminDashboardStats(
       select: { createdAt: true },
       orderBy: { createdAt: "asc" },
     }),
+    client.member.findMany({
+      where: { role: "MEMBER" },
+      select: { createdAt: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    client.walletTopUp.findMany({
+      where: {
+        status: "APPROVED",
+        member: { role: "MEMBER" },
+        createdAt: { gte: signupStart, lt: signupEnd },
+      },
+      select: { createdAt: true, amountPaisa: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    client.investment.findMany({
+      where: {
+        status: "ACTIVE",
+        member: { role: "MEMBER" },
+        createdAt: { gte: signupStart, lt: signupEnd },
+      },
+      select: { createdAt: true, amountPaisa: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    client.withdrawal.findMany({
+      where: {
+        status: "PAID",
+        member: { role: "MEMBER" },
+        requestedAt: { gte: signupStart, lt: signupEnd },
+      },
+      select: { requestedAt: true, netPaisa: true },
+      orderBy: { requestedAt: "asc" },
+    }),
   ]);
 
   return {
@@ -171,6 +278,19 @@ export async function loadAdminDashboardStats(
     salaryTreasuryPaisa: treasuryAggregate._sum.balancePaisa ?? 0n,
     signups: buildSignupSeries(
       signupRows.map((row) => row.createdAt),
+      now,
+    ),
+    signupHistory: buildAllTimeSignupSeries(
+      allTimeSignupRows.map((row) => row.createdAt),
+      now,
+    ),
+    topUpTrend: buildMoneySeries(topUpTrendRows, now),
+    investedTrend: buildMoneySeries(investedTrendRows, now),
+    withdrawnTrend: buildMoneySeries(
+      withdrawalTrendRows.map((row) => ({
+        createdAt: row.requestedAt,
+        amountPaisa: row.netPaisa,
+      })),
       now,
     ),
   };

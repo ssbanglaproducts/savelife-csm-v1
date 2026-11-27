@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "../../generated/prisma/client";
 import {
+  buildAllTimeSignupSeries,
+  buildMoneySeries,
   buildSignupSeries,
   loadAdminDashboardStats,
   monthWindow,
@@ -40,6 +42,46 @@ describe("buildSignupSeries", () => {
   });
 });
 
+describe("buildAllTimeSignupSeries", () => {
+  it("builds monthly buckets from the first member through the current month", () => {
+    const series = buildAllTimeSignupSeries(
+      [
+        new Date("2025-12-10T09:00:00.000Z"),
+        new Date("2026-01-14T09:00:00.000Z"),
+        new Date("2026-01-15T18:00:00.000Z"),
+      ],
+      new Date("2026-01-15T23:00:00.000Z"),
+    );
+
+    expect(series).toEqual([
+      { date: "2025-12-01", count: 1, cumulative: 1 },
+      { date: "2026-01-01", count: 2, cumulative: 3 },
+    ]);
+  });
+
+  it("returns the current month with zero when there are no members", () => {
+    expect(
+      buildAllTimeSignupSeries([], new Date("2026-01-15T23:00:00.000Z")),
+    ).toEqual([{ date: "2026-01-01", count: 0, cumulative: 0 }]);
+  });
+});
+
+describe("buildMoneySeries", () => {
+  it("buckets exact paisa into a thirty-day UTC series", () => {
+    const series = buildMoneySeries(
+      [
+        { createdAt: new Date("2026-01-14T23:59:00.000Z"), amountPaisa: 10_000n },
+        { createdAt: new Date("2026-01-15T01:00:00.000Z"), amountPaisa: 20_000n },
+      ],
+      new Date("2026-01-15T12:00:00.000Z"),
+    );
+
+    expect(series).toHaveLength(30);
+    expect(series[28]).toEqual({ date: "2026-01-14", amountPaisa: "10000" });
+    expect(series[29]).toEqual({ date: "2026-01-15", amountPaisa: "20000" });
+  });
+});
+
 function asyncStub<T>(value: T) {
   return vi.fn(async (args: unknown) => {
     void args;
@@ -55,11 +97,17 @@ function makeClient() {
     .mockResolvedValueOnce(10)
     .mockResolvedValueOnce(1)
     .mockResolvedValueOnce(3);
-  const memberFindMany = asyncStub([
+  const recentSignups = [
     { createdAt: new Date("2026-01-14T09:00:00.000Z") },
     { createdAt: new Date("2026-01-15T01:00:00.000Z") },
     { createdAt: new Date("2026-01-15T18:00:00.000Z") },
-  ]);
+  ];
+  const memberFindMany = vi.fn(async (args: unknown) => {
+    const query = args as { where?: { createdAt?: unknown } };
+    return query.where?.createdAt
+      ? recentSignups
+      : [{ createdAt: new Date("2025-12-10T09:00:00.000Z") }, ...recentSignups];
+  });
   const withdrawalCount = asyncStub(6);
   const walletTopUpCount = asyncStub(7);
   const investmentCount = asyncStub(0).mockResolvedValueOnce(5).mockResolvedValueOnce(8);
@@ -69,12 +117,34 @@ function makeClient() {
   const withdrawalAggregate = asyncStub({ _sum: { netPaisa: 54_321n } });
   const walletTopUpAggregate = asyncStub({ _sum: { amountPaisa: 222_222n } });
   const treasuryAggregate = asyncStub({ _sum: { balancePaisa: 9_876n } });
+  const walletTopUpFindMany = asyncStub([
+    { createdAt: new Date("2026-01-14T09:00:00.000Z"), amountPaisa: 10_000n },
+    { createdAt: new Date("2026-01-15T09:00:00.000Z"), amountPaisa: 20_000n },
+  ]);
+  const investmentFindMany = asyncStub([
+    { createdAt: new Date("2026-01-13T09:00:00.000Z"), amountPaisa: 50_000n },
+  ]);
+  const withdrawalFindMany = asyncStub([
+    { requestedAt: new Date("2026-01-15T09:00:00.000Z"), netPaisa: 7_000n },
+  ]);
 
   const client = {
     member: { count: memberCount, findMany: memberFindMany },
-    withdrawal: { count: withdrawalCount, aggregate: withdrawalAggregate },
-    walletTopUp: { count: walletTopUpCount, aggregate: walletTopUpAggregate },
-    investment: { count: investmentCount, aggregate: investmentAggregate },
+    withdrawal: {
+      count: withdrawalCount,
+      aggregate: withdrawalAggregate,
+      findMany: withdrawalFindMany,
+    },
+    walletTopUp: {
+      count: walletTopUpCount,
+      aggregate: walletTopUpAggregate,
+      findMany: walletTopUpFindMany,
+    },
+    investment: {
+      count: investmentCount,
+      aggregate: investmentAggregate,
+      findMany: investmentFindMany,
+    },
     salaryTreasury: { aggregate: treasuryAggregate },
   } as unknown as PrismaClient;
 
@@ -89,6 +159,9 @@ function makeClient() {
     withdrawalAggregate,
     walletTopUpAggregate,
     treasuryAggregate,
+    walletTopUpFindMany,
+    investmentFindMany,
+    withdrawalFindMany,
   };
 }
 
@@ -105,6 +178,9 @@ describe("admin dashboard aggregates", () => {
       withdrawalAggregate,
       walletTopUpAggregate,
       treasuryAggregate,
+      walletTopUpFindMany,
+      investmentFindMany,
+      withdrawalFindMany,
     } = makeClient();
     const now = new Date("2026-01-15T12:00:00.000Z");
 
@@ -127,10 +203,22 @@ describe("admin dashboard aggregates", () => {
       totalTopUpPaisa: 222_222n,
       salaryTreasuryPaisa: 9_876n,
       signups: expect.any(Array),
+      signupHistory: [
+        { date: "2025-12-01", count: 1, cumulative: 1 },
+        { date: "2026-01-01", count: 3, cumulative: 4 },
+      ],
+      topUpTrend: expect.any(Array),
+      investedTrend: expect.any(Array),
+      withdrawnTrend: expect.any(Array),
     });
     expect(stats.signups).toHaveLength(30);
     expect(stats.signups[28]).toEqual({ date: "2026-01-14", count: 1 });
     expect(stats.signups[29]).toEqual({ date: "2026-01-15", count: 2 });
+    expect(stats.topUpTrend).toHaveLength(30);
+    expect(stats.topUpTrend[28]).toEqual({ date: "2026-01-14", amountPaisa: "10000" });
+    expect(stats.topUpTrend[29]).toEqual({ date: "2026-01-15", amountPaisa: "20000" });
+    expect(stats.investedTrend[27]).toEqual({ date: "2026-01-13", amountPaisa: "50000" });
+    expect(stats.withdrawnTrend[29]).toEqual({ date: "2026-01-15", amountPaisa: "7000" });
 
     expect(memberCount).toHaveBeenNthCalledWith(1, {
       where: { role: "MEMBER" },
@@ -169,6 +257,30 @@ describe("admin dashboard aggregates", () => {
       },
       select: { createdAt: true },
       orderBy: { createdAt: "asc" },
+    });
+    expect(memberFindMany).toHaveBeenCalledWith({
+      where: { role: "MEMBER" },
+      select: { createdAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+    const trendWindow = {
+      gte: new Date("2025-12-17T00:00:00.000Z"),
+      lt: new Date("2026-01-16T00:00:00.000Z"),
+    };
+    expect(walletTopUpFindMany).toHaveBeenCalledWith({
+      where: { status: "APPROVED", member: { role: "MEMBER" }, createdAt: trendWindow },
+      select: { createdAt: true, amountPaisa: true },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(investmentFindMany).toHaveBeenCalledWith({
+      where: { status: "ACTIVE", member: { role: "MEMBER" }, createdAt: trendWindow },
+      select: { createdAt: true, amountPaisa: true },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(withdrawalFindMany).toHaveBeenCalledWith({
+      where: { status: "PAID", member: { role: "MEMBER" }, requestedAt: trendWindow },
+      select: { requestedAt: true, netPaisa: true },
+      orderBy: { requestedAt: "asc" },
     });
     expect(investmentCount).toHaveBeenNthCalledWith(1, {
       where: {

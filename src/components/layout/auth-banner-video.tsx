@@ -68,6 +68,8 @@ export function AuthBannerVideo() {
       tabIndex={-1}
       aria-hidden="true"
       allow="autoplay; encrypted-media; picture-in-picture"
+      sandbox="allow-scripts allow-same-origin allow-autoplay allow-presentation"
+      referrerPolicy="strict-origin-when-cross-origin"
       className="pointer-events-none absolute left-1/2 top-1/2 z-0 hidden h-[56.25vw] min-h-full w-[177.77vh] min-w-full -translate-x-1/2 -translate-y-1/2 border-0 motion-safe:block"
     />
   );

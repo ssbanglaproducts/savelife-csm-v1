@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Users } from "lucide-react";
+import { ChartBar } from "@/components/admin/chart-bar";
 import { Button } from "@/components/ui/button";
 import type { SignupPoint } from "@/lib/services/admin-dashboard-stats";
 import { cn } from "@/lib/utils";
@@ -25,28 +26,57 @@ const RANGE_OPTIONS: Array<{
 export function AdminSignupChart({
   totalMembers,
   signups,
+  history,
   locale,
 }: {
   totalMembers: number;
   signups: readonly SignupPoint[];
+  history: readonly SignupPoint[];
   locale: string;
 }) {
   const t = useTranslations("adminPanel");
   const [range, setRange] = useState<Range>("today");
   const option = RANGE_OPTIONS.find((item) => item.id === range) ?? RANGE_OPTIONS[2]!;
-  const points: readonly SignupPoint[] =
-    range === "all"
-      ? [{ date: t("rangeAllTime"), count: totalMembers }]
-      : signups.slice(-(option.days ?? 30));
-  const rangeTotal = points.reduce((sum, point) => sum + point.count, 0);
+  const rawPoints =
+    range === "all" ? history : signups.slice(-(option.days ?? 30));
+
+  const points = rawPoints.map((point, index) => ({
+    date: point.date,
+    count: point.count,
+    cumulative:
+      point.cumulative ??
+      rawPoints.slice(0, index + 1).reduce((sum, item) => sum + item.count, 0),
+  }));
+  const rangeTotal = range === "all" ? totalMembers : points.reduce((sum, point) => sum + point.count, 0);
   const rangeLabel = range === "all" ? t("allTimeSignUps") : t("newMembersThisMonth");
   const chartLabel = range === "all" ? t("allTimeSignUps") : t("signupChartLabel");
   // A small fixed floor keeps a single sign-up from filling the whole chart.
   const max = Math.max(10, ...points.map((point) => point.count));
 
+  const monthYear = (date: string) =>
+    new Intl.DateTimeFormat(locale, {
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(`${date}T00:00:00Z`));
+
+  const formatTooltipDate = (date: string) =>
+    range === "all"
+      ? monthYear(date)
+      : new Intl.DateTimeFormat(locale, {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          timeZone: "UTC",
+        }).format(new Date(`${date}T00:00:00Z`));
+
   const formatLabel = (date: string, index: number) => {
-    if (range === "all") return t("rangeAllTime");
     if (range === "today") return t("rangeToday");
+    if (range === "all") {
+      const step = Math.max(1, Math.ceil(points.length / 6));
+      if (index !== 0 && index !== points.length - 1 && index % step !== 0) return "";
+      return monthYear(date);
+    }
     if (range === "7d") {
       return new Intl.DateTimeFormat(locale, {
         weekday: "short",
@@ -104,29 +134,22 @@ export function AdminSignupChart({
       </div>
 
       <div
-        role="img"
+        role="group"
         aria-label={chartLabel}
-        className="mt-4 flex h-48 min-w-0 items-stretch gap-1 overflow-hidden rounded-xl border border-border/60 bg-[var(--glass)] p-2 sm:gap-2 sm:p-3"
+        className="mt-4 flex h-48 min-w-0 items-stretch gap-1 rounded-xl border border-border/60 bg-[var(--glass)] p-2 sm:gap-2 sm:p-3"
       >
         {points.map((point, index) => (
-          <div key={point.date} className="flex h-full min-w-0 flex-1 flex-col">
-            <div className="flex min-h-0 flex-1 items-end">
-              <div
-                title={`${point.date}: ${point.count}`}
-                className={cn(
-                  "w-full rounded-t-md transition-all",
-                  point.count > 0 && "bg-primary/70 ring-1 ring-inset ring-primary/20",
-                )}
-                style={{
-                  height:
-                    point.count === 0 ? "0%" : `${Math.max(3, (point.count / max) * 100)}%`,
-                }}
-              />
-            </div>
-            <span className="mt-2 h-4 truncate text-center text-[10px] text-muted-foreground">
-              {formatLabel(point.date, index)}
-            </span>
-          </div>
+          <ChartBar
+            key={point.date}
+            label={`${formatTooltipDate(point.date)}: ${point.count}`}
+            title={formatTooltipDate(point.date)}
+            rows={[
+              { label: t("signupChartCount"), value: String(point.count) },
+              { label: t("signupChartCumulative"), value: String(point.cumulative) },
+            ]}
+            ratio={point.count / max}
+            dateLabel={formatLabel(point.date, index)}
+          />
         ))}
       </div>
 
@@ -136,6 +159,7 @@ export function AdminSignupChart({
           <tr>
             <th>{t("signupChartDate")}</th>
             <th>{t("signupChartCount")}</th>
+            <th>{t("signupChartCumulative")}</th>
           </tr>
         </thead>
         <tbody>
@@ -143,6 +167,7 @@ export function AdminSignupChart({
             <tr key={point.date}>
               <td>{point.date}</td>
               <td>{point.count}</td>
+              <td>{point.cumulative}</td>
             </tr>
           ))}
         </tbody>

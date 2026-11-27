@@ -220,14 +220,9 @@ export async function SalaryOverviewContent() {
         intro={ta("salaryIntro")}
         icon={<CalendarDays className="size-3.5" aria-hidden="true" />}
         actions={
-          <>
-            <Link href="/admin/rank-salary/edit-salary-plan" className={planPageLink}>
-              {ta("salaryPlanEdit")}
-            </Link>
-            <Link href="/admin/salary?tab=history" className={planPageLink}>
-              {ta("salaryPlanHistory")}
-            </Link>
-          </>
+          <Link href="/admin/rank-salary/edit-salary-plan" className={planPageLink}>
+            {ta("salaryPlanEdit")}
+          </Link>
         }
       />
       <SalaryOverviewBody />

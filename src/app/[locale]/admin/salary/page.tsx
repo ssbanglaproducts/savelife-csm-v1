@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { getLocale, getTranslations } from "next-intl/server";
-import { Banknote, CalendarDays, FileText, History } from "lucide-react";
+import { Banknote, CalendarDays, FileText, History, SquarePen } from "lucide-react";
 import { AdminPageIntro } from "@/components/admin/admin-ui";
 import { SalaryOverviewBody } from "@/components/admin/salary-plan/salary-overview-content";
 import { PlanHistoryBody } from "@/components/admin/salary-plan/plan-history-content";
@@ -59,21 +59,19 @@ export default async function AdminSalaryPage({
     { key: "history", label: ta("salaryPlanHistoryTitle") },
   ];
 
+  const editPlanAction = (
+    <Link href="/admin/rank-salary/edit-salary-plan" className={cn(actionLinkClass, "gap-1.5")}>
+      <SquarePen className="size-3.5" aria-hidden="true" />
+      {ta("salaryPlanEdit")}
+    </Link>
+  );
+
   const meta: Record<SalaryTab, { title: string; intro: string; icon: ReactNode; actions?: ReactNode }> = {
     overview: {
       title: ta("salaryOverviewTitle"),
       intro: ta("salaryIntro"),
       icon: <Banknote className="size-4" aria-hidden="true" />,
-      actions: (
-        <>
-          <Link href="/admin/rank-salary/edit-salary-plan" className={actionLinkClass}>
-            {ta("salaryPlanEdit")}
-          </Link>
-          <Link href={tabHref("history")} className={actionLinkClass}>
-            {ta("salaryPlanHistory")}
-          </Link>
-        </>
-      ),
+      actions: editPlanAction,
     },
     weekly: {
       title: ta("weeklyDistributionTitle"),
@@ -101,6 +99,10 @@ export default async function AdminSalaryPage({
         icon={meta[tab].icon}
         actions={meta[tab].actions}
       />
+
+      {tab === "overview" ? (
+        <div className="flex justify-end sm:hidden">{editPlanAction}</div>
+      ) : null}
 
       <nav
         aria-label={ta("salaryOverviewTitle")}

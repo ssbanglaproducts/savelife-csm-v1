@@ -3,15 +3,14 @@ import {
   ArrowUpRight,
   Banknote,
   Building2,
-  CreditCard,
   Landmark,
   PlusCircle,
   ScrollText,
   ShoppingBag,
-  Wallet,
 } from "lucide-react";
 import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { Link, redirect } from "@/i18n/navigation";
+import { AdminMoneyTrends } from "@/components/admin/admin-money-trends";
 import { AdminSignupChart } from "@/components/admin/admin-signup-chart";
 import { AdminPageIntro, AdminSection } from "@/components/admin/admin-ui";
 import { StatCard } from "@/components/ui/stat-card";
@@ -91,34 +90,30 @@ export default async function AdminDashboardPage() {
       </AdminSection>
 
       <AdminSection id="overview" title={ta("overview")}>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <StatCard
-            label={ta("totalTopUpAmount")}
-            value={formatSP(stats.totalTopUpPaisa)}
-            icon={<Wallet className="size-4" />}
+        <div className="space-y-3">
+          <AdminMoneyTrends
+            locale={locale}
+            topUp={{ total: formatSP(stats.totalTopUpPaisa), series: stats.topUpTrend }}
+            invested={{
+              total: formatSP(stats.totalInvestedPaisa),
+              hint: `${ta("lastMonth")}: ${formatSP(stats.lastMonthInvestedPaisa)}`,
+              series: stats.investedTrend,
+            }}
+            withdrawn={{ total: formatSP(stats.totalWithdrawnPaisa), series: stats.withdrawnTrend }}
           />
-          <StatCard
-            label={ta("totalInvested")}
-            value={formatSP(stats.totalInvestedPaisa)}
-            hint={`${ta("lastMonth")}: ${formatSP(stats.lastMonthInvestedPaisa)}`}
-            icon={<ShoppingBag className="size-4" />}
-          />
-          <StatCard
-            label={ta("totalWithdrawn")}
-            value={formatSP(stats.totalWithdrawnPaisa)}
-            icon={<CreditCard className="size-4" />}
-          />
-          <StatCard
-            label={ta("activeInvestments")}
-            value={stats.activeInvestments}
-            icon={<Landmark className="size-4" />}
-          />
-          <StatCard
-            label={ta("rankSalaryTreasury")}
-            value={formatSP(stats.salaryTreasuryPaisa)}
-            hint={ta("rankSalaryTreasuryHint")}
-            icon={<Building2 className="size-4" />}
-          />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <StatCard
+              label={ta("activeInvestments")}
+              value={stats.activeInvestments}
+              icon={<Landmark className="size-4" />}
+            />
+            <StatCard
+              label={ta("rankSalaryTreasury")}
+              value={formatSP(stats.salaryTreasuryPaisa)}
+              hint={ta("rankSalaryTreasuryHint")}
+              icon={<Building2 className="size-4" />}
+            />
+          </div>
         </div>
       </AdminSection>
 
@@ -126,6 +121,7 @@ export default async function AdminDashboardPage() {
         <AdminSignupChart
           totalMembers={stats.totalMembers}
           signups={stats.signups}
+          history={stats.signupHistory}
           locale={locale}
         />
       </AdminSection>

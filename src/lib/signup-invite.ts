@@ -15,7 +15,11 @@ type SignedPayload = SignupInvitePayload & {
 const VERSION = 1;
 
 function secret(): string {
-  return process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "savelife-signup-invite";
+  const value = process.env.SIGNUP_INVITE_SECRET ?? process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+  if (!value) {
+    throw new Error("Signup invite signing secret is not configured");
+  }
+  return value;
 }
 
 function encode(value: string): string {

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const adminInputClass =
@@ -30,18 +31,26 @@ export function AdminPageIntro({
           {eyebrow}
         </div>
         <div className="mt-2 flex min-w-0 flex-col gap-3 sm:mt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
-          <h1 className="font-display text-balance text-2xl font-bold leading-tight tracking-tight sm:text-4xl">
-            {title}
-          </h1>
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="font-display text-balance text-2xl font-bold leading-tight tracking-tight sm:text-4xl">
+              {title}
+            </h1>
+            {intro ? (
+              <span
+                role="img"
+                aria-label={intro}
+                title={intro}
+                tabIndex={0}
+                className="inline-flex shrink-0 cursor-help text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none"
+              >
+                <Info className="size-4" aria-hidden="true" />
+              </span>
+            ) : null}
+          </div>
           {actions ? (
             <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
           ) : null}
         </div>
-        {intro ? (
-          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:mt-3 sm:text-base">
-            {intro}
-          </p>
-        ) : null}
       </div>
     </section>
   );
