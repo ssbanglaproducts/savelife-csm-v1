@@ -18,7 +18,7 @@ type Identity = {
   id: string;
   principalId: string;
   role: "MEMBER" | "ADMIN" | "STAFF";
-  memberId: string;
+  memberId: string | null;
   status: "INACTIVE" | "ACTIVE" | "SUSPENDED";
   name?: string | null;
   email?: string | null;

@@ -76,7 +76,7 @@ function parseEffectiveDate(value: string): Date | null {
 
 const planInclude = {
   definitions: { orderBy: { sortOrder: "asc" as const } },
-  createdBy: { select: { memberId: true, fullName: true } },
+  createdBy: { select: { memberId: true, fullName: true, email: true } },
 } satisfies Prisma.SalaryPlanVersionInclude;
 
 function forbidden() {

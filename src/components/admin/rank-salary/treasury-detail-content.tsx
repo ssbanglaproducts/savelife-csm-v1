@@ -16,6 +16,7 @@ import { InfinityText } from "@/components/ui/infinity-text";
 import { RankBadge } from "@/components/ui/rank-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Link, redirect } from "@/i18n/navigation";
+import { requireMemberId } from "@/lib/member-id";
 import { formatSP } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { formatSalaryDate } from "@/lib/salary-display";
@@ -78,7 +79,7 @@ export async function AdminTreasuryDetailContent({ rankKey }: { rankKey: string 
         status: true,
         postedAt: true,
         payments: {
-          where: { rankKey },
+          where: { rankKey, member: { role: "MEMBER" } },
           select: {
             id: true,
             amountPaisa: true,
@@ -97,9 +98,12 @@ export async function AdminTreasuryDetailContent({ rankKey }: { rankKey: string 
   const run = buildSalaryTreasuryRun({
     config,
     balancePaisa,
-    entitlements: [...entitlements].sort((a, b) =>
-      a.member.fullName.localeCompare(b.member.fullName),
-    ),
+    entitlements: [...entitlements]
+      .sort((a, b) => a.member.fullName.localeCompare(b.member.fullName))
+      .map((row) => ({
+        ...row,
+        member: { ...row.member, memberId: requireMemberId(row.member) },
+      })),
   });
   const accent = salaryTreasuryAccent(rankKey);
   const badgeSrc = resolveRankBadgeImageUrl(badge?.badgeImageUrl ?? null, rankKey);
@@ -116,7 +120,7 @@ export async function AdminTreasuryDetailContent({ rankKey }: { rankKey: string 
       .map((payment) => ({
         id: payment.id,
         memberRecordId: payment.member.id,
-        memberDisplayId: payment.member.memberId,
+        memberDisplayId: requireMemberId(payment.member),
         memberName: payment.member.fullName,
         amountPaisa: payment.amountPaisa.toString(),
         weekNumberLabel: `${ta("salaryTreasuryWeeksPaid")} ${payment.weekNumber}`,

@@ -14,6 +14,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatSP, spToPaisa } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
+import { formatActorLabel } from "@/lib/services/actor-label";
 import { ensureDefaultRankPlan } from "@/lib/services/rank-rewards";
 import {
   getActiveSalaryPlan,
@@ -44,7 +45,7 @@ export async function SalaryOverviewBody() {
     prisma.salaryPlanVersion.findFirst({
       where: { isActive: true },
       orderBy: { version: "desc" },
-      include: { createdBy: { select: { memberId: true, fullName: true } } },
+      include: { createdBy: { select: { memberId: true, fullName: true, email: true } } },
     }),
     prisma.rankDefinition.findMany({
       where: { planVersion: { isActive: true } },
@@ -177,11 +178,7 @@ export async function SalaryOverviewBody() {
           />
           <PlanFact
             label={ta("salaryPlanUpdatedBy")}
-            value={
-              activeVersion?.createdBy
-                ? `${activeVersion.createdBy.fullName} (${activeVersion.createdBy.memberId})`
-                : "—"
-            }
+            value={formatActorLabel(activeVersion?.createdBy)}
           />
           <PlanFact
             label={ta("salaryPlanCardVersion")}

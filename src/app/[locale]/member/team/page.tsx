@@ -1,6 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
 import { auth } from "@/auth";
 import { redirect } from "@/i18n/navigation";
+import { requireMemberId } from "@/lib/member-id";
 import { TeamWorkspace } from "@/components/member/team-workspace";
 import { prisma } from "@/lib/prisma";
 import {
@@ -38,7 +39,7 @@ export default async function TeamPage({
     <TeamWorkspace
       initialView={view}
       performance={serializeTeamPerformance(performance)}
-      viewerMemberId={session.user.memberId}
+      viewerMemberId={requireMemberId(session.user)}
     />
   );
 }

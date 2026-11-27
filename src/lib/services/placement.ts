@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { requireMemberId } from "@/lib/member-id";
 
 export const PLACEMENT_SLOTS = [1, 2, 3] as const;
 export type PlacementSlot = (typeof PLACEMENT_SLOTS)[number];
@@ -64,7 +65,7 @@ export async function getPlacementSlots(
       member: child
         ? {
             id: child.id,
-            memberId: child.memberId,
+            memberId: requireMemberId(child),
             fullName: child.fullName,
             profileImage: child.profileImage,
             status: child.status,
@@ -146,7 +147,7 @@ export async function validatePlacementSelection(
     return { ok: false, error: "PLACEMENT_SLOT_UNAVAILABLE" };
   }
 
-  return { ok: true, parent, slots };
+  return { ok: true, parent: { ...parent, memberId: requireMemberId(parent) }, slots };
 }
 
 /** Caller must revalidate before calling; the DB unique index is the race guard. */

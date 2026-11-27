@@ -10,7 +10,6 @@ import {
 } from "@/lib/admin-permissions";
 import { verifyAdminPassword } from "@/lib/admin-password";
 import { writeAuditLog } from "@/lib/audit";
-import { allocateMemberId } from "@/lib/member-id";
 import { prisma } from "@/lib/prisma";
 import { isUniqueViolation } from "@/lib/services/ledger";
 import { serializeStaffAccount } from "@/lib/staff";
@@ -255,10 +254,8 @@ export async function POST(request: Request) {
         });
         if (duplicate) throw new StaffRequestError("DUPLICATE_EMAIL", 409);
 
-        const memberId = await allocateMemberId(tx);
         const target = await tx.member.create({
           data: {
-            memberId,
             fullName: input.name,
             email: input.email,
             phone: input.phone,
@@ -278,7 +275,6 @@ export async function POST(request: Request) {
         targetId = target.id;
         action = "STAFF_CREATED";
         after = {
-          memberId: target.memberId,
           email: target.email,
           permissions: input.permissions.join(",") || "",
           status: target.status,

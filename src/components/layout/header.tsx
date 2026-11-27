@@ -424,9 +424,11 @@ export function Header() {
                         />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold">{viewer.name}</p>
-                          <div className="mt-1">
-                            <CopyableMemberId memberId={viewer.memberId} compact />
-                          </div>
+                          {viewer.memberId ? (
+                            <div className="mt-1">
+                              <CopyableMemberId memberId={viewer.memberId} compact />
+                            </div>
+                          ) : null}
                         </div>
                         <Link
                           href={

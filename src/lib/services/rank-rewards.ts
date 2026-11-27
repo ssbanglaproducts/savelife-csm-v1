@@ -5,6 +5,7 @@ import {
   rankBadgeSrc,
   resolveRankBadgeImageUrl,
 } from "../rank-art";
+import { requireMemberId } from "../member-id";
 import { spToPaisa, type Paisa } from "../money";
 import { adjustWalletField, isUniqueViolation, makeKey, recordLedgerEntry } from "./ledger";
 import { getPlacementDescendantIds, TEAM_INVESTMENT_STATUSES } from "./team";
@@ -447,7 +448,7 @@ async function loadQualificationSource(
       id: investment.id,
       investmentNumber: investment.investmentNumber,
       referralId: referral.id,
-      referralMemberId: referral.memberId,
+      referralMemberId: requireMemberId(referral),
       referralName: referral.fullName,
       profileImage: referral.profileImage,
       amountPaisa: investment.amountPaisa,
@@ -485,7 +486,7 @@ async function loadQualificationSource(
       ownerByMemberId.set(row.id, {
         slot,
         name: row.fullName,
-        memberId: row.memberId,
+        memberId: requireMemberId(row),
         profileImage: row.profileImage,
       });
       allTeamMemberIds.add(row.id);

@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { requireMemberId } from "@/lib/member-id";
 import {
   attachMemberRanks,
   getMemberRankSummaries,
@@ -29,7 +30,7 @@ export type NetworkChildren = {
 
 function toNode(member: {
   id: string;
-  memberId: string;
+  memberId: string | null;
   fullName: string;
   profileImage: string | null;
   status: string;
@@ -38,7 +39,7 @@ function toNode(member: {
 }): NetworkNode {
   return {
     id: member.id,
-    memberId: member.memberId,
+    memberId: requireMemberId(member),
     fullName: member.fullName,
     profileImage: member.profileImage,
     status: member.status,
@@ -156,7 +157,7 @@ export async function getNetworkDetails(client: Client, memberId: string) {
   const ranks = await getMemberRankSummaries(client, [memberId]);
   return {
     id: member.id,
-    memberId: member.memberId,
+    memberId: requireMemberId(member),
     fullName: member.fullName,
     profileImage: member.profileImage,
     status: member.status,

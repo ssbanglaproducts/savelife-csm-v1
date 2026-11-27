@@ -6,6 +6,7 @@ import { redirect } from "@/i18n/navigation";
 import { AdminPageIntro, AdminSection, formatDate } from "@/components/admin/admin-ui";
 import { MemberTable, type MemberRow } from "@/components/admin/member-table";
 import { formatSP } from "@/lib/money";
+import { requireMemberId } from "@/lib/member-id";
 import { prisma } from "@/lib/prisma";
 import { localizedRankName } from "@/lib/rank-label";
 import { getMemberRankSummaries } from "@/lib/services/member-rank-summary";
@@ -151,7 +152,7 @@ export default async function AdminMembersPage() {
 
     return {
       id: member.id,
-      memberId: member.memberId,
+      memberId: requireMemberId(member),
       name: member.fullName,
       email: member.email,
       phone: member.phone,

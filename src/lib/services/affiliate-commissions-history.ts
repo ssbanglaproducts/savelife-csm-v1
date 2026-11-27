@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "../../generated/prisma/client";
+import { requireMemberId } from "../member-id";
 import { parseDistributionMonth } from "./date";
 
 /**
@@ -112,11 +113,11 @@ export async function loadAffiliateCommissionHistory(
       rateBps: row.rateBps,
       amountPaisa: row.amountPaisa,
       beneficiary: {
-        memberId: row.beneficiary.memberId,
+        memberId: requireMemberId(row.beneficiary),
         fullName: row.beneficiary.fullName,
       },
       sourceMember: {
-        memberId: row.investment.member.memberId,
+        memberId: requireMemberId(row.investment.member),
         fullName: row.investment.member.fullName,
       },
       investmentNumber: row.investment.investmentNumber,

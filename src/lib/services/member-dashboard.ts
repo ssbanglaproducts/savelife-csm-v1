@@ -3,6 +3,7 @@ import {
   ledgerTypeLabelKey,
   walletCategoryLabelKey,
 } from "@/components/member/status-labels";
+import { requireMemberId } from "../member-id";
 import { formatSP, type Paisa } from "../money";
 import { prisma } from "../prisma";
 import { getMemberRankSummaries, type MemberRankSummary } from "./member-rank-summary";
@@ -413,7 +414,7 @@ export async function getMemberDashboardData(
   return {
     member: {
       name: member.fullName,
-      memberId: member.memberId,
+      memberId: requireMemberId(member),
       status: member.status,
       image: member.profileImage,
     },

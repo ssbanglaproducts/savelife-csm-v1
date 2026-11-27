@@ -16,6 +16,7 @@ import {
   salaryChangeValue,
 } from "@/lib/salary-plan-change-view";
 import { prisma } from "@/lib/prisma";
+import { formatActorLabel } from "@/lib/services/actor-label";
 import {
   serializeSalaryPlanVersion,
   type SalaryPlanVersionDto,
@@ -39,7 +40,7 @@ export async function PlanHistoryBody() {
     orderBy: { version: "desc" },
     include: {
       definitions: { orderBy: { sortOrder: "asc" } },
-      createdBy: { select: { memberId: true, fullName: true } },
+      createdBy: { select: { memberId: true, fullName: true, email: true } },
     },
   });
   const plans: readonly SalaryPlanVersionDto[] = versions.map(serializeSalaryPlanVersion);
@@ -77,9 +78,7 @@ export async function PlanHistoryBody() {
                 />
                 <PlanFact
                   label={ta("salaryPlanUpdatedBy")}
-                  value={
-                    plan.createdBy ? `${plan.createdBy.name} (${plan.createdBy.memberId})` : "—"
-                  }
+                  value={formatActorLabel(plan.createdBy)}
                 />
                 <PlanFact
                   label={ta("salaryPlanTotal")}

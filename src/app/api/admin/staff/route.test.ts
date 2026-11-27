@@ -58,7 +58,7 @@ type Role = "ADMIN" | "STAFF";
 
 type StaffRow = {
   id: string;
-  memberId: string;
+  memberId: string | null;
   fullName: string;
   email: string;
   phone: string;
@@ -172,7 +172,7 @@ describe("/api/admin/staff", () => {
     mocks.memberCreate.mockImplementation(
       async (args: {
         data: {
-          memberId: string;
+          memberId?: string | null;
           fullName: string;
           email: string;
           phone: string;
@@ -184,7 +184,7 @@ describe("/api/admin/staff", () => {
         const { data } = args;
         return staffRow({
           id: "staff-1",
-          memberId: data.memberId,
+          memberId: data.memberId ?? null,
           fullName: data.fullName,
           email: data.email,
           phone: data.phone,
@@ -283,6 +283,25 @@ describe("/api/admin/staff", () => {
     expect(lastAdmin.status).toBe(409);
     await expect(lastAdmin.json()).resolves.toMatchObject({ error: "LAST_SUPER_ADMIN" });
     expect(mocks.memberUpdate).not.toHaveBeenCalled();
+  });
+
+  it("creates staff without allocating a member ID", async () => {
+    const response = await POST(request(createBody()));
+
+    expect(response.status).toBe(201);
+    const createArgs = mocks.memberCreate.mock.calls[0]?.[0] as {
+      data: Record<string, unknown>;
+    };
+    expect(createArgs.data).not.toHaveProperty("memberId");
+    expect(mocks.allocateMemberId).not.toHaveBeenCalled();
+    const audit = mocks.writeAuditLog.mock.calls[0]?.[0] as { after: Record<string, unknown> };
+    expect(audit.after).not.toHaveProperty("memberId");
+
+    mocks.memberFindMany.mockResolvedValueOnce([staffRow({ memberId: null })]);
+    const listed = await GET();
+    await expect(listed.json()).resolves.toMatchObject({
+      staff: [{ memberId: null }],
+    });
   });
 
   it("writes an audit entry without storing secrets", async () => {

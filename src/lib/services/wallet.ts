@@ -3,6 +3,7 @@ import {
   LedgerEntryType as LedgerType,
 } from "../../generated/prisma/enums";
 import type { Prisma, PrismaClient } from "../../generated/prisma/client";
+import { requireMemberId } from "../member-id";
 import { invalidInput } from "./errors";
 import {
   adjustWalletField,
@@ -253,6 +254,9 @@ export async function transferMoneyBetweenMembers(
       };
     }
 
+    const senderMemberId = requireMemberId(sender);
+    const recipientMemberId = requireMemberId(recipient);
+
     const debited = await adjustWalletField(
       tx,
       input.senderId,
@@ -312,8 +316,8 @@ export async function transferMoneyBetweenMembers(
       transferId: transfer.id,
       transferNumber: transfer.transferNumber,
       ledgerEntryIds: [debitEntry.id, creditEntry.id],
-      senderMemberId: sender.memberId,
-      recipientMemberId: recipient.memberId,
+      senderMemberId,
+      recipientMemberId,
       senderBalancePaisa: debited.balanceAfterPaisa,
       recipientBalancePaisa: credited.balanceAfterPaisa,
     };

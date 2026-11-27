@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { adminStatusKey, formatDate, statusTone } from "@/components/admin/admin-ui";
 import type { InvestmentCardRow } from "@/components/admin/investment-cards";
 import { formatSP } from "@/lib/money";
+import { requireMemberId } from "@/lib/member-id";
 import { prisma } from "@/lib/prisma";
 import { formatPercent } from "@/lib/rates";
 
@@ -13,7 +14,7 @@ type AuditRow = {
   entityType: string;
   entityId: string | null;
   createdAt: Date;
-  actor: { fullName: string; memberId: string } | null;
+  actor: { fullName: string; memberId: string | null } | null;
 };
 
 /**
@@ -241,7 +242,7 @@ export async function getInvestmentCardRows(
       hasPendingProof: investment.paymentProofs.some((proof) => proof.status === "PENDING"),
       member: {
         id: investment.member.id,
-        memberId: investment.member.memberId,
+        memberId: requireMemberId(investment.member),
         name: investment.member.fullName,
         email: investment.member.email,
         phone: investment.member.phone,

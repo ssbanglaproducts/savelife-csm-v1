@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireMemberId } from "@/lib/member-id";
 import { prisma } from "@/lib/prisma";
 import { getSponsorRegistrationError } from "@/lib/registration";
 import { getPlacementSlots, isPlacementSlot, validatePlacementSelection } from "@/lib/services/placement";
@@ -19,13 +20,13 @@ const schema = z.discriminatedUnion("mode", [
 ]);
 
 function memberPreview(member: {
-  memberId: string;
+  memberId: string | null;
   fullName: string;
   status: string;
   profileImage: string | null;
 }) {
   return {
-    memberId: member.memberId,
+    memberId: requireMemberId(member),
     fullName: member.fullName,
     status: member.status,
     profileImage: member.profileImage,

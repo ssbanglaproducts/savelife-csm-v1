@@ -197,7 +197,9 @@ model MemberSequence {
 
 model Member {
   id               String       @id @default(cuid())
-  memberId         String       @unique
+  /// Permanent member-facing ID. Admin and staff identities do not receive one.
+  /// Enforced by the DB migration check: role <> 'MEMBER' OR memberId IS NOT NULL.
+  memberId         String?      @unique
   fullName         String
   email            String
   phone            String

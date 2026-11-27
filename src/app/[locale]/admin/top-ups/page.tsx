@@ -10,6 +10,7 @@ import {
   type AdminTopUpRequest,
 } from "@/components/admin/top-up-review";
 import { redirect } from "@/i18n/navigation";
+import { requireMemberId } from "@/lib/member-id";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +44,10 @@ export default async function AdminTopUpsPage() {
     status: request.status,
     createdAt: request.createdAt.toISOString(),
     reviewedAt: request.reviewedAt?.toISOString() ?? null,
-    member: request.member,
+    member: {
+      memberId: requireMemberId(request.member),
+      fullName: request.member.fullName,
+    },
   }));
 
   return (

@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { requireMemberId } from "../member-id";
 import type { Paisa } from "../money";
 import {
   attachMemberRanks,
@@ -247,7 +248,7 @@ export async function getGenealogyView(
 
   const root = {
     id: member.id,
-    memberId: member.memberId,
+    memberId: requireMemberId(member),
     fullName: member.fullName,
     profileImage: member.profileImage,
     status: String(member.status),
@@ -272,7 +273,7 @@ export async function getGenealogyView(
 
       const child = {
         id: slot.member.id,
-        memberId: slot.member.memberId,
+        memberId: requireMemberId(slot.member),
         fullName: slot.member.fullName,
         profileImage: slot.member.profileImage,
         status: String(slot.member.status),
@@ -355,7 +356,7 @@ export async function getIndividualPerformance(
   const [rankedMember] = await attachMemberRanks(client, [
     {
       id: member.id,
-      memberId: member.memberId,
+      memberId: requireMemberId(member),
       fullName: member.fullName,
       profileImage: member.profileImage,
       status: String(member.status),
@@ -395,8 +396,13 @@ export async function getTeamPerformance(
     },
   });
 
+  const strictDirectChildren = directChildren.map((child) => ({
+    ...child,
+    memberId: requireMemberId(child),
+  }));
+
   if (descendantIds.length === 0) {
-    return emptyPerformance(await attachMemberRanks(client, directChildren));
+    return emptyPerformance(await attachMemberRanks(client, strictDirectChildren));
   }
 
   const [members, orders, refundOrders, ledger] = await Promise.all([
@@ -501,7 +507,7 @@ export async function getTeamPerformance(
     ...members.map((member) => ({
       id: `register-${member.id}`,
       kind: "REGISTERED" as const,
-      memberId: member.memberId,
+      memberId: requireMemberId(member),
       fullName: member.fullName,
       amountPaisa: 0n,
       occurredAt: member.createdAt.toISOString(),
@@ -511,7 +517,7 @@ export async function getTeamPerformance(
       .map((member) => ({
         id: `activate-${member.id}`,
         kind: "ACTIVATED" as const,
-        memberId: member.memberId,
+        memberId: requireMemberId(member),
         fullName: member.fullName,
         amountPaisa: 0n,
         occurredAt: (member.activationDate as Date).toISOString(),

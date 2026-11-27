@@ -4,7 +4,7 @@ export type MemberStatus = "INACTIVE" | "ACTIVE" | "SUSPENDED";
 export type Viewer = {
   name: string;
   image: string | null;
-  memberId: string;
+  memberId: string | null;
   role: "MEMBER" | "ADMIN" | "STAFF";
   status?: MemberStatus;
   phone?: string | null;

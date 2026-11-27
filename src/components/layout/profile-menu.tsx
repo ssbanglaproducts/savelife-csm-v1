@@ -198,9 +198,11 @@ export function ProfileMenu({
             <span className="block max-w-48 truncate text-sm font-semibold leading-tight">
               {viewer.name}
             </span>
-            <span className="block text-[10px] leading-tight text-muted-foreground">
-              {viewer.memberId}
-            </span>
+            {viewer.memberId ? (
+              <span className="block text-[10px] leading-tight text-muted-foreground">
+                {viewer.memberId}
+              </span>
+            ) : null}
           </span>
         ) : null}
         {!panel ? (
@@ -246,10 +248,12 @@ export function ProfileMenu({
                     <p id={`${dialogId}-title`} className="truncate font-display font-bold">
                       {viewer.name}
                     </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground">{t("memberId")}</span>
-                      <CopyableMemberId memberId={viewer.memberId} compact />
-                    </div>
+                    {viewer.role === "MEMBER" && viewer.memberId ? (
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">{t("memberId")}</span>
+                        <CopyableMemberId memberId={viewer.memberId} compact />
+                      </div>
+                    ) : null}
                   </div>
                   <button
                     type="button"
@@ -289,76 +293,78 @@ export function ProfileMenu({
                   </button>
                 ) : null}
 
-                <section aria-label={t("switchAccount")} className="mt-2 border-t border-border pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setSwitchOpen((current) => !current)}
-                    aria-expanded={switchOpen}
-                    aria-controls={`${dialogId}-accounts`}
-                    className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 py-1.5 text-left text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {t("switchAccount")}
-                    <ChevronDown
-                      className={cn("size-4 shrink-0 transition-transform", switchOpen && "rotate-180")}
-                      aria-hidden="true"
-                    />
-                  </button>
-                  {switchOpen ? (
-                    <div id={`${dialogId}-accounts`}>
-                      {accountsQuery.isLoading ? (
-                        <div className="flex min-h-11 items-center gap-3 px-3 text-sm text-muted-foreground">
-                          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                          {t("loadingAccounts")}
-                        </div>
-                      ) : null}
-                      {accountsQuery.data?.map((account) => (
-                        <button
-                          key={account.id}
-                          type="button"
-                          disabled={switchingId !== null || account.current}
-                          aria-current={account.current ? "true" : undefined}
-                          onClick={() => void switchAccount(account.memberId)}
-                          className="flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-                        >
-                          <UserAvatar
-                            name={account.name}
-                            src={account.image}
-                            className="size-9 shrink-0 rounded-full"
-                            textClassName="text-[11px]"
-                          />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold">{account.name}</span>
-                            <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                              <span className="font-mono" translate="no">
-                                {account.memberId}
-                              </span>
-                              <span>
-                                {account.status === "ACTIVE"
-                                  ? tm("active")
-                                  : account.status === "SUSPENDED"
-                                    ? tm("suspended")
-                                    : tm("inactive")}
+                {viewer.role === "MEMBER" ? (
+                  <section aria-label={t("switchAccount")} className="mt-2 border-t border-border pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setSwitchOpen((current) => !current)}
+                      aria-expanded={switchOpen}
+                      aria-controls={`${dialogId}-accounts`}
+                      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 py-1.5 text-left text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {t("switchAccount")}
+                      <ChevronDown
+                        className={cn("size-4 shrink-0 transition-transform", switchOpen && "rotate-180")}
+                        aria-hidden="true"
+                      />
+                    </button>
+                    {switchOpen ? (
+                      <div id={`${dialogId}-accounts`}>
+                        {accountsQuery.isLoading ? (
+                          <div className="flex min-h-11 items-center gap-3 px-3 text-sm text-muted-foreground">
+                            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                            {t("loadingAccounts")}
+                          </div>
+                        ) : null}
+                        {accountsQuery.data?.map((account) => (
+                          <button
+                            key={account.id}
+                            type="button"
+                            disabled={switchingId !== null || account.current}
+                            aria-current={account.current ? "true" : undefined}
+                            onClick={() => void switchAccount(account.memberId)}
+                            className="flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                          >
+                            <UserAvatar
+                              name={account.name}
+                              src={account.image}
+                              className="size-9 shrink-0 rounded-full"
+                              textClassName="text-[11px]"
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-semibold">{account.name}</span>
+                              <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                                <span className="font-mono" translate="no">
+                                  {account.memberId}
+                                </span>
+                                <span>
+                                  {account.status === "ACTIVE"
+                                    ? tm("active")
+                                    : account.status === "SUSPENDED"
+                                      ? tm("suspended")
+                                      : tm("inactive")}
+                                </span>
                               </span>
                             </span>
-                          </span>
-                          {switchingId === account.memberId ? (
-                            <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden="true" />
-                          ) : account.current ? (
-                            <Check className="size-4 shrink-0 text-primary" aria-label={t("currentAccount")} />
-                          ) : null}
-                        </button>
-                      ))}
-                      {switchError ? (
-                        <p
-                          role="alert"
-                          className="mx-2 mt-1 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-300"
-                        >
-                          {switchError}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </section>
+                            {switchingId === account.memberId ? (
+                              <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden="true" />
+                            ) : account.current ? (
+                              <Check className="size-4 shrink-0 text-primary" aria-label={t("currentAccount")} />
+                            ) : null}
+                          </button>
+                        ))}
+                        {switchError ? (
+                          <p
+                            role="alert"
+                            className="mx-2 mt-1 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-300"
+                          >
+                            {switchError}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
 
                 <button
                   type="button"
@@ -379,7 +385,7 @@ export function ProfileMenu({
           )
         : null}
 
-      {cloneOpen ? (
+      {cloneOpen && viewer.role === "MEMBER" && viewer.memberId ? (
         <TeamCloneDialog
           viewerMemberId={viewer.memberId}
           onClose={() => setCloneOpen(false)}

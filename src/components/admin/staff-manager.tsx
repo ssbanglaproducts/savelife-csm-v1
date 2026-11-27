@@ -92,7 +92,7 @@ export function StaffManager({
     const needle = query.trim().toLowerCase();
     if (!needle) return staff;
     return staff.filter((account) =>
-      [account.fullName, account.email, account.memberId].some((value) =>
+      [account.fullName, account.email, account.phone].some((value) =>
         value.toLowerCase().includes(needle),
       ),
     );
@@ -286,7 +286,6 @@ export function StaffManager({
             ) : null
           }
         >
-          <AdminRecordField label={t("staffMemberId")} value={account.memberId} />
           <AdminRecordField
             label={t("staffPermissions")}
             value={String(account.permissions.length)}
@@ -323,7 +322,6 @@ export function StaffManager({
         headers={[
           t("staffName"),
           t("staffEmail"),
-          t("staffMemberId"),
           t("staffPermissions"),
           t("staffStatus"),
           t("staffActions"),
@@ -332,7 +330,7 @@ export function StaffManager({
       >
         {filtered.length === 0 ? (
           <tr>
-            <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">
+            <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
               {t("staffNoAccounts")}
             </td>
           </tr>
@@ -346,7 +344,6 @@ export function StaffManager({
               ) : null}
             </td>
             <td className="px-4 py-3 text-muted-foreground">{account.email}</td>
-            <td className="px-4 py-3 font-mono text-xs">{account.memberId}</td>
             <td className="px-4 py-3 tabular-nums">{account.permissions.length}</td>
             <td className="px-4 py-3">
               <StatusBadge

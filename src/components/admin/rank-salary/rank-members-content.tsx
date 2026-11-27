@@ -1,6 +1,7 @@
 import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { getLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
+import { requireMemberId } from "@/lib/member-id";
 import { prisma } from "@/lib/prisma";
 import { resolveRankBadgeImageUrl } from "@/lib/rank-art";
 import {
@@ -94,7 +95,7 @@ export async function RankMembersContent({ rankKey }: { rankKey?: SalaryRankKey 
 
     return {
       id: member.id,
-      memberDisplayId: member.memberId,
+      memberDisplayId: requireMemberId(member),
       memberName: member.fullName,
       phone: member.phone,
       profileImageUrl: member.profileImage,

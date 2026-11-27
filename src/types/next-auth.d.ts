@@ -9,7 +9,7 @@ declare module "next-auth" {
       id: string;
       principalId: string;
       role: Role;
-      memberId: string;
+      memberId: string | null;
       status: MemberStatus;
     } & DefaultSession["user"];
   }
@@ -17,7 +17,7 @@ declare module "next-auth" {
   interface User {
     principalId?: string;
     role: Role;
-    memberId: string;
+    memberId: string | null;
     status: MemberStatus;
     /** Server-validated account-switch marker; never accepted as an identity claim. */
     switchTo?: string;
@@ -29,7 +29,7 @@ declare module "next-auth/jwt" {
     id: string;
     principalId?: string;
     role: Role;
-    memberId: string;
+    memberId: string | null;
     status: MemberStatus;
   }
 }

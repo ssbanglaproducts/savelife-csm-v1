@@ -9,6 +9,7 @@ import { NomineeManager } from "@/components/member/nominee-manager";
 import { TPinResetForm } from "@/components/member/tpin-reset-form";
 import { statusLabelKey } from "@/components/member/status-labels";
 import { redirect } from "@/i18n/navigation";
+import { requireMemberId } from "@/lib/member-id";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -83,7 +84,7 @@ export default async function ProfilePage({
           <div className="rounded-2xl border border-border bg-background/40 p-4">
             <dt className="text-xs text-muted-foreground">{tm("memberId")}</dt>
             <dd className="mt-1.5">
-              <CopyableMemberId memberId={member.memberId} />
+              <CopyableMemberId memberId={requireMemberId(member)} />
             </dd>
           </div>
           <div className="min-w-0 rounded-2xl border border-border bg-background/40 p-4">

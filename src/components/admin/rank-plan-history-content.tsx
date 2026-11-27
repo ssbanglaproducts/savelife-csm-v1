@@ -23,7 +23,9 @@ import {
   type RankAchievementRowDto,
 } from "@/lib/rank-plan-dto";
 import { prisma } from "@/lib/prisma";
+import { requireMemberId } from "@/lib/member-id";
 import { rankAccent } from "@/lib/rank-accent";
+import { formatActorLabel } from "@/lib/services/actor-label";
 import { ensureDefaultRankPlan } from "@/lib/services/rank-rewards";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +50,7 @@ export async function RankPlanHistoryBody() {
       orderBy: { version: "desc" },
       include: {
         definitions: { orderBy: { sortOrder: "asc" } },
-        createdBy: { select: { memberId: true, fullName: true } },
+        createdBy: { select: { memberId: true, fullName: true, email: true } },
       },
     }),
     prisma.rankAchievement.findMany({
@@ -63,7 +65,7 @@ export async function RankPlanHistoryBody() {
 
   const achievementRows: RankAchievementRowDto[] = achievements.map((row) => ({
     id: row.id,
-    member: `${row.member.fullName} (${row.member.memberId})`,
+    member: `${row.member.fullName} (${requireMemberId(row.member)})`,
     rankKey: row.rankKey,
     rankName: row.rankNameSnapshot,
     rankNameBn: row.rankNameBnSnapshot,
@@ -117,11 +119,7 @@ export async function RankPlanHistoryBody() {
                 />
                 <PlanFact
                   label={ta("rankConfigUpdatedBy")}
-                  value={
-                    version.createdBy
-                      ? `${version.createdBy.fullName} (${version.createdBy.memberId})`
-                      : "—"
-                  }
+                  value={formatActorLabel(version.createdBy)}
                 />
               </dl>
 

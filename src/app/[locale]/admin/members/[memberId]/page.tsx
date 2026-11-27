@@ -23,6 +23,7 @@ import { CopyableMemberId } from "@/components/ui/copyable-member-id";
 import { StatCard } from "@/components/ui/stat-card";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatSP, formatTaka } from "@/lib/money";
+import { requireMemberId } from "@/lib/member-id";
 import { prisma } from "@/lib/prisma";
 import { localizedRankName } from "@/lib/rank-label";
 import { getMemberRankSummaries } from "@/lib/services/member-rank-summary";
@@ -111,6 +112,7 @@ export default async function AdminMemberDetailPage({
     },
   });
   if (!member) notFound();
+  const displayMemberId = requireMemberId(member);
 
   const sponsor = member.sponsor?.role === "MEMBER" ? member.sponsor : null;
   const placementParent =
@@ -206,7 +208,7 @@ export default async function AdminMemberDetailPage({
       <AdminPageIntro
         eyebrow={tn("admin")}
         title={member.fullName}
-        intro={`${member.memberId} · ${tm(memberStatusKey(member.status))}`}
+        intro={`${displayMemberId} · ${tm(memberStatusKey(member.status))}`}
         icon={<Users className="size-3.5" aria-hidden="true" />}
       />
 
@@ -223,7 +225,7 @@ export default async function AdminMemberDetailPage({
           <MemberDetailActions
             member={{
               id: member.id,
-              memberId: member.memberId,
+              memberId: displayMemberId,
               name: member.fullName,
               status: member.status,
               profileImage: member.profileImage,
@@ -246,7 +248,7 @@ export default async function AdminMemberDetailPage({
                 />
               </div>
               <div className="mt-1.5">
-                <CopyableMemberId memberId={member.memberId} compact />
+                <CopyableMemberId memberId={displayMemberId} compact />
               </div>
             </div>
           </div>

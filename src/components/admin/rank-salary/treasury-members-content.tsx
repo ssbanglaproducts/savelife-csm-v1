@@ -10,6 +10,7 @@ import {
 import { RankBadge } from "@/components/ui/rank-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Link, redirect } from "@/i18n/navigation";
+import { requireMemberId } from "@/lib/member-id";
 import { formatSP } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { resolveRankBadgeImageUrl } from "@/lib/rank-art";
@@ -80,9 +81,12 @@ export async function AdminTreasuryMembersContent({ rankKey }: { rankKey: string
   const run = buildSalaryTreasuryRun({
     config,
     balancePaisa: treasury?.balancePaisa ?? 0n,
-    entitlements: [...entitlements].sort((a, b) =>
-      a.member.fullName.localeCompare(b.member.fullName),
-    ),
+    entitlements: [...entitlements]
+      .sort((a, b) => a.member.fullName.localeCompare(b.member.fullName))
+      .map((row) => ({
+        ...row,
+        member: { ...row.member, memberId: requireMemberId(row.member) },
+      })),
   });
   const accent = salaryTreasuryAccent(rankKey);
   const badgeSrc = resolveRankBadgeImageUrl(badge?.badgeImageUrl ?? null, rankKey);

@@ -576,20 +576,32 @@ async function main() {
 
   const passwordHash = await bcrypt.hash("Admin@123456", 12);
 
-  const admin = await prisma.member.upsert({
-    where: { memberId: "SL000000" },
-    update: {},
-    create: {
-      memberId: "SL000000",
-      fullName: "Savelife Administrator",
-      email: "admin@savelife.test",
-      phone: "+8801000000000",
-      passwordHash,
-      role: "ADMIN",
-      status: "ACTIVE",
-      activationDate: new Date(),
+  // Keep the legacy SL000000 super admin untouched when reseeding an existing
+  // database. A freshly seeded admin is an identity only, with no member ID.
+  const adminEmail = "admin@savelife.test";
+  const existingAdmin = await prisma.member.findFirst({
+    where: {
+      OR: [
+        { memberId: "SL000000" },
+        { email: { equals: adminEmail, mode: "insensitive" } },
+      ],
     },
+    select: { id: true },
   });
+  const admin =
+    existingAdmin ??
+    (await prisma.member.create({
+      data: {
+        memberId: null,
+        fullName: "Savelife Administrator",
+        email: adminEmail,
+        phone: "+8801000000000",
+        passwordHash,
+        role: "ADMIN",
+        status: "ACTIVE",
+        activationDate: new Date(),
+      },
+    }));
 
   await prisma.wallet.upsert({
     where: { memberId: admin.id },

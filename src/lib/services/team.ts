@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { getNetworkDetails } from "./network";
 import { isInPlacementSubtree } from "./placement";
+import { requireMemberId } from "../member-id";
 import type { Paisa } from "../money";
 
 type Client = PrismaClient | Prisma.TransactionClient;
@@ -144,7 +145,7 @@ export async function getPlacementPath(
 
   return rows.map(({ id, memberId, fullName, profileImage, status }) => ({
     id,
-    memberId,
+    memberId: requireMemberId({ memberId }),
     fullName,
     profileImage,
     status,
@@ -315,8 +316,9 @@ export async function getTeamOverview(
   });
   if (!viewer) return null;
 
-  let scope = viewer;
-  let breadcrumbs: TeamPerson[] = [viewer];
+  const viewerPerson: TeamPerson = { ...viewer, memberId: requireMemberId(viewer) };
+  let scope = viewerPerson;
+  let breadcrumbs: TeamPerson[] = [viewerPerson];
   const requested = options.rootMemberId?.trim();
   if (requested && requested !== viewer.memberId) {
     const candidate = await client.member.findUnique({
@@ -326,7 +328,7 @@ export async function getTeamOverview(
     if (!candidate) return null;
     const path = await getPlacementPath(client, candidate.id, viewer.id);
     if (path.length === 0) return null;
-    scope = candidate;
+    scope = { ...candidate, memberId: requireMemberId(candidate) };
     breadcrumbs = path;
   }
 
@@ -350,7 +352,7 @@ export async function getTeamOverview(
     const occupied = Math.min(3, child._count.placementChildren);
     directory.push({
       id: child.id,
-      memberId: child.memberId,
+      memberId: requireMemberId(child),
       fullName: child.fullName,
       profileImage: child.profileImage,
       status: child.status,

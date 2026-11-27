@@ -10,6 +10,7 @@ import {
 } from "@/components/admin/admin-ui";
 import { SalaryRunButton } from "@/components/admin/salary-run-button";
 import { SalaryTreasuryCards } from "@/components/admin/salary-treasury-cards";
+import { requireMemberId } from "@/lib/member-id";
 import { formatSP } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { SALARY_RANK_KEYS, type SalaryRankKey } from "@/lib/salary";
@@ -66,7 +67,12 @@ export async function SalaryTreasuriesBody() {
       const run = buildSalaryTreasuryRun({
         config: salaryPlan.configs[rankKey],
         balancePaisa,
-        entitlements: entitlements.filter((row) => row.rankKey === rankKey),
+        entitlements: entitlements
+          .filter((row) => row.rankKey === rankKey)
+          .map((row) => ({
+            ...row,
+            member: { ...row.member, memberId: requireMemberId(row.member) },
+          })),
       });
       return [
         rankKey,

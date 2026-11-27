@@ -2,6 +2,7 @@ import { getAdminAccess, hasAdminPermission } from "@/lib/admin-access";
 import { getLocale, getTranslations } from "next-intl/server";
 import { AdminSection, type StatusTone } from "@/components/admin/admin-ui";
 import { redirect } from "@/i18n/navigation";
+import { requireMemberId } from "@/lib/member-id";
 import { formatSP } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { formatSalaryDate, salaryDateKey } from "@/lib/salary-display";
@@ -68,7 +69,7 @@ export async function SalaryPaymentRecordsBody() {
 
     return {
       id: payment.id,
-      memberDisplayId: payment.member.memberId,
+      memberDisplayId: requireMemberId(payment.member),
       memberName: payment.member.fullName,
       profileImageUrl: payment.member.profileImage,
       rankKey: payment.rankKey,

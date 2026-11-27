@@ -12,7 +12,7 @@ export type AdminRole = "ADMIN" | "STAFF";
 
 export type AdminAccess = {
   id: string;
-  memberId: string;
+  memberId: string | null;
   role: AdminRole;
   name: string;
   email: string | null;
@@ -87,7 +87,7 @@ export async function requireAdminApiSession(
 ): Promise<{
   user: {
     id: string;
-    memberId: string;
+    memberId: string | null;
     role: AdminRole;
     name: string;
     email: string | null;

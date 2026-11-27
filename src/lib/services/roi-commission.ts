@@ -3,6 +3,7 @@ import {
   LedgerEntryType as LedgerType,
   WalletCategory as Category,
 } from "../../generated/prisma/enums";
+import { requireMemberId } from "../member-id";
 import { applyBps, sumPaisa, type Paisa } from "../money";
 import { invalidInput } from "./errors";
 import {
@@ -107,7 +108,12 @@ export async function loadRoiSponsorIndex(
     where: { role: "MEMBER" },
     select: { id: true, memberId: true, fullName: true, sponsorId: true },
   });
-  return new Map(members.map((member) => [member.id, member] as const));
+  return new Map(
+    members.map((member) => [
+      member.id,
+      { ...member, memberId: requireMemberId(member) },
+    ] as const),
+  );
 }
 
 /**

@@ -5,7 +5,7 @@ import {
 
 export type StaffAccountView = {
   id: string;
-  memberId: string;
+  memberId: string | null;
   fullName: string;
   email: string;
   phone: string;
@@ -18,7 +18,7 @@ export type StaffAccountView = {
 
 type StaffRow = {
   id: string;
-  memberId: string;
+  memberId: string | null;
   fullName: string;
   email: string;
   phone: string;

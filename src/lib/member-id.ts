@@ -7,6 +7,19 @@ export function normalizeMemberId(value: string): string {
 }
 
 /**
+ * Narrow a member-scoped database row back to a permanent Member ID.
+ *
+ * Admin and staff identities have no Member ID and are never valid in sponsor,
+ * placement, reward, or money-flow DTOs. Call this only after the query is
+ * scoped to `role: "MEMBER"` so a corrupted row fails loudly instead of
+ * silently entering a member-only aggregate.
+ */
+export function requireMemberId(member: { memberId: string | null }): string {
+  if (!member.memberId) throw new Error("MEMBER_ID_REQUIRED");
+  return member.memberId;
+}
+
+/**
  * Reserve the next permanent Savelife Member ID.
  *
  * The upsert runs as one statement so concurrent registrations cannot receive

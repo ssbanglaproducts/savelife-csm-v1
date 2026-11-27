@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { writeAuditLog } from "@/lib/audit";
-import { allocateMemberId, normalizeMemberId } from "@/lib/member-id";
+import { allocateMemberId, normalizeMemberId, requireMemberId } from "@/lib/member-id";
 import { prisma } from "@/lib/prisma";
 import { getSponsorRegistrationError } from "@/lib/registration";
 import {
@@ -173,8 +173,9 @@ export async function POST(request: Request) {
       return created;
     });
 
+    const registeredMemberId = requireMemberId(member);
     try {
-      await notifyWelcome(member.id, member.memberId);
+      await notifyWelcome(member.id, registeredMemberId);
     } catch (notificationError) {
       console.error("Unable to send welcome notification", notificationError);
     }
@@ -186,7 +187,7 @@ export async function POST(request: Request) {
       entityType: "Member",
       entityId: member.id,
       after: {
-        memberId: member.memberId,
+        memberId: registeredMemberId,
         sponsorMemberId,
         placementMemberId,
         placementSlot,

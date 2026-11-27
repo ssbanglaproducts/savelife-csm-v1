@@ -283,7 +283,8 @@ export type SalaryPlanChangeDto = {
 };
 
 export type SalaryPlanActorDto = {
-  memberId: string;
+  memberId: string | null;
+  email: string | null;
   name: string;
 } | null;
 
@@ -305,7 +306,7 @@ export type SalaryPlanMeta = {
   effectiveFrom?: Date | null;
   activatedAt?: Date | null;
   createdAt?: Date | null;
-  createdBy?: { memberId: string; fullName: string } | null;
+  createdBy?: { memberId: string | null; fullName: string; email?: string | null } | null;
   note?: string | null;
   approvedChanges?: unknown;
 };
@@ -334,7 +335,11 @@ export function serializeSalaryPlan(
     activatedAt: toIso(meta.activatedAt),
     createdAt: toIso(meta.createdAt),
     createdBy: meta.createdBy
-      ? { memberId: meta.createdBy.memberId, name: meta.createdBy.fullName }
+      ? {
+          memberId: meta.createdBy.memberId,
+          email: meta.createdBy.email ?? null,
+          name: meta.createdBy.fullName,
+        }
       : null,
     note: meta.note ?? null,
     approvedChanges: approvedChangesFromJson(meta.approvedChanges),
@@ -368,7 +373,7 @@ export type SalaryPlanVersionDto = SalaryPlanDto & {
 };
 
 type SalaryPlanVersionRecord = PlanWithDefinitions & {
-  createdBy?: { memberId: string; fullName: string } | null;
+  createdBy?: { memberId: string | null; fullName: string; email?: string | null } | null;
 };
 
 /** Full JSON representation of one immutable plan version for history views. */

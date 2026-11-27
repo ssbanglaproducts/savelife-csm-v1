@@ -24,7 +24,7 @@ export default async function EditSalaryPlanPage() {
     prisma.salaryPlanVersion.findFirst({
       where: { isActive: true },
       orderBy: { version: "desc" },
-      include: { createdBy: { select: { memberId: true, fullName: true } } },
+      include: { createdBy: { select: { memberId: true, fullName: true, email: true } } },
     }),
     prisma.rankDefinition.findMany({
       where: { planVersion: { isActive: true } },

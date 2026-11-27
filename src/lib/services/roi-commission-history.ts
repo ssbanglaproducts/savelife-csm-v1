@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "../../generated/prisma/client";
+import { requireMemberId } from "../member-id";
 import { DEFAULT_ROI_RATE_CONFIG, parseRoiRatesSetting } from "./roi-commission";
 
 /**
@@ -93,7 +94,10 @@ export async function loadRoiSponsorHistory(
   const page = positiveInt(filters.page, 1, 100_000);
   const pageSize = positiveInt(filters.pageSize, ROI_HISTORY_PAGE_SIZE, 100);
   const search = filters.q?.trim() ?? "";
-  const where: Prisma.RoiCommissionLineWhereInput = {};
+  const where: Prisma.RoiCommissionLineWhereInput = {
+    beneficiary: { role: "MEMBER" },
+    sourceMember: { role: "MEMBER" },
+  };
 
   if (search) {
     where.OR = [
@@ -137,11 +141,11 @@ export async function loadRoiSponsorHistory(
       createdAt: row.createdAt,
       month: row.distribution.month,
       beneficiary: {
-        memberId: row.beneficiary.memberId,
+        memberId: requireMemberId(row.beneficiary),
         fullName: row.beneficiary.fullName,
       },
       sourceMember: {
-        memberId: row.sourceMember.memberId,
+        memberId: requireMemberId(row.sourceMember),
         fullName: row.sourceMember.fullName,
       },
       investmentNumber: row.sourceInvestment.investmentNumber,
