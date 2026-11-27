@@ -2,13 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { ScrollText } from "lucide-react";
 import { auth } from "@/auth";
 import { redirect } from "@/i18n/navigation";
-import {
-  AdminPageIntro,
-  AdminSection,
-  EmptyState,
-  formatDate,
-  prettyJson,
-} from "@/components/admin/admin-ui";
+import { AdminPageIntro, formatDate, prettyJson } from "@/components/admin/admin-ui";
 import { AuditTable, type AuditRow } from "@/components/admin/audit-table";
 import { prisma } from "@/lib/prisma";
 
@@ -47,13 +41,7 @@ export default async function AdminAuditPage() {
         intro={ta("auditIntro")}
         icon={<ScrollText className="size-3.5" aria-hidden="true" />}
       />
-      <AdminSection id="audit" title={ta("overview")}>
-        {rows.length === 0 ? (
-          <EmptyState message={ta("noActivity")} />
-        ) : (
-          <AuditTable rows={rows} />
-        )}
-      </AdminSection>
+      <AuditTable rows={rows} />
     </div>
   );
 }

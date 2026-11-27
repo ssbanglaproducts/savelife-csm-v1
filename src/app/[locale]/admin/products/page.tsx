@@ -2,7 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Package } from "lucide-react";
 import { auth } from "@/auth";
 import { redirect } from "@/i18n/navigation";
-import { AdminPageIntro, AdminSection } from "@/components/admin/admin-ui";
+import { AdminPageIntro } from "@/components/admin/admin-ui";
 import {
   ProductManager,
   type AdminProductView,
@@ -88,9 +88,7 @@ export default async function AdminProductsPage() {
         intro={ta("productsIntro")}
         icon={<Package className="size-3.5" aria-hidden="true" />}
       />
-      <AdminSection id="products" title={ta("productsTitle")}>
-        <ProductManager products={productViews} categories={categories} />
-      </AdminSection>
+      <ProductManager products={productViews} categories={categories} />
     </div>
   );
 }

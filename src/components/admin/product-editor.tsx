@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Image from "next/image";
 import {
@@ -10,6 +10,8 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Search,
+  SlidersHorizontal,
   Star,
   Trash2,
   Video,
@@ -74,6 +76,7 @@ type SpecificationDraft = {
   valueBn: string;
 };
 type ImageDraft = { key: string; url: string; alt: string; isPrimary: boolean };
+type ProductStatusTab = "ALL" | "ACTIVE" | "INACTIVE";
 
 type Draft = {
   name: string;
@@ -208,24 +211,223 @@ export function ProductManager({
   const t = useTranslations("adminPanel");
   const tc = useTranslations("common");
   const locale = useLocale();
+  const filterRef = useRef<HTMLDivElement>(null);
+
   const [editing, setEditing] = useState<AdminProductView | "new" | null>(null);
+  const [statusTab, setStatusTab] = useState<ProductStatusTab>("ALL");
+  const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [featuredFilter, setFeaturedFilter] = useState<"ALL" | "YES" | "NO">("ALL");
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const filteredProducts = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return products.filter((product) => {
+      if (statusTab === "ACTIVE" && !product.isActive) return false;
+      if (statusTab === "INACTIVE" && product.isActive) return false;
+      if (categoryFilter !== "ALL" && product.categoryId !== categoryFilter) return false;
+      if (featuredFilter === "YES" && !product.isFeatured) return false;
+      if (featuredFilter === "NO" && product.isFeatured) return false;
+      if (inStockOnly && product.stock <= 0) return false;
+      if (!needle) return true;
+      const category = categories.find((item) => item.id === product.categoryId);
+      const categoryName = locale === "bn" ? (category?.nameBn ?? category?.name) : category?.name;
+      return [
+        product.name,
+        product.nameBn ?? "",
+        product.slug,
+        product.sku ?? "",
+        product.brand ?? "",
+        product.subcategory ?? "",
+        categoryName ?? "",
+      ].some((value) => value.toLowerCase().includes(needle));
+    });
+  }, [categories, categoryFilter, featuredFilter, inStockOnly, locale, products, query, statusTab]);
+
+  const counts = useMemo(
+    () => ({
+      ALL: products.length,
+      ACTIVE: products.filter((product) => product.isActive).length,
+      INACTIVE: products.filter((product) => !product.isActive).length,
+    }),
+    [products],
+  );
+
+  const tabLabels: Record<ProductStatusTab, string> = {
+    ALL: t("productAll"),
+    ACTIVE: t("productActive"),
+    INACTIVE: t("productInactive"),
+  };
+
+  const activeFilterCount =
+    (categoryFilter === "ALL" ? 0 : 1) +
+    (featuredFilter === "ALL" ? 0 : 1) +
+    (inStockOnly ? 1 : 0);
+
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!filterRef.current?.contains(event.target as Node)) setFiltersOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFiltersOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [filtersOpen]);
+
+  function resetFilters() {
+    setStatusTab("ALL");
+    setQuery("");
+    setCategoryFilter("ALL");
+    setFeaturedFilter("ALL");
+    setInStockOnly(false);
+    setFiltersOpen(false);
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button type="button" onClick={() => setEditing("new")}>
-          <Plus className="size-4" aria-hidden="true" />
-          {t("addProduct")}
-        </Button>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div
+          role="group"
+          aria-label={t("productStatusTabs")}
+          className="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-[var(--glass)] p-1"
+        >
+          {(["ALL", "ACTIVE", "INACTIVE"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              aria-pressed={statusTab === tab}
+              onClick={() => setStatusTab(tab)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                statusTab === tab
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+              )}
+            >
+              {tabLabels[tab]}
+              <span className="ml-1.5 tabular-nums opacity-70">{counts[tab]}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label className="relative w-full sm:w-64">
+            <span className="sr-only">{t("productSearchPlaceholder")}</span>
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t("productSearchPlaceholder")}
+              className={cn(adminInputClass, "pl-10")}
+            />
+          </label>
+
+          <div ref={filterRef} className="relative shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              aria-expanded={filtersOpen}
+              aria-controls="admin-product-filters"
+              onClick={() => setFiltersOpen((open) => !open)}
+            >
+              <SlidersHorizontal className="size-4" aria-hidden="true" />
+              {tc("filter")}
+              {activeFilterCount > 0 ? (
+                <span className="grid size-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </Button>
+
+            {filtersOpen ? (
+              <div
+                id="admin-product-filters"
+                role="group"
+                aria-label={tc("filter")}
+                className="absolute right-0 z-20 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-border bg-[var(--glass-strong)] p-3 shadow-xl backdrop-blur-xl"
+              >
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {t("productCategoryFilter")}
+                  <select
+                    value={categoryFilter}
+                    onChange={(event) => setCategoryFilter(event.target.value)}
+                    className={cn(adminInputClass, "mt-1 h-9 text-xs normal-case tracking-normal")}
+                  >
+                    <option value="ALL">{t("allCategories")}</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {locale === "bn" ? (category.nameBn ?? category.name) : category.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="mt-3 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {t("productFeaturedFilter")}
+                  <select
+                    value={featuredFilter}
+                    onChange={(event) => setFeaturedFilter(event.target.value as "ALL" | "YES" | "NO")}
+                    className={cn(adminInputClass, "mt-1 h-9 text-xs normal-case tracking-normal")}
+                  >
+                    <option value="ALL">{t("productAll")}</option>
+                    <option value="YES">{t("featuredOnly")}</option>
+                    <option value="NO">{t("notFeaturedOnly")}</option>
+                  </select>
+                </label>
+
+                <label className="mt-3 flex items-center gap-2 text-xs font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={inStockOnly}
+                    onChange={(event) => setInStockOnly(event.target.checked)}
+                    className="size-4 rounded border-border accent-[var(--primary)]"
+                  />
+                  {t("inStockOnly")}
+                </label>
+
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
+                    {t("filterReset")}
+                  </Button>
+                  <Button type="button" size="sm" onClick={() => setFiltersOpen(false)}>
+                    {t("filterApply")}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <Button type="button" onClick={() => setEditing("new")}>
+            <Plus className="size-4" aria-hidden="true" />
+            {t("addProduct")}
+          </Button>
+        </div>
       </div>
 
-      {products.length === 0 ? (
+      {activeFilterCount > 0 || query || statusTab !== "ALL" ? (
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {t("visibleCount", { count: filteredProducts.length, total: products.length })}
+        </p>
+      ) : null}
+
+      {filteredProducts.length === 0 ? (
         <p className="glass rounded-2xl px-5 py-10 text-center text-sm text-muted-foreground">
           {tc("noResults")}
         </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {products.map((product) => {
+          {filteredProducts.map((product) => {
             const primary = product.images.find((image) => image.isPrimary) ?? product.images[0];
             const hasVideo = Boolean(parseProductVideo(product.video));
             return (

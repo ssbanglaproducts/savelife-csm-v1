@@ -37,9 +37,7 @@ export default async function AdminAnnouncementsPage() {
         icon={<Megaphone className="size-3.5" aria-hidden="true" />}
       />
 
-      <AdminSection id="create" title={t("createTitle")}>
-        <AnnouncementsForm />
-      </AdminSection>
+      <AnnouncementsForm />
 
       <AdminSection id="recent" title={t("recent")}>
         {broadcasts.length === 0 ? (

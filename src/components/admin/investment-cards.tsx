@@ -6,6 +6,7 @@ import { ChevronRight, Landmark, Search } from "lucide-react";
 import { EmptyState, StatusBadge, adminInputClass, type StatusTone } from "@/components/admin/admin-ui";
 import type { InvestmentAudience } from "@/lib/services/admin-investments";
 import { Link } from "@/i18n/navigation";
+import { cn } from "@/lib/utils";
 
 export type InvestmentLedgerEntry = {
   id: string;
@@ -115,6 +116,8 @@ export type InvestmentCardRow = {
 
 export type InvestmentInstallment = InvestmentCardRow["installments"][number];
 
+type InvestmentStatusTab = "ALL" | "ACTIVE" | "INACTIVE";
+
 const railTone: Record<StatusTone, string> = {
   success: "bg-primary",
   warning: "bg-amber-500",
@@ -138,12 +141,34 @@ export function InvestmentCards({
   const t = useTranslations(audience === "admin" ? "adminPanel" : "memberPanel");
   const tc = useTranslations("common");
   const [query, setQuery] = useState("");
+  const [statusTab, setStatusTab] = useState<InvestmentStatusTab>("ALL");
+
+  const showStatusTabs = audience === "admin" && !statusFilter;
+  const tabCounts = useMemo(
+    () => ({
+      ALL: rows.length,
+      ACTIVE: rows.filter((row) => row.status === "ACTIVE").length,
+      INACTIVE: rows.filter((row) => row.status !== "ACTIVE").length,
+    }),
+    [rows],
+  );
+  const tabLabels: Record<InvestmentStatusTab, string> = {
+    ALL: t("investmentAll"),
+    ACTIVE: t("investmentActive"),
+    INACTIVE: t("investmentInactive"),
+  };
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
+    const tabScopedRows =
+      !showStatusTabs || statusTab === "ALL"
+        ? rows
+        : statusTab === "ACTIVE"
+          ? rows.filter((row) => row.status === "ACTIVE")
+          : rows.filter((row) => row.status !== "ACTIVE");
     const statusScopedRows = statusFilter
-      ? rows.filter((row) => row.status === statusFilter)
-      : rows;
+      ? tabScopedRows.filter((row) => row.status === statusFilter)
+      : tabScopedRows;
     const scopedRows = pendingProofOnly
       ? statusScopedRows.filter((row) => row.hasPendingProof)
       : statusScopedRows;
@@ -161,7 +186,7 @@ export function InvestmentCards({
       }
       return values.some((value) => value.toLowerCase().includes(needle));
     });
-  }, [audience, pendingProofOnly, query, rows, statusFilter]);
+  }, [audience, pendingProofOnly, query, rows, showStatusTabs, statusFilter, statusTab]);
 
   const basePath = audience === "admin" ? "/admin/investments" : "/member/investments";
 
@@ -169,6 +194,31 @@ export function InvestmentCards({
     <div>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">
+          {showStatusTabs ? (
+            <div
+              role="group"
+              aria-label={t("investmentStatusTabLabel")}
+              className="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-[var(--glass)] p-1"
+            >
+              {(["ALL", "ACTIVE", "INACTIVE"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  aria-pressed={statusTab === tab}
+                  onClick={() => setStatusTab(tab)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    statusTab === tab
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
+                >
+                  {tabLabels[tab]}
+                  <span className="ml-1.5 tabular-nums opacity-70">{tabCounts[tab]}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
           {audience === "admin" ? (
             <Link
               href={pendingProofOnly ? basePath : `${basePath}?proof=pending`}

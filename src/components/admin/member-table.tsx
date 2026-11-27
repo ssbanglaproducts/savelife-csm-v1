@@ -1,9 +1,20 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Ban, CheckCircle2, Copy, Eye, Info, MoreVertical, RotateCcw, Wallet } from "lucide-react";
+import {
+  Ban,
+  CheckCircle2,
+  Copy,
+  Eye,
+  Info,
+  MoreVertical,
+  RotateCcw,
+  Search,
+  SlidersHorizontal,
+  Wallet,
+} from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { copyText } from "@/lib/clipboard";
 import {
@@ -15,8 +26,9 @@ import {
   memberStatusKey,
   statusTone,
 } from "./admin-ui";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { RankBadge } from "@/components/ui/rank-badge";
+import { cn } from "@/lib/utils";
 import {
   MemberActionDialog,
   MemberAvatar,
@@ -53,19 +65,60 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
   const tc = useTranslations("common");
   const tm = useTranslations("memberPanel");
   const fieldId = useId();
+  const filterRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [rankFilter, setRankFilter] = useState("ALL");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [menuRowId, setMenuRowId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<MemberActionState | null>(null);
 
+  const statusOptions = useMemo(
+    () => ["ACTIVE", "INACTIVE", "SUSPENDED"].filter((status) => rows.some((row) => row.status === status)),
+    [rows],
+  );
+  const rankOptions = useMemo(
+    () =>
+      Array.from(new Set(rows.map((row) => row.rankName))).sort((a, b) => a.localeCompare(b)),
+    [rows],
+  );
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter((row) =>
-      [row.memberId, row.name, row.rankName, row.email, row.phone, row.status].some((value) =>
+    return rows.filter((row) => {
+      if (statusFilter !== "ALL" && row.status !== statusFilter) return false;
+      if (rankFilter !== "ALL" && row.rankName !== rankFilter) return false;
+      if (!needle) return true;
+      return [row.memberId, row.name, row.rankName, row.email, row.phone, row.status].some((value) =>
         value.toLowerCase().includes(needle),
-      ),
-    );
-  }, [query, rows]);
+      );
+    });
+  }, [query, rankFilter, rows, statusFilter]);
+
+  const activeFilterCount =
+    (statusFilter === "ALL" ? 0 : 1) + (rankFilter === "ALL" ? 0 : 1);
+
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!filterRef.current?.contains(event.target as Node)) setFiltersOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFiltersOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [filtersOpen]);
+
+  function resetFilters() {
+    setStatusFilter("ALL");
+    setRankFilter("ALL");
+    setFiltersOpen(false);
+  }
 
   function teamTooltip(row: MemberRow): string {
     const leg1 = row.levels.find((level) => level.level === 1);
@@ -194,18 +247,92 @@ export function MemberTable({ rows }: { rows: MemberRow[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="glass rounded-2xl p-4">
-        <label htmlFor={`${fieldId}-search`} className="block text-sm font-semibold">
-          {tc("search")}
-        </label>
-        <input
-          id={`${fieldId}-search`}
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={tc("search")}
-          className={`${adminInputClass} mt-2 h-12`}
-        />
+      <div className="glass rounded-xl p-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">{tc("search")}</span>
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <input
+              id={`${fieldId}-search`}
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={tc("search")}
+              className={cn(adminInputClass, "pl-10")}
+            />
+          </label>
+
+          <div ref={filterRef} className="relative shrink-0">
+            <button
+              type="button"
+              aria-expanded={filtersOpen}
+              aria-controls={`${fieldId}-filters`}
+              onClick={() => setFiltersOpen((open) => !open)}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-border bg-[var(--glass)] px-4 text-sm font-semibold transition-colors hover:border-primary/50 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto"
+            >
+              <SlidersHorizontal className="size-4" aria-hidden="true" />
+              {tc("filter")}
+              {activeFilterCount > 0 ? (
+                <span className="grid size-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </button>
+
+            {filtersOpen ? (
+              <div
+                id={`${fieldId}-filters`}
+                role="group"
+                aria-label={tc("filter")}
+                className="absolute right-0 z-20 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-border bg-[var(--glass-strong)] p-3 shadow-xl backdrop-blur-xl"
+              >
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {t("memberStatusFilter")}
+                  <select
+                    value={statusFilter}
+                    onChange={(event) => setStatusFilter(event.target.value)}
+                    className={cn(adminInputClass, "mt-1 h-9 text-xs normal-case tracking-normal")}
+                  >
+                    <option value="ALL">{t("allStatuses")}</option>
+                    {statusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {tm(memberStatusKey(status))}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="mt-3 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {t("memberRankFilter")}
+                  <select
+                    value={rankFilter}
+                    onChange={(event) => setRankFilter(event.target.value)}
+                    className={cn(adminInputClass, "mt-1 h-9 text-xs normal-case tracking-normal")}
+                  >
+                    <option value="ALL">{t("allRanks")}</option>
+                    {rankOptions.map((rank) => (
+                      <option key={rank} value={rank}>
+                        {rank}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
+                    {t("filterReset")}
+                  </Button>
+                  <Button type="button" size="sm" onClick={() => setFiltersOpen(false)}>
+                    {t("filterApply")}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       {filtered.length === 0 ? (

@@ -1,5 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { ShoppingBag } from "lucide-react";
+import { Search, ShoppingBag, SlidersHorizontal, X } from "lucide-react";
+import type { Prisma } from "@/generated/prisma/client";
 import { auth } from "@/auth";
 import { Link, redirect } from "@/i18n/navigation";
 import {
@@ -8,6 +9,7 @@ import {
   AdminTable,
   EmptyState,
   StatusBadge,
+  adminInputClass,
   adminStatusKey,
   formatDate,
   statusTone,
@@ -19,7 +21,7 @@ import {
 } from "@/components/admin/action-forms";
 import { AdminActionDialogButton } from "@/components/admin/admin-action-dialog-button";
 import { OrderRecords, type OrderRecord } from "@/components/admin/order-records";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { formatTaka } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
@@ -27,9 +29,30 @@ import { cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 type OrderQuery = {
+  q?: string | string[] | undefined;
   proof?: string | string[] | undefined;
   fulfillment?: string | string[] | undefined;
+  status?: string | string[] | undefined;
 };
+
+type FilterKey = keyof OrderQuery;
+type FilterValues = Record<FilterKey, string | undefined>;
+
+const ORDER_STATUSES = [
+  "PENDING",
+  "CONFIRMED",
+  "PROCESSING",
+  "SHIPPED",
+  "OUT_FOR_DELIVERY",
+  "PICKED_UP",
+  "DELIVERED",
+  "CANCELLED",
+  "RETURNED",
+] as const;
+
+function firstValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 export default async function AdminOrdersPage({
   searchParams,
@@ -47,17 +70,46 @@ export default async function AdminOrdersPage({
   ]);
   if (session?.user?.role !== "ADMIN") redirect({ href: "/admin-login", locale });
 
-  const pendingProofOnly = query.proof === "pending";
+  const search = (firstValue(query.q) ?? "").trim().slice(0, 120);
+  const pendingProofOnly = firstValue(query.proof) === "pending";
+  const fulfillmentValue = firstValue(query.fulfillment);
   const fulfillment =
-    query.fulfillment === "OFFICE_PICKUP" || query.fulfillment === "HOME_DELIVERY"
-      ? query.fulfillment
+    fulfillmentValue === "OFFICE_PICKUP" || fulfillmentValue === "HOME_DELIVERY"
+      ? fulfillmentValue
       : undefined;
+  const statusValue = firstValue(query.status);
+  const status = ORDER_STATUSES.find((value) => value === statusValue);
+
+  const where: Prisma.OrderWhereInput = {
+    ...(pendingProofOnly ? { paymentProofs: { some: { status: "PENDING" } } } : {}),
+    ...(fulfillment ? { fulfillmentType: fulfillment } : {}),
+    ...(status ? { status } : {}),
+    ...(search
+      ? {
+          OR: [
+            { orderNumber: { contains: search, mode: "insensitive" } },
+            { trackingNumber: { contains: search, mode: "insensitive" } },
+            { courierName: { contains: search, mode: "insensitive" } },
+            {
+              member: {
+                is: {
+                  OR: [
+                    { fullName: { contains: search, mode: "insensitive" } },
+                    { email: { contains: search, mode: "insensitive" } },
+                    { memberId: { contains: search, mode: "insensitive" } },
+                  ],
+                },
+              },
+            },
+            { paymentProofs: { some: { transactionRef: { contains: search, mode: "insensitive" } } } },
+            { items: { some: { productName: { contains: search, mode: "insensitive" } } } },
+          ],
+        }
+      : {}),
+  };
 
   const orders = await prisma.order.findMany({
-    where: {
-      ...(pendingProofOnly ? { paymentProofs: { some: { status: "PENDING" } } } : {}),
-      ...(fulfillment ? { fulfillmentType: fulfillment } : {}),
-    },
+    where,
     orderBy: { placedAt: "desc" },
     include: {
       member: { select: { fullName: true, email: true } },
@@ -65,13 +117,36 @@ export default async function AdminOrdersPage({
     },
   });
 
-  const filterHref = (options: { proof?: string; fulfillment?: string }) => {
+  const currentFilters: FilterValues = {
+    q: search || undefined,
+    proof: pendingProofOnly ? "pending" : undefined,
+    fulfillment,
+    status,
+  };
+
+  const filterHref = (overrides: Partial<FilterValues> = {}) => {
+    const next = { ...currentFilters, ...overrides };
     const params = new URLSearchParams();
-    if (options.proof) params.set("proof", options.proof);
-    if (options.fulfillment) params.set("fulfillment", options.fulfillment);
+    for (const [key, value] of Object.entries(next)) {
+      if (value) params.set(key, value);
+    }
     const suffix = params.toString();
     return suffix ? `/admin/orders?${suffix}` : "/admin/orders";
   };
+
+  const activeFilterCount =
+    (search ? 1 : 0) + (pendingProofOnly ? 1 : 0) + (fulfillment ? 1 : 0) + (status ? 1 : 0);
+
+  const activeChips: { key: FilterKey; label: string; mono?: boolean }[] = [];
+  if (search) activeChips.push({ key: "q", label: `${tc("search")}: ${search}` });
+  if (pendingProofOnly) activeChips.push({ key: "proof", label: ta("pendingProofFilter") });
+  if (fulfillment) {
+    activeChips.push({
+      key: "fulfillment",
+      label: tpu(fulfillment === "OFFICE_PICKUP" ? "fulfillmentOfficePickup" : "fulfillmentHomeDelivery"),
+    });
+  }
+  if (status) activeChips.push({ key: "status", label: ta(adminStatusKey(status)), mono: true });
 
   const mobileRows: OrderRecord[] = orders.map((order) => ({
     id: order.id,
@@ -98,52 +173,125 @@ export default async function AdminOrdersPage({
         icon={<ShoppingBag className="size-3.5" aria-hidden="true" />}
       />
       <AdminSection id="orders" title={ta("overview")}>
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-          <Link
-            href={filterHref({ fulfillment })}
-            className={cn(buttonVariants({ variant: pendingProofOnly ? "outline" : "default", size: "sm" }))}
-          >
-            {ta("showAllRecords")}
-          </Link>
-          <Link
-            href={filterHref({ proof: "pending", fulfillment })}
-            className={cn(buttonVariants({ variant: pendingProofOnly ? "default" : "outline", size: "sm" }))}
-          >
-            {ta("pendingProofFilter")}
-          </Link>
-          <span className="mx-1 hidden w-px bg-border sm:block" aria-hidden="true" />
-          <Link
-            href={filterHref({ proof: pendingProofOnly ? "pending" : undefined })}
-            className={cn(buttonVariants({ variant: !fulfillment ? "default" : "outline", size: "sm" }))}
-          >
-            {ta("allFulfillment")}
-          </Link>
-          <Link
-            href={filterHref({ fulfillment: "OFFICE_PICKUP", proof: pendingProofOnly ? "pending" : undefined })}
-            className={cn(
-              buttonVariants({
-                variant: fulfillment === "OFFICE_PICKUP" ? "default" : "outline",
-                size: "sm",
-              }),
-            )}
-          >
-            {tpu("fulfillmentOfficePickup")}
-          </Link>
-          <Link
-            href={filterHref({ fulfillment: "HOME_DELIVERY", proof: pendingProofOnly ? "pending" : undefined })}
-            className={cn(
-              buttonVariants({
-                variant: fulfillment === "HOME_DELIVERY" ? "default" : "outline",
-                size: "sm",
-              }),
-            )}
-          >
-            {tpu("fulfillmentHomeDelivery")}
-          </Link>
-        </div>
+        <form method="get" className="glass rounded-xl p-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label className="relative min-w-0 flex-1">
+              <span className="sr-only">{ta("orderSearchPlaceholder")}</span>
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                name="q"
+                defaultValue={search}
+                placeholder={ta("orderSearchPlaceholder")}
+                className={cn(adminInputClass, "pl-10")}
+              />
+            </label>
+
+            <details className="relative shrink-0">
+              <summary
+                className={cn(
+                  "inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-[var(--glass)] px-4 text-sm font-semibold transition-colors hover:border-primary/50 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "[&::-webkit-details-marker]:hidden list-none",
+                )}
+              >
+                <SlidersHorizontal className="size-4" aria-hidden="true" />
+                {tc("filter")}
+                {activeFilterCount > 0 ? (
+                  <span className="grid size-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
+              </summary>
+              <div className="absolute right-0 z-20 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-border bg-[var(--glass-strong)] p-3 shadow-xl backdrop-blur-xl">
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {ta("proof")}
+                  <select
+                    name="proof"
+                    defaultValue={pendingProofOnly ? "pending" : ""}
+                    className={cn(adminInputClass, "mt-1 h-9 text-xs normal-case tracking-normal")}
+                  >
+                    <option value="">{ta("showAllRecords")}</option>
+                    <option value="pending">{ta("pendingProofFilter")}</option>
+                  </select>
+                </label>
+
+                <label className="mt-3 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {tpu("fulfillment")}
+                  <select
+                    name="fulfillment"
+                    defaultValue={fulfillment ?? ""}
+                    className={cn(adminInputClass, "mt-1 h-9 text-xs normal-case tracking-normal")}
+                  >
+                    <option value="">{ta("allFulfillment")}</option>
+                    <option value="OFFICE_PICKUP">{tpu("fulfillmentOfficePickup")}</option>
+                    <option value="HOME_DELIVERY">{tpu("fulfillmentHomeDelivery")}</option>
+                  </select>
+                </label>
+
+                <label className="mt-3 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {ta("orderStatusFilter")}
+                  <select
+                    name="status"
+                    defaultValue={status ?? ""}
+                    className={cn(adminInputClass, "mt-1 h-9 text-xs normal-case tracking-normal")}
+                  >
+                    <option value="">{ta("showAllRecords")}</option>
+                    {ORDER_STATUSES.map((value) => (
+                      <option key={value} value={value}>
+                        {ta(adminStatusKey(value))}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="mt-3 flex justify-end gap-2">
+                  <Link
+                    href="/admin/orders"
+                    className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+                  >
+                    {ta("filterReset")}
+                  </Link>
+                  <Button type="submit" size="sm">
+                    {ta("filterApply")}
+                  </Button>
+                </div>
+              </div>
+            </details>
+          </div>
+        </form>
+
+        {activeChips.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              {ta("activeFilters")}
+            </span>
+            {activeChips.map((chip) => (
+              <Link
+                key={chip.key}
+                href={filterHref({ [chip.key]: undefined } as Partial<FilterValues>)}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  chip.mono && "font-mono",
+                )}
+              >
+                {chip.label}
+                <X className="size-3" aria-hidden="true" />
+              </Link>
+            ))}
+            <Link
+              href="/admin/orders"
+              className="text-xs font-semibold text-primary hover:underline focus-visible:rounded focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {ta("clearAllFilters")}
+            </Link>
+          </div>
+        ) : null}
 
         {orders.length === 0 ? (
-          <EmptyState message={pendingProofOnly ? ta("noProofMatches") : ta("noOrders")} />
+          <EmptyState message={activeFilterCount > 0 ? tc("noResults") : ta("noOrders")} />
         ) : (
           <AdminTable
             caption={ta("ordersTitle")}
